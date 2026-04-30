@@ -611,56 +611,108 @@ function ManageMembersModal({ board, workspaceId, onClose }: { board: TicketBoar
     setMembers(p => p.map(m => m.user_id === userId ? { ...m, role: data.role } : m));
   }
 
+  const roleLabel = (role: string) => ({ viewer: 'Visualizador', member: 'Membro', manager: 'Manager' }[role] ?? role);
+  const roleColor = (role: string) => ({
+    viewer:  'bg-gray-100 text-gray-600',
+    member:  'bg-blue-50 text-blue-700',
+    manager: 'bg-indigo-100 text-indigo-700',
+  }[role] ?? 'bg-gray-100 text-gray-600');
+
+  const available = wsMembers.filter(m => !members.find(bm => bm.user_id === m.user_id));
+
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold">Membros do Board</h2>
-          <button onClick={onClose}><X className="w-5 h-5 text-gray-400" /></button>
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
+
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-gray-100">
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900">Membros do Board</h2>
+            <p className="text-xs text-gray-400 mt-0.5">{members.length} membro{members.length !== 1 ? 's' : ''}</p>
+          </div>
+          <button onClick={onClose} className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg">
+            <X className="w-5 h-5" />
+          </button>
         </div>
 
         {/* Add member */}
-        <div className="flex gap-2 mb-4">
-          <select value={addUserId} onChange={e => setAddUserId(e.target.value)} className="input flex-1 text-sm">
-            <option value="">Selecionar membro...</option>
-            {wsMembers.filter(m => !members.find(bm => bm.user_id === m.user_id)).map(m => (
-              <option key={m.user_id} value={m.user_id}>{m.name}</option>
-            ))}
-          </select>
-          <select value={addRole} onChange={e => setAddRole(e.target.value)} className="input text-sm">
-            <option value="viewer">Visualizador</option>
-            <option value="member">Membro</option>
-            <option value="manager">Manager</option>
-          </select>
-          <button onClick={handleAdd} disabled={!addUserId} className="btn-primary text-sm">Adicionar</button>
-        </div>
-
-        {/* Member list */}
-        <div className="space-y-2">
-          {members.map(m => (
-            <div key={m.user_id} className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 text-sm font-medium flex-shrink-0">
-                {m.name?.[0]?.toUpperCase() ?? '?'}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-900 truncate">{m.name}</p>
-                <p className="text-xs text-gray-500 truncate">{m.email}</p>
-              </div>
+        {available.length > 0 && (
+          <div className="px-6 py-4 border-b border-gray-100">
+            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Adicionar membro</p>
+            <div className="flex gap-2">
               <select
-                value={m.role}
-                onChange={e => handleRoleChange(m.user_id, e.target.value)}
-                className="input text-xs"
+                value={addUserId}
+                onChange={e => setAddUserId(e.target.value)}
+                className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-300"
+              >
+                <option value="">Selecionar pessoa...</option>
+                {available.map(m => (
+                  <option key={m.user_id} value={m.user_id}>{m.name} — {m.email}</option>
+                ))}
+              </select>
+              <select
+                value={addRole}
+                onChange={e => setAddRole(e.target.value)}
+                className="border border-gray-200 rounded-xl px-3 py-2 text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-200"
               >
                 <option value="viewer">Visualizador</option>
                 <option value="member">Membro</option>
                 <option value="manager">Manager</option>
               </select>
-              <button onClick={() => handleRemove(m.user_id)} className="text-gray-400 hover:text-red-500">
+              <button
+                onClick={handleAdd}
+                disabled={!addUserId}
+                className="btn-primary text-sm px-4 flex-shrink-0"
+              >
+                Adicionar
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Member list */}
+        <div className="px-6 py-4 space-y-1 max-h-72 overflow-y-auto">
+          {members.length === 0 && (
+            <p className="text-sm text-gray-400 text-center py-4">Nenhum membro adicionado</p>
+          )}
+          {members.map(m => (
+            <div key={m.user_id} className="flex items-center gap-3 py-2.5 px-3 rounded-xl hover:bg-gray-50 transition-colors group">
+              {/* Avatar */}
+              <div className="w-9 h-9 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 text-sm font-bold flex-shrink-0">
+                {m.name?.[0]?.toUpperCase() ?? '?'}
+              </div>
+
+              {/* Name + email */}
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-gray-900 truncate">{m.name}</p>
+                <p className="text-xs text-gray-400 truncate">{m.email}</p>
+              </div>
+
+              {/* Role selector */}
+              <select
+                value={m.role}
+                onChange={e => handleRoleChange(m.user_id, e.target.value)}
+                className={clsx(
+                  'text-xs font-medium px-2 py-1 rounded-lg border-0 cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-200',
+                  roleColor(m.role)
+                )}
+              >
+                <option value="viewer">Visualizador</option>
+                <option value="member">Membro</option>
+                <option value="manager">Manager</option>
+              </select>
+
+              {/* Remove */}
+              <button
+                onClick={() => handleRemove(m.user_id)}
+                className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-500 transition-all p-1 rounded"
+              >
                 <X className="w-4 h-4" />
               </button>
             </div>
           ))}
         </div>
+
       </div>
     </div>
   );
