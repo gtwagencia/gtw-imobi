@@ -174,7 +174,7 @@ export default function ConversationList({ workspaceId, selected, onSelect }: Pr
   );
 
   return (
-    <div className="w-full md:w-80 flex flex-col border-r border-gray-200 bg-white flex-shrink-0">
+    <div className="w-full flex flex-col border-r border-gray-200 bg-white">
 
       {/* Search + Filter */}
       <div className="p-3 border-b border-gray-100 space-y-2">

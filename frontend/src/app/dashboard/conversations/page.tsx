@@ -46,10 +46,10 @@ function ConversationsInner() {
 
   return (
     <div className="flex-1 flex overflow-hidden">
-      {/* Lista — oculta no mobile quando conversa está aberta */}
+      {/* Lista — sempre visível no desktop (w-80), oculta no mobile quando chat aberto */}
       <div className={clsx(
-        'flex-shrink-0',
-        selected ? 'hidden md:flex' : 'flex w-full md:w-80'
+        'md:w-80 md:flex-shrink-0 md:flex',
+        selected ? 'hidden' : 'flex w-full'
       )}>
         <ConversationList
           workspaceId={currentWorkspace.id}
