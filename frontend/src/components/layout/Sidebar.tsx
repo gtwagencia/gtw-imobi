@@ -87,15 +87,17 @@ export default function Sidebar() {
         />
       )}
 
-      {/* Sidebar — desktop: sempre visível e no fluxo; mobile: drawer fixo */}
+      {/* Sidebar
+          Desktop (md+): position static, no fluxo, sempre visível
+          Mobile: position fixed, fora do fluxo, desliza com translate */}
       <aside className={clsx(
-        'bg-gray-900 flex flex-col flex-shrink-0 transition-transform duration-300',
-        // Desktop: no fluxo normal, sempre visível
-        'hidden md:flex md:w-64 md:h-screen md:relative',
-        // Mobile: drawer fora do fluxo, desliza
-        isOpen
-          ? 'fixed inset-y-0 left-0 w-72 flex z-50'
-          : 'fixed inset-y-0 left-0 w-72 -translate-x-full z-50',
+        'flex flex-col flex-shrink-0 h-screen bg-gray-900 transition-transform duration-300',
+        // Desktop: no fluxo, tamanho fixo
+        'md:static md:w-64 md:translate-x-0',
+        // Mobile: fixed, desliza para dentro/fora
+        'fixed inset-y-0 left-0 w-72 z-50',
+        // Visibilidade mobile via translate (desktop sempre translate-x-0 acima)
+        isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0',
       )}>
       {/* Logo + botão fechar no mobile */}
       <div className="px-5 py-4 border-b border-gray-800">
