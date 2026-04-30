@@ -58,15 +58,13 @@ function ConversationsInner() {
         />
       </div>
 
-      {/* Chat — ocupa tudo no mobile, flex-1 no desktop */}
+      {/* Chat */}
       {selected ? (
-        <div className="flex-1 flex flex-col min-w-0">
-          <ChatWindow
-            conversation={selected}
-            onStatusChange={(updated) => setSelected(updated)}
-            onBack={() => setSelected(null)}
-          />
-        </div>
+        <ChatWindow
+          conversation={selected}
+          onStatusChange={(updated) => setSelected(updated)}
+          onBack={() => setSelected(null)}
+        />
       ) : (
         <div className="hidden md:flex flex-1 flex-col items-center justify-center text-center p-8 bg-gray-50">
           <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mb-4">

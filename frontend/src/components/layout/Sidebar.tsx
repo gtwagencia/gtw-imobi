@@ -79,7 +79,7 @@ export default function Sidebar() {
 
   return (
     <>
-      {/* Overlay mobile */}
+      {/* Overlay mobile — só aparece quando o drawer está aberto */}
       {isOpen && (
         <div
           className="fixed inset-0 bg-black/50 z-40 md:hidden"
@@ -87,14 +87,16 @@ export default function Sidebar() {
         />
       )}
 
-    <aside className={clsx(
-      'h-screen bg-gray-900 flex flex-col flex-shrink-0 transition-transform duration-300 z-50',
-      // Desktop: sempre visível, estático
-      'md:relative md:translate-x-0 md:w-64',
-      // Mobile: drawer fixo, esconde/mostra
-      'fixed top-0 left-0 bottom-0 w-72',
-      isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0',
-    )}>
+      {/* Sidebar — desktop: sempre visível e no fluxo; mobile: drawer fixo */}
+      <aside className={clsx(
+        'bg-gray-900 flex flex-col flex-shrink-0 transition-transform duration-300',
+        // Desktop: no fluxo normal, sempre visível
+        'hidden md:flex md:w-64 md:h-screen md:relative',
+        // Mobile: drawer fora do fluxo, desliza
+        isOpen
+          ? 'fixed inset-y-0 left-0 w-72 flex z-50'
+          : 'fixed inset-y-0 left-0 w-72 -translate-x-full z-50',
+      )}>
       {/* Logo + botão fechar no mobile */}
       <div className="px-5 py-4 border-b border-gray-800">
         <div className="flex items-center gap-3">
@@ -245,7 +247,7 @@ export default function Sidebar() {
           </button>
         </div>
       </div>
-    </aside>
+      </aside>
     </>
   );
 }
