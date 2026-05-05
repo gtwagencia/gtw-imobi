@@ -214,6 +214,15 @@ async function start() {
   await ensureBucket();
   server.listen(PORT, () => {
     logger.info(`GTW Platform API on port ${PORT}`);
+    logger.info('Integrations status', {
+      smtp_configured:   !!(process.env.SMTP_HOST   && process.env.SMTP_USER),
+      smtp_host:         process.env.SMTP_HOST        || '(não definido)',
+      smtp_user:         process.env.SMTP_USER        || '(não definido)',
+      smtp_pass_set:     !!process.env.SMTP_PASS,
+      google_configured: !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET),
+      google_client_id:  process.env.GOOGLE_CLIENT_ID  ? process.env.GOOGLE_CLIENT_ID.slice(0, 12) + '...' : '(não definido)',
+      app_url:           process.env.APP_URL            || '(não definido)',
+    });
     startJobs();
   });
 }
