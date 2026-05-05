@@ -4,9 +4,10 @@ import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/store/auth';
 import Header from '@/components/layout/Header';
 import api from '@/lib/api';
-import { User, Lock, Save, Eye, EyeOff, CheckCircle, AlertCircle, Calendar, Link2, Unlink } from 'lucide-react';
+import { User, Lock, Save, Eye, EyeOff, CheckCircle, AlertCircle, Calendar, Unlink, Mail, Send } from 'lucide-react';
 
-type GcalStatus = { connected: boolean; googleEmail: string | null; configured: boolean };
+type GcalStatus  = { connected: boolean; googleEmail: string | null; configured: boolean };
+type MailStatus  = { configured: boolean; host: string | null; from: string | null; user: string | null };
 
 type AlertType = { type: 'success' | 'error'; msg: string } | null;
 
@@ -73,6 +74,31 @@ export default function ProfilePage() {
       setGcalStatus(s => s ? { ...s, connected: false, googleEmail: null } : s);
     } finally {
       setGcalDisconnecting(false);
+    }
+  }
+
+  // ── Mail test ─────────────────────────────────────────
+  const [mailStatus,  setMailStatus]  = useState<MailStatus | null>(null);
+  const [mailTesting, setMailTesting] = useState(false);
+  const [mailResult,  setMailResult]  = useState<{ ok: boolean; message?: string; error?: string; hint?: string } | null>(null);
+
+  useEffect(() => {
+    api.get<MailStatus>('/integrations/mail/status')
+      .then(r => setMailStatus(r.data))
+      .catch(() => {});
+  }, []);
+
+  async function handleTestMail() {
+    setMailTesting(true);
+    setMailResult(null);
+    try {
+      const { data } = await api.post<{ ok: boolean; message: string }>('/integrations/mail/test');
+      setMailResult(data);
+    } catch (err: unknown) {
+      const d = (err as { response?: { data?: { ok: boolean; error?: string; hint?: string } } })?.response?.data;
+      setMailResult(d ?? { ok: false, error: 'Erro ao conectar com o servidor.' });
+    } finally {
+      setMailTesting(false);
     }
   }
 
@@ -335,6 +361,60 @@ export default function ProfilePage() {
                   </svg>
                   {gcalConnecting ? 'Aguardando autorização...' : 'Conectar Google Calendar'}
                 </button>
+              )}
+            </div>
+          )}
+
+          {/* ── E-mail (teste) ──────────────────────────────────── */}
+          {mailStatus && (
+            <div className="card p-6">
+              <h3 className="font-medium text-gray-900 mb-1 flex items-center gap-2">
+                <Mail className="w-4 h-4 text-gray-400" />
+                Notificações por E-mail
+              </h3>
+              <p className="text-xs text-gray-400 mb-4">
+                Tickets atribuídos, comentários e mudanças de prazo geram e-mails automáticos.
+              </p>
+
+              {!mailStatus.configured ? (
+                <p className="text-sm text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3">
+                  SMTP não configurado no servidor. Defina as variáveis <code className="font-mono text-xs">SMTP_HOST</code>, <code className="font-mono text-xs">SMTP_USER</code> e <code className="font-mono text-xs">SMTP_PASS</code>.
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  <div className="text-xs text-gray-500 bg-gray-50 rounded-lg px-3 py-2 space-y-0.5">
+                    {mailStatus.host && <p>Servidor: <span className="font-mono text-gray-700">{mailStatus.host}</span></p>}
+                    {mailStatus.user && <p>Conta: <span className="font-mono text-gray-700">{mailStatus.user}</span></p>}
+                    {mailStatus.from && <p>Remetente: <span className="font-mono text-gray-700">{mailStatus.from}</span></p>}
+                  </div>
+
+                  <button
+                    onClick={handleTestMail}
+                    disabled={mailTesting}
+                    className="btn-secondary text-sm flex items-center gap-2"
+                  >
+                    <Send className="w-4 h-4" />
+                    {mailTesting ? 'Enviando...' : `Enviar e-mail de teste para ${user?.email}`}
+                  </button>
+
+                  {mailResult && (
+                    <div className={`flex items-start gap-2 rounded-lg px-4 py-3 text-sm ${
+                      mailResult.ok
+                        ? 'bg-green-50 border border-green-200 text-green-700'
+                        : 'bg-red-50 border border-red-200 text-red-700'
+                    }`}>
+                      {mailResult.ok
+                        ? <CheckCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                        : <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />}
+                      <div>
+                        <p className="font-medium">{mailResult.ok ? mailResult.message : mailResult.error}</p>
+                        {!mailResult.ok && mailResult.hint && (
+                          <p className="text-xs mt-1 opacity-80">{mailResult.hint}</p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
               )}
             </div>
           )}

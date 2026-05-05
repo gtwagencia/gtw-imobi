@@ -1,7 +1,7 @@
 'use strict';
 
 const { query }  = require('../config/database');
-const { sendMail, tplAssigned, tplComment, tplStatusChanged, tplDueDateChanged } = require('./mail');
+const { sendMailSilent: sendMail, tplAssigned, tplComment, tplStatusChanged, tplDueDateChanged } = require('./mail');
 
 const APP_URL = process.env.APP_URL || 'http://localhost:3000';
 

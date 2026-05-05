@@ -36,6 +36,7 @@ const templatesRouter     = require('./modules/templates/templates.router');
 const uploadsRouter       = require('./modules/uploads/uploads.router');
 const ticketsRouter       = require('./modules/tickets/tickets.router');
 const googleCalendarRouter = require('./modules/integrations/google-calendar.router');
+const mailIntegrationRouter = require('./modules/integrations/mail.router');
 
 const app    = express();
 const server = http.createServer(app);
@@ -94,6 +95,7 @@ app.use('/api/v1/workspaces/:workspaceId/reports',         requireNotTicketsOnly
 app.use('/api/v1/workspaces/:workspaceId/templates',       requireNotTicketsOnly, templatesRouter);
 app.use('/api/v1/uploads',                                 uploadsRouter);
 app.use('/api/v1/integrations/google',                     googleCalendarRouter);
+app.use('/api/v1/integrations/mail',                       mailIntegrationRouter);
 app.use('/api/v1/conversations/:conversationId/messages',  messagesRouter);
 app.use('/api/v1/webhooks',                                webhooksRouter);
 app.use('/api/v1/workspaces/:workspaceId/meta',            metaRouter);

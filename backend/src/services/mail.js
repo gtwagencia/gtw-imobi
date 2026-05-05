@@ -14,16 +14,47 @@ const transporter = nodemailer.createTransport({
 
 async function sendMail({ to, subject, html }) {
   if (!process.env.SMTP_HOST || !process.env.SMTP_USER) return;
+  // Deixa o erro propagar — quem chama decide se engole ou não
+  await transporter.sendMail({
+    from: process.env.SMTP_FROM || '"GTW Platform" <noreply@gtwagencia.com.br>',
+    to,
+    subject,
+    html,
+  });
+}
+
+// Versão silenciosa para uso em background (notificações)
+async function sendMailSilent(opts) {
   try {
-    await transporter.sendMail({
-      from: process.env.SMTP_FROM || '"GTW Platform" <noreply@gtwagencia.com.br>',
-      to,
-      subject,
-      html,
-    });
+    await sendMail(opts);
   } catch (err) {
     console.error('[mail] Falha ao enviar e-mail:', err.message);
   }
+}
+
+async function testConnection(toEmail) {
+  if (!process.env.SMTP_HOST || !process.env.SMTP_USER) {
+    throw new Error('Variáveis SMTP_HOST e SMTP_USER não estão definidas no servidor.');
+  }
+  // Verifica a conexão antes de enviar
+  await transporter.verify();
+  await transporter.sendMail({
+    from:    process.env.SMTP_FROM || '"GTW Platform" <noreply@gtwagencia.com.br>',
+    to:      toEmail,
+    subject: '[GTW Platform] Teste de e-mail ✓',
+    html:    baseLayout(`
+      <h2 style="margin:0 0 12px;font-size:20px;color:#111;">Tudo funcionando!</h2>
+      <p style="color:#555;font-size:14px;margin:0 0 20px;line-height:1.6;">
+        Este é um e-mail de teste do <strong>GTW Platform</strong>.<br>
+        Se você está lendo isso, o envio de e-mails está configurado corretamente.
+      </p>
+      <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:12px 16px;font-size:13px;color:#166534;">
+        <strong>Configurações ativas:</strong><br>
+        Host: ${process.env.SMTP_HOST}:${process.env.SMTP_PORT || 587}<br>
+        Remetente: ${process.env.SMTP_FROM || 'padrão'}
+      </div>
+    `),
+  });
 }
 
 // ── Templates ─────────────────────────────────────────────────────────────────
@@ -156,6 +187,8 @@ function tplDueDateChanged({ actorName, ticketTitle, boardName, dueDate, ticketU
 
 module.exports = {
   sendMail,
+  sendMailSilent,
+  testConnection,
   tplAssigned,
   tplComment,
   tplStatusChanged,
