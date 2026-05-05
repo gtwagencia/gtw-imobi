@@ -71,11 +71,21 @@ services:
   backend:
     image: ${REGISTRY:-registry.gtw.digital}/gtw-backend:${TAG:-latest}
     environment:
-      NODE_ENV:     production
-      PORT:         4000
-      FRONTEND_URL: ${FRONTEND_URL:-https://app.gtw.digital}
-      # A senha do banco é lida pelo arquivo de secret
-      DATABASE_URL: postgresql://postgres_secret@postgres:5432/gtw_platform
+      NODE_ENV:             production
+      PORT:                 4000
+      FRONTEND_URL:         ${FRONTEND_URL:-https://app.gtw.digital}
+      DATABASE_URL:         postgresql://postgres_secret@postgres:5432/gtw_platform
+      # E-mail (SMTP)
+      SMTP_HOST:            ${SMTP_HOST:-}
+      SMTP_PORT:            ${SMTP_PORT:-587}
+      SMTP_USER:            ${SMTP_USER:-}
+      SMTP_PASS:            ${SMTP_PASS:-}
+      SMTP_FROM:            ${SMTP_FROM:-}
+      APP_URL:              ${APP_URL:-https://app.gtw.digital}
+      # Google Calendar
+      GOOGLE_CLIENT_ID:     ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      GOOGLE_REDIRECT_URI:  ${GOOGLE_REDIRECT_URI:-}
     secrets:
       - db_password
       - jwt_secret
