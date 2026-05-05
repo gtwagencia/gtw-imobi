@@ -109,6 +109,17 @@ cmd_build() {
 
 cmd_deploy() {
   require_swarm
+
+  # Carrega variáveis de ambiente do .env se existir
+  ENV_FILE="${SCRIPT_DIR}/.env"
+  if [[ -f "$ENV_FILE" ]]; then
+    info "Carregando variáveis de $ENV_FILE..."
+    set -a
+    # shellcheck disable=SC1090
+    source "$ENV_FILE"
+    set +a
+  fi
+
   info "Deployando stack '${STACK_NAME}'..."
   docker stack deploy -c "$COMPOSE_FILE" --with-registry-auth "$STACK_NAME"
   info "Stack deployado. Acompanhe: ./deploy.sh ps"
