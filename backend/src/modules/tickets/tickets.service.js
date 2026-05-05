@@ -909,8 +909,9 @@ async function createComment(ticketId, workspaceId, userId, content) {
   const comment = r.rows[0];
   const userRes = await query('SELECT name, avatar_url FROM users WHERE id = $1', [userId]);
 
-  // Notifica participantes em background
+  // Notifica participantes e mencionados em background
   notif.notifyComment(ticketId, userId, content);
+  notif.notifyMentions(ticketId, workspaceId, userId, content);
 
   return { ...comment, user_name: userRes.rows[0]?.name, user_avatar: userRes.rows[0]?.avatar_url, attachments: [] };
 }

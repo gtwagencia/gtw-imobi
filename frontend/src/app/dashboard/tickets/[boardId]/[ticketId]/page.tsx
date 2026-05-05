@@ -117,8 +117,13 @@ export default function TicketDetailPage() {
   const [commentText,  setCommentText]  = useState('');
   const [commentFile,  setCommentFile]  = useState<File | null>(null);
   const [submitting,   setSubmitting]   = useState(false);
-  const timerRef  = useRef<ReturnType<typeof setInterval> | null>(null);
-  const fileRef   = useRef<HTMLInputElement>(null);
+  const [mentionOpen,  setMentionOpen]  = useState(false);
+  const [mentionQuery, setMentionQuery] = useState('');
+  const [mentionPos,   setMentionPos]   = useState(0);
+  const [mentionIdx,   setMentionIdx]   = useState(0);
+  const timerRef    = useRef<ReturnType<typeof setInterval> | null>(null);
+  const fileRef     = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const canEdit = true; // board role check simplified — backend enforces permissions
 
@@ -223,6 +228,78 @@ export default function TicketDetailPage() {
     if (!currentWorkspace || !ticket) return;
     await api.delete(`/workspaces/${currentWorkspace.id}/tickets/tickets/${ticket.id}/comments/${commentId}`);
     setComments(prev => prev.filter(c => c.id !== commentId));
+  }
+
+  // ── @mention helpers ──────────────────────────────────────────────────────
+
+  const mentionFiltered = mentionOpen
+    ? members.filter(m => m.name.toLowerCase().includes(mentionQuery.toLowerCase())).slice(0, 6)
+    : [];
+
+  function handleCommentChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
+    const val = e.target.value;
+    setCommentText(val);
+    e.target.style.height = 'auto';
+    e.target.style.height = e.target.scrollHeight + 'px';
+
+    const cursor = e.target.selectionStart ?? val.length;
+    const textBefore = val.slice(0, cursor);
+    const match = textBefore.match(/(?:^|\s)@(\S*)$/);
+    if (match) {
+      setMentionQuery(match[1]);
+      setMentionPos(cursor - match[1].length - 1); // posição do @
+      setMentionOpen(true);
+      setMentionIdx(0);
+    } else {
+      setMentionOpen(false);
+    }
+  }
+
+  function selectMention(member: TicketBoardMember) {
+    const before = commentText.slice(0, mentionPos);
+    const cursor = textareaRef.current?.selectionStart ?? commentText.length;
+    const after  = commentText.slice(cursor);
+    const newText = `${before}@${member.name} ${after}`;
+    setCommentText(newText);
+    setMentionOpen(false);
+    setTimeout(() => {
+      if (!textareaRef.current) return;
+      const pos = mentionPos + member.name.length + 2;
+      textareaRef.current.focus();
+      textareaRef.current.setSelectionRange(pos, pos);
+    }, 0);
+  }
+
+  function handleCommentKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if (mentionOpen && mentionFiltered.length > 0) {
+      if (e.key === 'ArrowDown') { e.preventDefault(); setMentionIdx(i => Math.min(i + 1, mentionFiltered.length - 1)); return; }
+      if (e.key === 'ArrowUp')   { e.preventDefault(); setMentionIdx(i => Math.max(i - 1, 0)); return; }
+      if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); selectMention(mentionFiltered[mentionIdx]); return; }
+      if (e.key === 'Escape')    { setMentionOpen(false); return; }
+    }
+    if (e.key === 'Enter' && !e.shiftKey && !mentionOpen) {
+      e.preventDefault();
+      submitComment(e as unknown as React.FormEvent);
+    }
+  }
+
+  // Renderiza texto do comentário com @mentions destacados
+  function renderContent(text: string) {
+    const memberNames = new Set(members.map(m => m.name));
+    const parts = text.split(/(@\S+(?:\s\S+)?)/g);
+    return parts.map((part, i) => {
+      if (part.startsWith('@')) {
+        const name = part.slice(1);
+        if (memberNames.has(name)) {
+          return (
+            <span key={i} className="bg-indigo-100 text-indigo-700 rounded px-1 font-medium text-xs">
+              {part}
+            </span>
+          );
+        }
+      }
+      return <span key={i}>{part}</span>;
+    });
   }
 
   async function uploadAttachment(file: File) {
@@ -437,7 +514,7 @@ export default function TicketDetailPage() {
                       </div>
                       {comment.content && (
                         <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed bg-gray-50 rounded-xl px-3 py-2">
-                          {comment.content}
+                          {renderContent(comment.content)}
                         </p>
                       )}
                       {comment.attachments?.length > 0 && (
@@ -469,20 +546,50 @@ export default function TicketDetailPage() {
                   <div className="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
                     {(user?.name || '?')[0]?.toUpperCase()}
                   </div>
-                  <div className="flex-1">
+                  <div className="flex-1 relative">
                     <textarea
+                      ref={textareaRef}
                       value={commentText}
-                      onChange={e => {
-                        setCommentText(e.target.value);
-                        e.target.style.height = 'auto';
-                        e.target.style.height = e.target.scrollHeight + 'px';
-                      }}
-                      placeholder="Escreva um comentário..."
+                      onChange={handleCommentChange}
+                      onKeyDown={handleCommentKeyDown}
+                      placeholder="Escreva um comentário... (use @ para mencionar alguém)"
                       rows={2}
                       className="w-full text-sm bg-gray-50 rounded-xl border border-gray-200 px-3 py-2 resize-none outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-300 overflow-hidden"
-                      onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submitComment(e as any); } }}
                       style={{ minHeight: '56px' }}
                     />
+
+                    {/* Dropdown de @mention */}
+                    {mentionOpen && mentionFiltered.length > 0 && (
+                      <div className="absolute bottom-full left-0 mb-1 w-64 bg-white border border-gray-200 rounded-xl shadow-lg z-50 overflow-hidden">
+                        <div className="px-3 py-1.5 border-b border-gray-100">
+                          <span className="text-xs text-gray-400 font-medium">Mencionar agente</span>
+                        </div>
+                        {mentionFiltered.map((m, i) => (
+                          <button
+                            key={m.user_id}
+                            type="button"
+                            onMouseDown={e => { e.preventDefault(); selectMention(m); }}
+                            className={clsx(
+                              'w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors',
+                              i === mentionIdx ? 'bg-indigo-50' : 'hover:bg-gray-50'
+                            )}
+                          >
+                            <div className="w-7 h-7 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 text-xs font-bold flex-shrink-0">
+                              {m.name[0]?.toUpperCase()}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium text-gray-900 truncate">{m.name}</p>
+                              <p className="text-xs text-gray-400 truncate">{m.email}</p>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Linha de ação separada (fora do flex principal) */}
+                <div className="mt-2 ml-11 flex-1">
                     {commentFile && (
                       <div className="flex items-center gap-2 mt-2 bg-indigo-50 border border-indigo-200 rounded-lg px-3 py-1.5 text-xs">
                         {fileIcon(commentFile.type)}
@@ -509,7 +616,6 @@ export default function TicketDetailPage() {
                         {submitting ? 'Enviando...' : 'Comentar'}
                       </button>
                     </div>
-                  </div>
                 </div>
               </form>
             </div>

@@ -1,7 +1,7 @@
 'use strict';
 
 const { query }  = require('../config/database');
-const { sendMailSilent: sendMail, tplAssigned, tplComment, tplStatusChanged, tplDueDateChanged } = require('./mail');
+const { sendMailSilent: sendMail, tplAssigned, tplComment, tplMention, tplStatusChanged, tplDueDateChanged } = require('./mail');
 
 const APP_URL = process.env.APP_URL || 'http://localhost:3000';
 
@@ -181,9 +181,59 @@ async function notifyDueDateChanged(ticketId, actorId, dueDate) {
   }
 }
 
+/**
+ * Notifica usuários mencionados com @Nome no conteúdo do comentário.
+ * Extrai nomes do padrão @Nome, busca por email no workspace e envia
+ * apenas para quem ainda não foi notificado pelo notifyComment.
+ */
+async function notifyMentions(ticketId, workspaceId, commenterId, content) {
+  if (!content) return;
+  try {
+    const mentions = [...content.matchAll(/@([^\s@]+(?:\s[^\s@]+)*)/g)].map(m => m[1]);
+    if (!mentions.length) return;
+
+    const [ticket, actor] = await Promise.all([
+      getTicketMeta(ticketId),
+      getUserInfo(commenterId),
+    ]);
+    if (!ticket) return;
+
+    // Busca usuários pelo nome no workspace (exclui o próprio comentarista)
+    const placeholders = mentions.map((_, i) => `$${i + 2}`).join(', ');
+    const r = await query(
+      `SELECT DISTINCT u.id, u.name, u.email
+       FROM users u
+       JOIN workspace_memberships wm ON wm.user_id = u.id
+       WHERE wm.workspace_id = $1
+         AND u.name = ANY(ARRAY[${placeholders}])
+         AND u.id != $${mentions.length + 2}
+         AND u.email IS NOT NULL`,
+      [workspaceId, ...mentions, commenterId]
+    );
+
+    await Promise.all(r.rows.map(u =>
+      sendMail({
+        to:      u.email,
+        subject: `[GTW] Você foi mencionado: ${ticket.title}`,
+        html:    tplMention({
+          mentionedName:  u.name,
+          actorName:      actor?.name || 'Alguém',
+          ticketTitle:    ticket.title,
+          boardName:      ticket.board_name,
+          commentContent: content,
+          ticketUrl:      ticketUrl(ticket.workspace_id, ticket.board_id, ticketId),
+        }),
+      })
+    ));
+  } catch (err) {
+    console.error('[ticket-notifications] notifyMentions:', err.message);
+  }
+}
+
 module.exports = {
   notifyAssigned,
   notifyComment,
+  notifyMentions,
   notifyStatusChanged,
   notifyDueDateChanged,
 };

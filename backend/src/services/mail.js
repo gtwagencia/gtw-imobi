@@ -185,12 +185,33 @@ function tplDueDateChanged({ actorName, ticketTitle, boardName, dueDate, ticketU
   `);
 }
 
+// ── Template: mencionado em comentário ───────────────────────────────────────
+
+function tplMention({ mentionedName, actorName, ticketTitle, boardName, commentContent, ticketUrl }) {
+  const preview = commentContent ? commentContent.substring(0, 200) + (commentContent.length > 200 ? '…' : '') : '';
+  return baseLayout(`
+    <h2 style="margin:0 0 6px;font-size:20px;color:#111;">Você foi mencionado em um comentário</h2>
+    <p style="margin:0 0 20px;color:#6b7280;font-size:14px;">
+      <strong>${actorName}</strong> mencionou você em um ticket.
+    </p>
+
+    <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:16px 20px;margin-bottom:16px;">
+      <div style="font-size:15px;font-weight:700;color:#111;margin-bottom:4px;">${ticketTitle}</div>
+      <div style="font-size:13px;color:#6b7280;margin-bottom:12px;">Board: <strong>${boardName}</strong></div>
+      ${preview ? `<div style="font-size:14px;color:#374151;border-left:3px solid #6366f1;padding-left:12px;">${preview}</div>` : ''}
+    </div>
+
+    ${btn(ticketUrl, 'Ver Comentário')}
+  `);
+}
+
 module.exports = {
   sendMail,
   sendMailSilent,
   testConnection,
   tplAssigned,
   tplComment,
+  tplMention,
   tplStatusChanged,
   tplDueDateChanged,
 };
