@@ -9,7 +9,8 @@ import Sidebar from '@/components/layout/Sidebar';
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router      = useRouter();
   const { user, accessToken, currentWorkspace, _hasHydrated } = useAuth();
-  const initSocket  = useNotifications((s) => s.initSocket);
+  const initSocket        = useNotifications((s) => s.initSocket);
+  const requestPermission = useNotifications((s) => s.requestPermission);
 
   useEffect(() => {
     if (!_hasHydrated) return;
@@ -22,7 +23,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       return;
     }
     initSocket();
-  }, [_hasHydrated, accessToken, user, currentWorkspace, router, initSocket]);
+    requestPermission();
+  }, [_hasHydrated, accessToken, user, currentWorkspace, router, initSocket, requestPermission]);
 
   if (!_hasHydrated || !accessToken || !user || !currentWorkspace) return null;
 

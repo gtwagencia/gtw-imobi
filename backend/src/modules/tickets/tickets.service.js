@@ -1,6 +1,8 @@
 'use strict';
 
 const { query } = require('../../config/database');
+const notif     = require('../../services/ticket-notifications');
+const gcal      = require('../../services/google-calendar.service');
 
 // ── Workspace toggle ──────────────────────────────────────────────────────────
 
@@ -377,6 +379,15 @@ async function createTicket(boardId, userId, { columnId, title, description, ass
   // Garante que o campo labels sempre existe (evita crash no frontend ao acessar .length)
   ticket.labels = [];
 
+  // Sincroniza com Google Calendar do assignee em background
+  if (ticket.assignee_id && ticket.due_date) {
+    gcal.createEvent(ticket.assignee_id, ticket.id, {
+      title:       ticket.title,
+      description: ticket.description,
+      dueDate:     ticket.due_date,
+    }).catch(err => console.error('[gcal-sync] createTicket:', err.message));
+  }
+
   return ticket;
 }
 
@@ -409,7 +420,14 @@ async function getTicket(ticketId, workspaceId) {
   return r.rows[0];
 }
 
-async function updateTicket(ticketId, workspaceId, body) {
+async function updateTicket(ticketId, workspaceId, body, actorId) {
+  // Lê estado anterior para decidir o sync do Google Calendar
+  const prevR = await query(
+    'SELECT assignee_id, due_date, title, description FROM tickets WHERE id = $1',
+    [ticketId]
+  );
+  const prev = prevR.rows[0] || {};
+
   const map = {
     columnId:       'column_id',
     title:          'title',
@@ -464,10 +482,58 @@ async function updateTicket(ticketId, workspaceId, body) {
     }
   }
 
-  return getTicket(ticketId, workspaceId);
+  const updated = await getTicket(ticketId, workspaceId);
+
+  // Dispara notificações em background (não bloqueia a resposta)
+  if (actorId) {
+    if (body.assigneeId)       notif.notifyAssigned(ticketId, body.assigneeId, actorId);
+    if (body.columnId)         notif.notifyStatusChanged(ticketId, actorId, body.columnId);
+    if ('dueDate' in body)     notif.notifyDueDateChanged(ticketId, actorId, body.dueDate);
+  }
+
+  // Sincroniza Google Calendar em background
+  const newAssigneeId = 'assigneeId' in body ? (body.assigneeId || null) : prev.assignee_id;
+  const newDueDate    = 'dueDate'    in body ? (body.dueDate    || null) : prev.due_date;
+  const newTitle      = body.title       ?? prev.title;
+  const newDesc       = body.description ?? prev.description;
+
+  const assigneeChanged = 'assigneeId' in body && body.assigneeId !== prev.assignee_id;
+  const dueDateChanged  = 'dueDate'    in body;
+  const titleChanged    = body.title !== undefined;
+
+  if (assigneeChanged) {
+    // Remove evento do assignee anterior
+    if (prev.assignee_id) {
+      gcal.deleteEvent(prev.assignee_id, ticketId)
+        .catch(err => console.error('[gcal-sync] deleteEvent (old assignee):', err.message));
+    }
+    // Cria evento para o novo assignee
+    if (newAssigneeId && newDueDate) {
+      gcal.createEvent(newAssigneeId, ticketId, { title: newTitle, description: newDesc, dueDate: newDueDate })
+        .catch(err => console.error('[gcal-sync] createEvent (new assignee):', err.message));
+    }
+  } else if ((dueDateChanged || titleChanged) && newAssigneeId) {
+    if (newDueDate) {
+      gcal.updateEvent(newAssigneeId, ticketId, { title: newTitle, description: newDesc, dueDate: newDueDate })
+        .catch(err => console.error('[gcal-sync] updateEvent:', err.message));
+    } else {
+      // Prazo removido — deleta o evento
+      gcal.deleteEvent(newAssigneeId, ticketId)
+        .catch(err => console.error('[gcal-sync] deleteEvent (no due date):', err.message));
+    }
+  }
+
+  return updated;
 }
 
 async function deleteTicket(ticketId, workspaceId) {
+  // Remove evento do Google Calendar antes de deletar o ticket
+  const aR = await query('SELECT assignee_id FROM tickets WHERE id = $1', [ticketId]);
+  if (aR.rows[0]?.assignee_id) {
+    gcal.deleteEvent(aR.rows[0].assignee_id, ticketId)
+      .catch(err => console.error('[gcal-sync] deleteEvent (deleteTicket):', err.message));
+  }
+
   await query(
     `DELETE FROM tickets t USING ticket_boards tb
      WHERE t.id = $1 AND t.board_id = tb.id AND tb.workspace_id = $2`,
@@ -842,6 +908,10 @@ async function createComment(ticketId, workspaceId, userId, content) {
   );
   const comment = r.rows[0];
   const userRes = await query('SELECT name, avatar_url FROM users WHERE id = $1', [userId]);
+
+  // Notifica participantes em background
+  notif.notifyComment(ticketId, userId, content);
+
   return { ...comment, user_name: userRes.rows[0]?.name, user_avatar: userRes.rows[0]?.avatar_url, attachments: [] };
 }
 

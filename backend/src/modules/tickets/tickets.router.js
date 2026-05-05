@@ -256,8 +256,14 @@ router.put('/tickets/:ticketId', ...auth, async (req, res, next) => {
       return res.status(403).json({ error: 'Sem acesso a este board' });
     }
 
-    const ticket = await svc.updateTicket(req.params.ticketId, req.params.workspaceId, req.body);
-    req.app.get('io')?.to(`ws:${req.params.workspaceId}`).emit('ticket:updated', { ...ticket, _userId: req.user.sub });
+    const ticket = await svc.updateTicket(req.params.ticketId, req.params.workspaceId, req.body, req.user.sub);
+    req.app.get('io')?.to(`ws:${req.params.workspaceId}`).emit('ticket:updated', {
+      ...ticket,
+      _userId:          req.user.sub,
+      _assigneeChanged: !!req.body.assigneeId,
+      _columnChanged:   !!req.body.columnId,
+      _dueDateChanged:  'dueDate' in req.body,
+    });
     res.json(ticket);
   } catch (err) { next(err); }
 });
@@ -428,6 +434,29 @@ router.post('/tickets/:ticketId/comments', ...auth, upload.single('file'), async
     const comment = await svc.createComment(
       req.params.ticketId, workspaceId, req.user.sub, content
     );
+
+    // Emite evento socket para notificações de browser nos participantes
+    const [tmRes, actorRes] = await Promise.all([
+      query(
+        `SELECT t.title, t.board_id, t.assignee_id, t.created_by
+         FROM tickets t WHERE t.id = $1`,
+        [req.params.ticketId]
+      ),
+      query('SELECT name FROM users WHERE id = $1', [req.user.sub]),
+    ]);
+    if (tmRes.rows[0]) {
+      const tm = tmRes.rows[0];
+      req.app.get('io')?.to(`ws:${workspaceId}`).emit('ticket:comment', {
+        ticketId:    req.params.ticketId,
+        ticketTitle: tm.title,
+        boardId:     tm.board_id,
+        actorId:     req.user.sub,
+        actorName:   actorRes.rows[0]?.name || 'Alguém',
+        preview:     content?.substring(0, 100) || '',
+        assigneeId:  tm.assignee_id,
+        createdBy:   tm.created_by,
+      });
+    }
 
     if (req.file) {
       const url = await storageSvc.uploadFile(req.file.buffer, req.file.originalname, req.file.mimetype);

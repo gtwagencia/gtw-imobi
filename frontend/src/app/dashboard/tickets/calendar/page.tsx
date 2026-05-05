@@ -9,6 +9,8 @@ import type { Ticket, TicketPriority } from '@/types';
 import {
   ChevronLeft, ChevronRight, RefreshCw, Calendar as CalendarIcon,
 } from 'lucide-react';
+
+type GoogleEvent = { id: string; title: string; start: string; end?: string; isGoogleEvent: true; isTicket: boolean };
 import clsx from 'clsx';
 import {
   startOfMonth, endOfMonth, startOfWeek, endOfWeek,
@@ -29,9 +31,11 @@ export default function TicketCalendarPage() {
   const { currentWorkspace } = useAuth();
 
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [tickets, setTickets] = useState<Ticket[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [myOnly, setMyOnly] = useState(false);
+  const [tickets, setTickets]         = useState<Ticket[]>([]);
+  const [googleEvents, setGoogleEvents] = useState<GoogleEvent[]>([]);
+  const [showGoogle, setShowGoogle]   = useState(true);
+  const [loading, setLoading]         = useState(true);
+  const [myOnly, setMyOnly]           = useState(false);
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
 
   const loadTickets = useCallback(async () => {
@@ -40,14 +44,17 @@ export default function TicketCalendarPage() {
     try {
       const start = startOfWeek(startOfMonth(currentDate), { weekStartsOn: 0 });
       const end   = endOfWeek(endOfMonth(currentDate), { weekStartsOn: 0 });
-      const { data } = await api.get<Ticket[]>(`/workspaces/${currentWorkspace.id}/tickets/calendar`, {
-        params: {
-          from: start.toISOString(),
-          to:   end.toISOString(),
-          myOnly: myOnly ? 'true' : 'false',
-        },
-      });
-      setTickets(data);
+
+      const [ticketsRes] = await Promise.all([
+        api.get<Ticket[]>(`/workspaces/${currentWorkspace.id}/tickets/calendar`, {
+          params: { from: start.toISOString(), to: end.toISOString(), myOnly: myOnly ? 'true' : 'false' },
+        }),
+        // Carrega eventos Google em paralelo (falha silenciosa se não conectado)
+        api.get<GoogleEvent[]>('/integrations/google/events', {
+          params: { from: start.toISOString(), to: end.toISOString() },
+        }).then(r => setGoogleEvents(r.data)).catch(() => setGoogleEvents([])),
+      ]);
+      setTickets(ticketsRes.data);
     } finally {
       setLoading(false);
     }
@@ -65,7 +72,13 @@ export default function TicketCalendarPage() {
     return tickets.filter(t => t.due_date && isSameDay(new Date(t.due_date), day));
   }
 
+  function googleEventsForDay(day: Date) {
+    if (!showGoogle) return [];
+    return googleEvents.filter(e => e.start && isSameDay(new Date(e.start), day));
+  }
+
   const selectedDayTickets = selectedDay ? ticketsForDay(selectedDay) : [];
+  const selectedDayGoogle  = selectedDay ? googleEventsForDay(selectedDay) : [];
   const WEEKDAYS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 
   if (!currentWorkspace) return null;
@@ -83,6 +96,15 @@ export default function TicketCalendarPage() {
               <input type="checkbox" checked={myOnly} onChange={e => setMyOnly(e.target.checked)} className="rounded" />
               Somente minhas tarefas
             </label>
+            {googleEvents.length > 0 && (
+              <label className="flex items-center gap-1.5 text-sm text-gray-600 cursor-pointer select-none">
+                <input type="checkbox" checked={showGoogle} onChange={e => setShowGoogle(e.target.checked)} className="rounded accent-green-600" />
+                <span className="flex items-center gap-1">
+                  <span className="w-2 h-2 rounded-full bg-green-500 inline-block" />
+                  Google Calendar
+                </span>
+              </label>
+            )}
             <div className="flex items-center gap-1">
               <button onClick={() => setCurrentDate(subMonths(currentDate, 1))} className="btn-secondary p-2">
                 <ChevronLeft className="w-4 h-4" />
@@ -117,6 +139,10 @@ export default function TicketCalendarPage() {
           <div className="grid grid-cols-7">
             {days.map((day, idx) => {
               const dayTickets = ticketsForDay(day);
+              const dayGoogle  = googleEventsForDay(day);
+              const totalExtra = Math.max(0, (dayTickets.length + dayGoogle.length) - 3);
+              const shownTickets = dayTickets.slice(0, Math.min(3, dayTickets.length));
+              const shownGoogle  = dayGoogle.slice(0, Math.max(0, 3 - shownTickets.length));
               const isCurrentMonth = isSameMonth(day, currentDate);
               const isSelected = selectedDay && isSameDay(day, selectedDay);
 
@@ -140,9 +166,9 @@ export default function TicketCalendarPage() {
                     {format(day, 'd')}
                   </div>
 
-                  {/* Tickets */}
+                  {/* Tickets + Google events */}
                   <div className="space-y-0.5">
-                    {dayTickets.slice(0, 3).map(t => (
+                    {shownTickets.map(t => (
                       <div
                         key={t.id}
                         className={clsx(
@@ -156,8 +182,17 @@ export default function TicketCalendarPage() {
                         {t.title}
                       </div>
                     ))}
-                    {dayTickets.length > 3 && (
-                      <div className="text-xs text-gray-400 px-1.5">+{dayTickets.length - 3} mais</div>
+                    {shownGoogle.map(e => (
+                      <div
+                        key={e.id}
+                        className="text-xs px-1.5 py-0.5 rounded truncate font-medium bg-green-100 text-green-700"
+                        title={e.title}
+                      >
+                        <span className="mr-0.5 opacity-60">G</span>{e.title}
+                      </div>
+                    ))}
+                    {totalExtra > 0 && (
+                      <div className="text-xs text-gray-400 px-1.5">+{totalExtra} mais</div>
                     )}
                   </div>
                 </div>
@@ -167,11 +202,13 @@ export default function TicketCalendarPage() {
         </div>
 
         {/* Selected day detail */}
-        {selectedDay && selectedDayTickets.length > 0 && (
+        {selectedDay && (selectedDayTickets.length > 0 || selectedDayGoogle.length > 0) && (
           <div className="mt-4 bg-white rounded-xl border border-gray-200 p-4">
             <h3 className="font-semibold text-gray-900 mb-3">
               {format(selectedDay, "EEEE, d 'de' MMMM", { locale: ptBR })}
-              <span className="ml-2 text-sm font-normal text-gray-500">({selectedDayTickets.length} tickets)</span>
+              <span className="ml-2 text-sm font-normal text-gray-500">
+                ({selectedDayTickets.length + selectedDayGoogle.length} eventos)
+              </span>
             </h3>
             <div className="space-y-2">
               {selectedDayTickets.map(t => (
@@ -197,6 +234,15 @@ export default function TicketCalendarPage() {
                   </span>
                 </div>
               ))}
+              {selectedDayGoogle.map(e => (
+                <div key={e.id} className="flex items-center gap-3 p-3 rounded-lg border border-green-100 bg-green-50">
+                  <div className="w-2 h-2 rounded-full bg-green-500 flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-900 truncate">{e.title}</p>
+                    <p className="text-xs text-green-600">Google Calendar</p>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         )}
@@ -209,6 +255,12 @@ export default function TicketCalendarPage() {
               {k === 'low' ? 'Baixa' : k === 'medium' ? 'Média' : k === 'high' ? 'Alta' : 'Urgente'}
             </span>
           ))}
+          {googleEvents.length > 0 && (
+            <>
+              <span className="text-gray-300">|</span>
+              <span className="px-2 py-0.5 rounded bg-green-100 text-green-700 font-medium">G Google Calendar</span>
+            </>
+          )}
         </div>
       </div>
     </>
