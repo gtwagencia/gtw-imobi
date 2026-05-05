@@ -60,6 +60,8 @@ async function list(workspaceId, filters = {}, caller = {}) {
     params.push(labelId);
     conds.push(`EXISTS (SELECT 1 FROM conversation_labels cl WHERE cl.conversation_id = c.id AND cl.label_id = $${params.length})`);
   }
+  if (filters.metaSource)   { params.push(filters.metaSource);   conds.push(`c.meta_source = $${params.length}`); }
+  if (filters.metaCampaign) { params.push(filters.metaCampaign); conds.push(`c.meta_campaign_name = $${params.length}`); }
 
   const where      = 'WHERE ' + conds.join(' AND ');
   const visibility = await buildVisibilityClause(params, { ...caller, workspaceId });
@@ -264,4 +266,19 @@ async function markRead(conversationId, workspaceId) {
   );
 }
 
-module.exports = { list, getById, findOrCreate, update, refreshLastMessage, markRead };
+async function listCampaigns(workspaceId) {
+  const r = await query(
+    `SELECT DISTINCT meta_campaign_name AS name,
+            COUNT(*) AS total
+     FROM conversations
+     WHERE workspace_id = $1
+       AND meta_source = 'paid'
+       AND meta_campaign_name IS NOT NULL
+     GROUP BY meta_campaign_name
+     ORDER BY total DESC`,
+    [workspaceId]
+  );
+  return r.rows;
+}
+
+module.exports = { list, getById, findOrCreate, update, refreshLastMessage, markRead, listCampaigns };

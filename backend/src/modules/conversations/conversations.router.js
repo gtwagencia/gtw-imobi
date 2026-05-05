@@ -18,15 +18,24 @@ function getCaller(req) {
 
 router.get('/', authenticate, workspaceContext, async (req, res, next) => {
   try {
-    const { status, inboxId, assigneeId, departmentId, contactId, labelId, page, limit } = req.query;
+    const { status, inboxId, assigneeId, departmentId, contactId, labelId,
+            metaSource, metaCampaign, page, limit } = req.query;
     const result = await svc.list(
       req.params.workspaceId,
       { status, inboxId, assigneeId, departmentId, contactId, labelId,
+        metaSource, metaCampaign,
         page: parseInt(page, 10) || 1,
         limit: Math.min(parseInt(limit, 10) || 30, 100) },
       getCaller(req)
     );
     res.json(result);
+  } catch (err) { next(err); }
+});
+
+router.get('/meta/campaigns', authenticate, workspaceContext, async (req, res, next) => {
+  try {
+    const campaigns = await svc.listCampaigns(req.params.workspaceId);
+    res.json(campaigns);
   } catch (err) { next(err); }
 });
 

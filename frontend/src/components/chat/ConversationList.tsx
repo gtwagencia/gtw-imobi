@@ -7,7 +7,7 @@ import clsx from 'clsx';
 import api from '@/lib/api';
 import { getSocket } from '@/lib/socket';
 import type { Conversation, Message } from '@/types';
-import { Search, Filter, X, ChevronDown, AlertTriangle, Users } from 'lucide-react';
+import { Search, Filter, X, ChevronDown, AlertTriangle, Users, Megaphone } from 'lucide-react';
 
 interface Props {
   workspaceId: string;
@@ -18,7 +18,11 @@ interface Props {
 interface FilterState {
   departmentId: string;
   inboxId:      string;
+  metaSource:   string;
+  metaCampaign: string;
 }
+
+interface Campaign { name: string; total: number; }
 
 interface Option { id: string; name: string; }
 
@@ -35,14 +39,16 @@ export default function ConversationList({ workspaceId, selected, onSelect }: Pr
   const [search,       setSearch]       = useState('');
   const [loading,      setLoading]      = useState(true);
   const [showFilters,  setShowFilters]  = useState(false);
-  const [filters,      setFilters]      = useState<FilterState>({ departmentId: '', inboxId: '' });
+  const [filters,      setFilters]      = useState<FilterState>({ departmentId: '', inboxId: '', metaSource: '', metaCampaign: '' });
   const [departments,  setDepartments]  = useState<Option[]>([]);
   const [inboxes,      setInboxes]      = useState<Option[]>([]);
+  const [campaigns,    setCampaigns]    = useState<Campaign[]>([]);
   const filterRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     api.get(`/workspaces/${workspaceId}/departments`).then(({ data }) => setDepartments(data)).catch(() => {});
     api.get(`/workspaces/${workspaceId}/inboxes`).then(({ data }) => setInboxes(data)).catch(() => {});
+    api.get(`/workspaces/${workspaceId}/conversations/meta/campaigns`).then(({ data }) => setCampaigns(data)).catch(() => {});
   }, [workspaceId]);
 
   useEffect(() => {
@@ -64,6 +70,8 @@ export default function ConversationList({ workspaceId, selected, onSelect }: Pr
       }
       if (filters.departmentId) params.departmentId = filters.departmentId;
       if (filters.inboxId)      params.inboxId      = filters.inboxId;
+      if (filters.metaSource)   params.metaSource   = filters.metaSource;
+      if (filters.metaCampaign) params.metaCampaign = filters.metaCampaign;
       const { data } = await api.get(`/workspaces/${workspaceId}/conversations`, { params });
       setConversations(data.data);
     } finally {
@@ -164,7 +172,7 @@ export default function ConversationList({ workspaceId, selected, onSelect }: Pr
     return () => document.removeEventListener('visibilitychange', onVisible);
   }, [load]);
 
-  const activeFilters = (filters.departmentId ? 1 : 0) + (filters.inboxId ? 1 : 0);
+  const activeFilters = (filters.departmentId ? 1 : 0) + (filters.inboxId ? 1 : 0) + (filters.metaSource ? 1 : 0);
 
   const filtered = conversations.filter((c) =>
     !search ||
@@ -212,7 +220,7 @@ export default function ConversationList({ workspaceId, selected, onSelect }: Pr
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-semibold text-gray-700 uppercase tracking-wide">Filtros</span>
                   {activeFilters > 0 && (
-                    <button onClick={() => setFilters({ departmentId: '', inboxId: '' })} className="text-xs text-red-500 hover:text-red-700 flex items-center gap-1">
+                    <button onClick={() => setFilters({ departmentId: '', inboxId: '', metaSource: '', metaCampaign: '' })} className="text-xs text-red-500 hover:text-red-700 flex items-center gap-1">
                       <X className="w-3 h-3" />Limpar
                     </button>
                   )}
@@ -236,6 +244,71 @@ export default function ConversationList({ workspaceId, selected, onSelect }: Pr
                       <select className="input text-sm pr-8 appearance-none" value={filters.inboxId} onChange={(e) => setFilters(prev => ({ ...prev, inboxId: e.target.value }))}>
                         <option value="">Todos</option>
                         {inboxes.map((i) => <option key={i.id} value={i.id}>{i.name}</option>)}
+                      </select>
+                      <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
+                    </div>
+                  </div>
+                )}
+
+                {/* Filtro Meta Ads */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1.5 flex items-center gap-1">
+                    <Megaphone className="w-3 h-3 text-blue-500" />
+                    Origem
+                  </label>
+                  <div className="flex gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setFilters(prev => ({
+                        ...prev,
+                        metaSource:   prev.metaSource === 'paid' ? '' : 'paid',
+                        metaCampaign: prev.metaSource === 'paid' ? '' : prev.metaCampaign,
+                      }))}
+                      className={clsx(
+                        'flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg border font-medium transition-all',
+                        filters.metaSource === 'paid'
+                          ? 'bg-blue-600 text-white border-blue-600'
+                          : 'bg-white text-gray-600 border-gray-200 hover:border-blue-300 hover:text-blue-600'
+                      )}
+                    >
+                      <Megaphone className="w-3 h-3" />
+                      Via campanha
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setFilters(prev => ({
+                        ...prev,
+                        metaSource:   prev.metaSource === 'organic' ? '' : 'organic',
+                        metaCampaign: '',
+                      }))}
+                      className={clsx(
+                        'flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg border font-medium transition-all',
+                        filters.metaSource === 'organic'
+                          ? 'bg-green-600 text-white border-green-600'
+                          : 'bg-white text-gray-600 border-gray-200 hover:border-green-300 hover:text-green-600'
+                      )}
+                    >
+                      Orgânico
+                    </button>
+                  </div>
+                </div>
+
+                {/* Dropdown de campanha específica */}
+                {filters.metaSource === 'paid' && campaigns.length > 0 && (
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Campanha</label>
+                    <div className="relative">
+                      <select
+                        className="input text-sm pr-8 appearance-none"
+                        value={filters.metaCampaign}
+                        onChange={(e) => setFilters(prev => ({ ...prev, metaCampaign: e.target.value }))}
+                      >
+                        <option value="">Todas as campanhas</option>
+                        {campaigns.map((c) => (
+                          <option key={c.name} value={c.name}>
+                            {c.name} ({c.total})
+                          </option>
+                        ))}
                       </select>
                       <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
                     </div>
@@ -276,6 +349,19 @@ export default function ConversationList({ workspaceId, selected, onSelect }: Pr
             <span className="inline-flex items-center gap-1 bg-brand-50 text-brand-700 text-xs px-2 py-0.5 rounded-full">
               {inboxes.find(i => i.id === filters.inboxId)?.name}
               <button onClick={() => setFilters(p => ({ ...p, inboxId: '' }))} className="hover:text-brand-900"><X className="w-2.5 h-2.5" /></button>
+            </span>
+          )}
+          {filters.metaSource === 'paid' && (
+            <span className="inline-flex items-center gap-1 bg-blue-50 text-blue-700 text-xs px-2 py-0.5 rounded-full font-medium">
+              <Megaphone className="w-2.5 h-2.5" />
+              {filters.metaCampaign || 'Via campanha'}
+              <button onClick={() => setFilters(p => ({ ...p, metaSource: '', metaCampaign: '' }))} className="hover:text-blue-900"><X className="w-2.5 h-2.5" /></button>
+            </span>
+          )}
+          {filters.metaSource === 'organic' && (
+            <span className="inline-flex items-center gap-1 bg-green-50 text-green-700 text-xs px-2 py-0.5 rounded-full font-medium">
+              Orgânico
+              <button onClick={() => setFilters(p => ({ ...p, metaSource: '' }))} className="hover:text-green-900"><X className="w-2.5 h-2.5" /></button>
             </span>
           )}
         </div>
@@ -359,13 +445,24 @@ export default function ConversationList({ workspaceId, selected, onSelect }: Pr
                   ))}
                 </div>
 
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-1">
                   <p className="text-xs text-gray-500 truncate">{conv.last_message_text || 'Sem mensagens'}</p>
-                  {conv.unread_count > 0 && (
-                    <span className="ml-2 flex-shrink-0 w-5 h-5 rounded-full bg-brand-600 text-white text-xs flex items-center justify-center font-medium">
-                      {conv.unread_count > 9 ? '9+' : conv.unread_count}
-                    </span>
-                  )}
+                  <div className="flex items-center gap-1 flex-shrink-0">
+                    {conv.meta_source === 'paid' && (
+                      <span
+                        className="flex items-center gap-0.5 text-xs font-semibold bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full"
+                        title={conv.meta_campaign_name || 'Meta Ads'}
+                      >
+                        <Megaphone className="w-2.5 h-2.5" />
+                        <span className="max-w-[60px] truncate">{conv.meta_ad_name || conv.meta_campaign_name || 'Ads'}</span>
+                      </span>
+                    )}
+                    {conv.unread_count > 0 && (
+                      <span className="w-5 h-5 rounded-full bg-brand-600 text-white text-xs flex items-center justify-center font-medium">
+                        {conv.unread_count > 9 ? '9+' : conv.unread_count}
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
             </button>
