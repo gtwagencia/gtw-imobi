@@ -255,6 +255,11 @@ export interface Deal {
   response_time_seconds: number | null;
   last_inbound_at: string | null;
   unread_count: number | null;
+  // Meta attribution
+  meta_source: 'paid' | 'organic' | null;
+  meta_ctwa_clid: string | null;
+  meta_ad_name: string | null;
+  meta_campaign_name: string | null;
 }
 
 export interface AgentReport {
