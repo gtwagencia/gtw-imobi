@@ -220,10 +220,11 @@ async function handleGroupMessage(msg, inbox, io, event) {
     const senderName = msg.pushName || normalizePhone(senderJid) || 'Desconhecido';
     const groupPhone = normalizePhone(remoteJid);                  // só os dígitos do ID do grupo
 
-    // Nome do grupo: vem em alguns eventos; fallback para o ID
-    const groupName  = msg.message?.groupInviteMessage?.groupName
-      || event?.data?.name
-      || msg.message?.conversation
+    // Nome do grupo — a Evolution manda em campos diferentes dependendo da versão
+    const groupName  = event?.data?.name          // v1
+      || event?.data?.subject                     // GROUPS_UPSERT field
+      || msg.message?.groupInviteMessage?.groupName
+      || msg.pushName                              // às vezes vem aqui
       || `Grupo ${groupPhone}`;
 
     // Upsert contato-grupo
@@ -286,14 +287,24 @@ async function handleGroupMessage(msg, inbox, io, event) {
       await query('UPDATE contacts SET name = $1 WHERE id = $2', [groupName, contact.id]);
     }
 
-    io?.to(`conv:${conversation.id}`).emit('message:new', message);
-    io?.to(`ws:${inbox.workspace_id}`).emit('message:new', message);
+    io?.to(`conv:${conversation.id}`).emit('message:new', { ...message, is_group: true });
+    io?.to(`ws:${inbox.workspace_id}`).emit('message:new', { ...message, is_group: true });
     io?.to(`ws:${inbox.workspace_id}`).emit('conversation:updated', {
       conversationId:  conversation.id,
       lastMessageAt:   new Date(),
       lastMessageText: content,
       unreadCount:     direction === 'inbound' ? 1 : 0,
+      isGroup:         true,
     });
+
+    // Se a conversa de grupo é nova, avisa o frontend para recarregar a lista
+    if (!convRes.rows.length) {
+      io?.to(`ws:${inbox.workspace_id}`).emit('conversation:new', {
+        conversationId: conversation.id,
+        contactName:    groupName,
+        isGroup:        true,
+      });
+    }
   } catch (err) {
     logger.error('Erro ao processar mensagem de grupo', { err: err.message });
   }
@@ -431,6 +442,29 @@ router.post('/evolution/:inboxId', async (req, res) => {
 
         await query('UPDATE messages SET status = $1 WHERE evolution_msg_id = $2', [newStatus, upd.key.id]);
         io?.emit('message:status', { evolutionMsgId: upd.key.id, status: newStatus });
+      }
+      return;
+    }
+
+    // ── GROUPS_UPSERT — atualiza nome do grupo quando a Evolution envia metadados ──
+    if (eventType === 'GROUPS_UPSERT' || eventType === 'groups.upsert') {
+      const groups = Array.isArray(event.data) ? event.data : [event.data];
+      for (const group of groups) {
+        const groupJid  = group?.id;
+        const groupName = group?.subject || group?.name;
+        if (!groupJid || !groupName) continue;
+
+        const groupPhone = normalizePhone(groupJid);
+
+        // Atualiza o nome do contato-grupo se já existir
+        await query(
+          `UPDATE contacts SET name = $1, updated_at = NOW()
+           WHERE workspace_id = $2 AND phone = $3`,
+          [groupName, inbox.workspace_id, groupPhone]
+        );
+
+        // Atualiza o nome na conversa também (last_message_text não, mas o contato reflete no frontend)
+        logger.info('[webhook] grupo atualizado', { groupJid, groupName });
       }
       return;
     }

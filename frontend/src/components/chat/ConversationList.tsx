@@ -102,10 +102,14 @@ export default function ConversationList({ workspaceId, selected, onSelect }: Pr
     }
 
     // Nova mensagem: atualiza a conversa na lista e reordena
-    const onMessage = (msg: Message) => {
+    const onMessage = (msg: Message & { is_group?: boolean }) => {
       setConversations((prev) => {
         const idx = prev.findIndex(c => c.id === msg.conversation_id);
-        if (idx === -1) return prev;
+        // Se a conversa não está na lista e é de grupo, recarrega a aba grupos
+        if (idx === -1) {
+          if (msg.is_group && status === 'groups') load(false);
+          return prev;
+        }
         const conv = prev[idx];
         const updated: Conversation = {
           ...conv,

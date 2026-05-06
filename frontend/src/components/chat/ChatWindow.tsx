@@ -593,8 +593,13 @@ export default function ChatWindow({ conversation, onStatusChange, onBack }: Pro
             const isOut      = msg.direction === 'outbound';
             const isPrivate  = msg.is_private;
             const prevMsg    = messages[idx - 1];
-            const showSender = isOut && msg.sender_name
-              && (idx === 0 || prevMsg?.sender_id !== msg.sender_id || prevMsg?.direction !== 'outbound');
+            // Em grupos mostra o remetente em todas as mensagens (inbound e outbound)
+            // Fora de grupos mostra só em mensagens outbound de agentes diferentes
+            const showSender = msg.sender_name && (
+              conversation.is_group
+                ? (idx === 0 || prevMsg?.sender_name !== msg.sender_name)
+                : (isOut && (idx === 0 || prevMsg?.sender_id !== msg.sender_id || prevMsg?.direction !== 'outbound'))
+            );
 
             // Separador de data
             const msgDate  = new Date(msg.created_at);
@@ -689,7 +694,12 @@ export default function ChatWindow({ conversation, onStatusChange, onBack }: Pro
 
               <div className={clsx('flex flex-col', isOut ? 'items-end' : 'items-start')}>
                 {showSender && (
-                  <span className={clsx('text-xs font-medium mb-1 px-1', isMe ? 'text-brand-600' : 'text-purple-600')}>
+                  <span className={clsx(
+                    'text-xs font-medium mb-1 px-1',
+                    isMe            ? 'text-brand-600'  :
+                    isOut           ? 'text-purple-600' :
+                    conversation.is_group ? 'text-green-600'  : 'text-gray-500'
+                  )}>
                     {isMe ? 'Você' : msg.sender_name}
                   </span>
                 )}
