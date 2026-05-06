@@ -144,12 +144,12 @@
     "hash": "dbc2594684995b0f3c118d9d45660017"
   },
   "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\backend\\src\\modules\\tickets\\tickets.service.js": {
-    "mtime": 1778002794.247,
-    "hash": "3bdcd40ef9ecf21e2520414617eadedd"
+    "mtime": 1778029520.907,
+    "hash": "290890aca5f5d903982e6b5907523495"
   },
   "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\backend\\src\\modules\\tickets\\tickets.router.js": {
-    "mtime": 1777989196.146,
-    "hash": "7c1bfdd68943f2c9bac5ba69e4267171"
+    "mtime": 1778029532.849,
+    "hash": "9a1e2123286428a61e405abba857b4f1"
   },
   "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\backend\\src\\modules\\integrations\\google-calendar.router.js": {
     "mtime": 1777990259.509,
@@ -364,16 +364,16 @@
     "hash": "772fab09e7321fbfacdfaa80e43d1bc4"
   },
   "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\frontend\\src\\app\\dashboard\\tickets\\page.tsx": {
-    "mtime": 1777310696.465,
-    "hash": "38a8a7cec21299d992ad400ee61c0bd3"
+    "mtime": 1778029595.912,
+    "hash": "8db14a30f7ad3e7e42b24117b65a659c"
   },
   "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\frontend\\src\\app\\dashboard\\tickets\\[boardId]\\page.tsx": {
     "mtime": 1777995619.036,
     "hash": "afc8bc93f32e6f4cfe7f442c35f4dded"
   },
   "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\frontend\\src\\app\\dashboard\\tickets\\[boardId]\\[ticketId]\\page.tsx": {
-    "mtime": 1778026634.046,
-    "hash": "3aa797ccf9bc33ec499b1a558ef33df9"
+    "mtime": 1778029415.351,
+    "hash": "f1e8c1caafeb63d4d1cf72e058d4705d"
   },
   "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\frontend\\src\\app\\dashboard\\tickets\\my-tasks\\page.tsx": {
     "mtime": 1777304189.29,
@@ -386,6 +386,10 @@
   "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\frontend\\src\\app\\dashboard\\tickets\\reports\\page.tsx": {
     "mtime": 1777304184.539,
     "hash": "5ffb9e4e8762d0c23f0bfc23a2ba0f28"
+  },
+  "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\frontend\\src\\app\\dashboard\\tickets\\recurring\\page.tsx": {
+    "mtime": 1778029575.505,
+    "hash": "78ff256fbc8ed2de5e2a5d5473cfad87"
   },
   "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\frontend\\src\\app\\select\\page.tsx": {
     "mtime": 1774410418.056,

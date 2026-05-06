@@ -108,7 +108,7 @@
       "source_file": "backend/src/middleware/orgContext.js",
       "source_location": "L1",
       "id": "backend_src_middleware_orgcontext_js",
-      "community": 42,
+      "community": 41,
       "norm_label": "orgcontext.js"
     },
     {
@@ -117,7 +117,7 @@
       "source_file": "backend/src/middleware/orgContext.js",
       "source_location": "L9",
       "id": "middleware_orgcontext_orgcontext",
-      "community": 42,
+      "community": 41,
       "norm_label": "orgcontext()"
     },
     {
@@ -126,7 +126,7 @@
       "source_file": "backend/src/middleware/workspaceContext.js",
       "source_location": "L1",
       "id": "backend_src_middleware_workspacecontext_js",
-      "community": 35,
+      "community": 36,
       "norm_label": "workspacecontext.js"
     },
     {
@@ -135,7 +135,7 @@
       "source_file": "backend/src/middleware/workspaceContext.js",
       "source_location": "L10",
       "id": "middleware_workspacecontext_workspacecontext",
-      "community": 35,
+      "community": 36,
       "norm_label": "workspacecontext()"
     },
     {
@@ -144,7 +144,7 @@
       "source_file": "backend/src/middleware/workspaceContext.js",
       "source_location": "L44",
       "id": "middleware_workspacecontext_requirenotticketsonly",
-      "community": 35,
+      "community": 36,
       "norm_label": "requirenotticketsonly()"
     },
     {
@@ -252,7 +252,7 @@
       "source_file": "backend/src/modules/auth/auth.router.js",
       "source_location": "L1",
       "id": "backend_src_modules_auth_auth_router_js",
-      "community": 54,
+      "community": 55,
       "norm_label": "auth.router.js"
     },
     {
@@ -333,7 +333,7 @@
       "source_file": "backend/src/modules/organizations/organizations.router.js",
       "source_location": "L1",
       "id": "backend_src_modules_organizations_organizations_router_js",
-      "community": 55,
+      "community": 56,
       "norm_label": "organizations.router.js"
     },
     {
@@ -342,7 +342,7 @@
       "source_file": "backend/src/modules/workspaces/workspaces.service.js",
       "source_location": "L1",
       "id": "backend_src_modules_workspaces_workspaces_service_js",
-      "community": 13,
+      "community": 12,
       "norm_label": "workspaces.service.js"
     },
     {
@@ -351,7 +351,7 @@
       "source_file": "backend/src/modules/workspaces/workspaces.service.js",
       "source_location": "L12",
       "id": "workspaces_workspaces_service_listfororg",
-      "community": 13,
+      "community": 12,
       "norm_label": "listfororg()"
     },
     {
@@ -360,7 +360,7 @@
       "source_file": "backend/src/modules/workspaces/workspaces.service.js",
       "source_location": "L42",
       "id": "workspaces_workspaces_service_create",
-      "community": 13,
+      "community": 12,
       "norm_label": "create()"
     },
     {
@@ -369,7 +369,7 @@
       "source_file": "backend/src/modules/workspaces/workspaces.service.js",
       "source_location": "L65",
       "id": "workspaces_workspaces_service_getbyid",
-      "community": 13,
+      "community": 12,
       "norm_label": "getbyid()"
     },
     {
@@ -378,7 +378,7 @@
       "source_file": "backend/src/modules/workspaces/workspaces.service.js",
       "source_location": "L72",
       "id": "workspaces_workspaces_service_update",
-      "community": 13,
+      "community": 12,
       "norm_label": "update()"
     },
     {
@@ -387,7 +387,7 @@
       "source_file": "backend/src/modules/workspaces/workspaces.service.js",
       "source_location": "L118",
       "id": "workspaces_workspaces_service_listmembers",
-      "community": 13,
+      "community": 12,
       "norm_label": "listmembers()"
     },
     {
@@ -396,7 +396,7 @@
       "source_file": "backend/src/modules/workspaces/workspaces.service.js",
       "source_location": "L130",
       "id": "workspaces_workspaces_service_addmember",
-      "community": 13,
+      "community": 12,
       "norm_label": "addmember()"
     },
     {
@@ -405,7 +405,7 @@
       "source_file": "backend/src/modules/workspaces/workspaces.service.js",
       "source_location": "L172",
       "id": "workspaces_workspaces_service_removemember",
-      "community": 13,
+      "community": 12,
       "norm_label": "removemember()"
     },
     {
@@ -414,7 +414,7 @@
       "source_file": "backend/src/modules/workspaces/workspaces.service.js",
       "source_location": "L179",
       "id": "workspaces_workspaces_service_resetmemberpassword",
-      "community": 13,
+      "community": 12,
       "norm_label": "resetmemberpassword()"
     },
     {
@@ -423,7 +423,7 @@
       "source_file": "backend/src/modules/workspaces/workspaces.service.js",
       "source_location": "L205",
       "id": "workspaces_workspaces_service_updatememberrole",
-      "community": 13,
+      "community": 12,
       "norm_label": "updatememberrole()"
     },
     {
@@ -432,7 +432,7 @@
       "source_file": "backend/src/modules/workspaces/workspaces.router.js",
       "source_location": "L1",
       "id": "backend_src_modules_workspaces_workspaces_router_js",
-      "community": 40,
+      "community": 42,
       "norm_label": "workspaces.router.js"
     },
     {
@@ -441,7 +441,7 @@
       "source_file": "backend/src/modules/workspaces/workspaces.router.js",
       "source_location": "L13",
       "id": "workspaces_workspaces_router_sanitizeworkspace",
-      "community": 40,
+      "community": 42,
       "norm_label": "sanitizeworkspace()"
     },
     {
@@ -540,7 +540,7 @@
       "source_file": "backend/src/modules/inboxes/inboxes.router.js",
       "source_location": "L1",
       "id": "backend_src_modules_inboxes_inboxes_router_js",
-      "community": 56,
+      "community": 57,
       "norm_label": "inboxes.router.js"
     },
     {
@@ -612,7 +612,7 @@
       "source_file": "backend/src/modules/contacts/contacts.router.js",
       "source_location": "L1",
       "id": "backend_src_modules_contacts_contacts_router_js",
-      "community": 57,
+      "community": 58,
       "norm_label": "contacts.router.js"
     },
     {
@@ -702,7 +702,7 @@
       "source_file": "backend/src/modules/conversations/conversations.router.js",
       "source_location": "L1",
       "id": "backend_src_modules_conversations_conversations_router_js",
-      "community": 41,
+      "community": 43,
       "norm_label": "conversations.router.js"
     },
     {
@@ -711,7 +711,7 @@
       "source_file": "backend/src/modules/conversations/conversations.router.js",
       "source_location": "L10",
       "id": "conversations_conversations_router_getcaller",
-      "community": 41,
+      "community": 43,
       "norm_label": "getcaller()"
     },
     {
@@ -891,7 +891,7 @@
       "source_file": "backend/src/modules/kanban/kanban.router.js",
       "source_location": "L1",
       "id": "backend_src_modules_kanban_kanban_router_js",
-      "community": 58,
+      "community": 59,
       "norm_label": "kanban.router.js"
     },
     {
@@ -990,7 +990,7 @@
       "source_file": "backend/src/modules/meta/meta.router.js",
       "source_location": "L1",
       "id": "backend_src_modules_meta_meta_router_js",
-      "community": 59,
+      "community": 60,
       "norm_label": "meta.router.js"
     },
     {
@@ -1062,7 +1062,7 @@
       "source_file": "backend/src/modules/departments/departments.service.js",
       "source_location": "L1",
       "id": "backend_src_modules_departments_departments_service_js",
-      "community": 12,
+      "community": 13,
       "norm_label": "departments.service.js"
     },
     {
@@ -1071,7 +1071,7 @@
       "source_file": "backend/src/modules/departments/departments.service.js",
       "source_location": "L7",
       "id": "departments_departments_service_list",
-      "community": 12,
+      "community": 13,
       "norm_label": "list()"
     },
     {
@@ -1080,7 +1080,7 @@
       "source_file": "backend/src/modules/departments/departments.service.js",
       "source_location": "L23",
       "id": "departments_departments_service_getbyid",
-      "community": 12,
+      "community": 13,
       "norm_label": "getbyid()"
     },
     {
@@ -1089,7 +1089,7 @@
       "source_file": "backend/src/modules/departments/departments.service.js",
       "source_location": "L31",
       "id": "departments_departments_service_create",
-      "community": 12,
+      "community": 13,
       "norm_label": "create()"
     },
     {
@@ -1098,7 +1098,7 @@
       "source_file": "backend/src/modules/departments/departments.service.js",
       "source_location": "L40",
       "id": "departments_departments_service_update",
-      "community": 12,
+      "community": 13,
       "norm_label": "update()"
     },
     {
@@ -1107,7 +1107,7 @@
       "source_file": "backend/src/modules/departments/departments.service.js",
       "source_location": "L59",
       "id": "departments_departments_service_remove",
-      "community": 12,
+      "community": 13,
       "norm_label": "remove()"
     },
     {
@@ -1116,7 +1116,7 @@
       "source_file": "backend/src/modules/departments/departments.service.js",
       "source_location": "L67",
       "id": "departments_departments_service_listagents",
-      "community": 12,
+      "community": 13,
       "norm_label": "listagents()"
     },
     {
@@ -1125,7 +1125,7 @@
       "source_file": "backend/src/modules/departments/departments.service.js",
       "source_location": "L84",
       "id": "departments_departments_service_assignagent",
-      "community": 12,
+      "community": 13,
       "norm_label": "assignagent()"
     },
     {
@@ -1134,7 +1134,7 @@
       "source_file": "backend/src/modules/departments/departments.service.js",
       "source_location": "L100",
       "id": "departments_departments_service_removeagent",
-      "community": 12,
+      "community": 13,
       "norm_label": "removeagent()"
     },
     {
@@ -1143,7 +1143,7 @@
       "source_file": "backend/src/modules/departments/departments.service.js",
       "source_location": "L110",
       "id": "departments_departments_service_listunassignedagents",
-      "community": 12,
+      "community": 13,
       "norm_label": "listunassignedagents()"
     },
     {
@@ -1152,7 +1152,7 @@
       "source_file": "backend/src/modules/departments/departments.router.js",
       "source_location": "L1",
       "id": "backend_src_modules_departments_departments_router_js",
-      "community": 60,
+      "community": 61,
       "norm_label": "departments.router.js"
     },
     {
@@ -1206,7 +1206,7 @@
       "source_file": "backend/src/modules/canned-responses/canned-responses.router.js",
       "source_location": "L1",
       "id": "backend_src_modules_canned_responses_canned_responses_router_js",
-      "community": 61,
+      "community": 62,
       "norm_label": "canned-responses.router.js"
     },
     {
@@ -1287,7 +1287,7 @@
       "source_file": "backend/src/modules/labels/labels.router.js",
       "source_location": "L1",
       "id": "backend_src_modules_labels_labels_router_js",
-      "community": 62,
+      "community": 63,
       "norm_label": "labels.router.js"
     },
     {
@@ -1296,7 +1296,7 @@
       "source_file": "backend/src/modules/reports/reports.service.js",
       "source_location": "L1",
       "id": "backend_src_modules_reports_reports_service_js",
-      "community": 32,
+      "community": 34,
       "norm_label": "reports.service.js"
     },
     {
@@ -1305,7 +1305,7 @@
       "source_file": "backend/src/modules/reports/reports.service.js",
       "source_location": "L8",
       "id": "reports_reports_service_getsummary",
-      "community": 32,
+      "community": 34,
       "norm_label": "getsummary()"
     },
     {
@@ -1314,7 +1314,7 @@
       "source_file": "backend/src/modules/reports/reports.service.js",
       "source_location": "L45",
       "id": "reports_reports_service_getagentperformance",
-      "community": 32,
+      "community": 34,
       "norm_label": "getagentperformance()"
     },
     {
@@ -1323,7 +1323,7 @@
       "source_file": "backend/src/modules/reports/reports.service.js",
       "source_location": "L77",
       "id": "reports_reports_service_getvolumebyday",
-      "community": 32,
+      "community": 34,
       "norm_label": "getvolumebyday()"
     },
     {
@@ -1332,7 +1332,7 @@
       "source_file": "backend/src/modules/reports/reports.router.js",
       "source_location": "L1",
       "id": "backend_src_modules_reports_reports_router_js",
-      "community": 63,
+      "community": 64,
       "norm_label": "reports.router.js"
     },
     {
@@ -1341,7 +1341,7 @@
       "source_file": "backend/src/modules/templates/templates.router.js",
       "source_location": "L1",
       "id": "backend_src_modules_templates_templates_router_js",
-      "community": 64,
+      "community": 65,
       "norm_label": "templates.router.js"
     },
     {
@@ -1350,7 +1350,7 @@
       "source_file": "backend/src/modules/uploads/uploads.router.js",
       "source_location": "L1",
       "id": "backend_src_modules_uploads_uploads_router_js",
-      "community": 65,
+      "community": 66,
       "norm_label": "uploads.router.js"
     },
     {
@@ -1467,7 +1467,7 @@
       "source_file": "backend/src/modules/pipelines/pipelines.router.js",
       "source_location": "L1",
       "id": "backend_src_modules_pipelines_pipelines_router_js",
-      "community": 66,
+      "community": 67,
       "norm_label": "pipelines.router.js"
     },
     {
@@ -1840,10 +1840,19 @@
       "norm_label": "getresolutionreport()"
     },
     {
-      "label": "spawnDueRecurringTickets()",
+      "label": "listRecurringTickets()",
       "file_type": "code",
       "source_file": "backend/src/modules/tickets/tickets.service.js",
       "source_location": "L784",
+      "id": "tickets_tickets_service_listrecurringtickets",
+      "community": 0,
+      "norm_label": "listrecurringtickets()"
+    },
+    {
+      "label": "spawnDueRecurringTickets()",
+      "file_type": "code",
+      "source_file": "backend/src/modules/tickets/tickets.service.js",
+      "source_location": "L815",
       "id": "tickets_tickets_service_spawnduerecurringtickets",
       "community": 0,
       "norm_label": "spawnduerecurringtickets()"
@@ -1852,7 +1861,7 @@
       "label": "createTicketFromConversation()",
       "file_type": "code",
       "source_file": "backend/src/modules/tickets/tickets.service.js",
-      "source_location": "L846",
+      "source_location": "L895",
       "id": "tickets_tickets_service_createticketfromconversation",
       "community": 0,
       "norm_label": "createticketfromconversation()"
@@ -1861,7 +1870,7 @@
       "label": "listComments()",
       "file_type": "code",
       "source_file": "backend/src/modules/tickets/tickets.service.js",
-      "source_location": "L881",
+      "source_location": "L930",
       "id": "tickets_tickets_service_listcomments",
       "community": 0,
       "norm_label": "listcomments()"
@@ -1870,7 +1879,7 @@
       "label": "createComment()",
       "file_type": "code",
       "source_file": "backend/src/modules/tickets/tickets.service.js",
-      "source_location": "L903",
+      "source_location": "L952",
       "id": "tickets_tickets_service_createcomment",
       "community": 0,
       "norm_label": "createcomment()"
@@ -1879,7 +1888,7 @@
       "label": "deleteComment()",
       "file_type": "code",
       "source_file": "backend/src/modules/tickets/tickets.service.js",
-      "source_location": "L919",
+      "source_location": "L968",
       "id": "tickets_tickets_service_deletecomment",
       "community": 0,
       "norm_label": "deletecomment()"
@@ -1888,7 +1897,7 @@
       "label": "listAttachments()",
       "file_type": "code",
       "source_file": "backend/src/modules/tickets/tickets.service.js",
-      "source_location": "L931",
+      "source_location": "L980",
       "id": "tickets_tickets_service_listattachments",
       "community": 0,
       "norm_label": "listattachments()"
@@ -1897,7 +1906,7 @@
       "label": "addAttachment()",
       "file_type": "code",
       "source_file": "backend/src/modules/tickets/tickets.service.js",
-      "source_location": "L942",
+      "source_location": "L991",
       "id": "tickets_tickets_service_addattachment",
       "community": 0,
       "norm_label": "addattachment()"
@@ -1906,7 +1915,7 @@
       "label": "deleteAttachment()",
       "file_type": "code",
       "source_file": "backend/src/modules/tickets/tickets.service.js",
-      "source_location": "L951",
+      "source_location": "L1000",
       "id": "tickets_tickets_service_deleteattachment",
       "community": 0,
       "norm_label": "deleteattachment()"
@@ -1915,7 +1924,7 @@
       "label": "getStorageUsage()",
       "file_type": "code",
       "source_file": "backend/src/modules/tickets/tickets.service.js",
-      "source_location": "L957",
+      "source_location": "L1006",
       "id": "tickets_tickets_service_getstorageusage",
       "community": 0,
       "norm_label": "getstorageusage()"
@@ -1926,7 +1935,7 @@
       "source_file": "backend/src/modules/tickets/tickets.router.js",
       "source_location": "L1",
       "id": "backend_src_modules_tickets_tickets_router_js",
-      "community": 45,
+      "community": 46,
       "norm_label": "tickets.router.js"
     },
     {
@@ -1935,7 +1944,7 @@
       "source_file": "backend/src/modules/tickets/tickets.router.js",
       "source_location": "L19",
       "id": "tickets_tickets_router_requireboardaccess",
-      "community": 45,
+      "community": 46,
       "norm_label": "requireboardaccess()"
     },
     {
@@ -1944,7 +1953,7 @@
       "source_file": "backend/src/modules/integrations/google-calendar.router.js",
       "source_location": "L1",
       "id": "backend_src_modules_integrations_google_calendar_router_js",
-      "community": 46,
+      "community": 47,
       "norm_label": "google-calendar.router.js"
     },
     {
@@ -1953,7 +1962,7 @@
       "source_file": "backend/src/modules/integrations/google-calendar.router.js",
       "source_location": "L38",
       "id": "integrations_google_calendar_router_closepopup",
-      "community": 46,
+      "community": 47,
       "norm_label": "closepopup()"
     },
     {
@@ -1962,7 +1971,7 @@
       "source_file": "backend/src/modules/integrations/mail.router.js",
       "source_location": "L1",
       "id": "backend_src_modules_integrations_mail_router_js",
-      "community": 36,
+      "community": 37,
       "norm_label": "mail.router.js"
     },
     {
@@ -1971,7 +1980,7 @@
       "source_file": "backend/src/modules/integrations/mail.router.js",
       "source_location": "L55",
       "id": "integrations_mail_router_maskemail",
-      "community": 36,
+      "community": 37,
       "norm_label": "maskemail()"
     },
     {
@@ -1980,7 +1989,7 @@
       "source_file": "backend/src/modules/integrations/mail.router.js",
       "source_location": "L61",
       "id": "integrations_mail_router_diagnosesmtperror",
-      "community": 36,
+      "community": 37,
       "norm_label": "diagnosesmtperror()"
     },
     {
@@ -2070,7 +2079,7 @@
       "source_file": "backend/src/utils/logger.js",
       "source_location": "L1",
       "id": "backend_src_utils_logger_js",
-      "community": 67,
+      "community": 68,
       "norm_label": "logger.js"
     },
     {
@@ -2079,7 +2088,7 @@
       "source_file": "backend/src/db/migrate.js",
       "source_location": "L1",
       "id": "backend_src_db_migrate_js",
-      "community": 47,
+      "community": 48,
       "norm_label": "migrate.js"
     },
     {
@@ -2088,7 +2097,7 @@
       "source_file": "backend/src/db/migrate.js",
       "source_location": "L9",
       "id": "db_migrate_migrate",
-      "community": 47,
+      "community": 48,
       "norm_label": "migrate()"
     },
     {
@@ -2223,7 +2232,7 @@
       "source_file": "backend/src/services/pdf.service.js",
       "source_location": "L1",
       "id": "backend_src_services_pdf_service_js",
-      "community": 43,
+      "community": 45,
       "norm_label": "pdf.service.js"
     },
     {
@@ -2232,7 +2241,7 @@
       "source_file": "backend/src/services/pdf.service.js",
       "source_location": "L12",
       "id": "services_pdf_service_extractpdftext",
-      "community": 43,
+      "community": 45,
       "norm_label": "extractpdftext()"
     },
     {
@@ -2574,7 +2583,7 @@
       "source_file": "frontend/next.config.js",
       "source_location": "L1",
       "id": "frontend_next_config_js",
-      "community": 68,
+      "community": 69,
       "norm_label": "next.config.js"
     },
     {
@@ -2583,7 +2592,7 @@
       "source_file": "frontend/tailwind.config.js",
       "source_location": "L1",
       "id": "frontend_tailwind_config_js",
-      "community": 69,
+      "community": 70,
       "norm_label": "tailwind.config.js"
     },
     {
@@ -2592,7 +2601,7 @@
       "source_file": "frontend/postcss.config.js",
       "source_location": "L1",
       "id": "frontend_postcss_config_js",
-      "community": 70,
+      "community": 71,
       "norm_label": "postcss.config.js"
     },
     {
@@ -2601,7 +2610,7 @@
       "source_file": "frontend/src/app/layout.tsx",
       "source_location": "L1",
       "id": "frontend_src_app_layout_tsx",
-      "community": 48,
+      "community": 49,
       "norm_label": "layout.tsx"
     },
     {
@@ -2610,7 +2619,7 @@
       "source_file": "frontend/src/app/layout.tsx",
       "source_location": "L9",
       "id": "app_layout_rootlayout",
-      "community": 48,
+      "community": 49,
       "norm_label": "rootlayout()"
     },
     {
@@ -2619,7 +2628,7 @@
       "source_file": "frontend/src/app/page.tsx",
       "source_location": "L1",
       "id": "frontend_src_app_page_tsx",
-      "community": 49,
+      "community": 50,
       "norm_label": "page.tsx"
     },
     {
@@ -2628,7 +2637,7 @@
       "source_file": "frontend/src/app/page.tsx",
       "source_location": "L3",
       "id": "app_page_homepage",
-      "community": 49,
+      "community": 50,
       "norm_label": "homepage()"
     },
     {
@@ -2673,7 +2682,7 @@
       "source_file": "frontend/src/app/dashboard/page.tsx",
       "source_location": "L1",
       "id": "frontend_src_app_dashboard_page_tsx",
-      "community": 50,
+      "community": 51,
       "norm_label": "page.tsx"
     },
     {
@@ -2682,7 +2691,7 @@
       "source_file": "frontend/src/app/dashboard/page.tsx",
       "source_location": "L28",
       "id": "dashboard_page_fetchstats",
-      "community": 50,
+      "community": 51,
       "norm_label": "fetchstats()"
     },
     {
@@ -2700,7 +2709,7 @@
       "source_file": "frontend/src/app/dashboard/contacts/page.tsx",
       "source_location": "L1",
       "id": "frontend_src_app_dashboard_contacts_page_tsx",
-      "community": 51,
+      "community": 52,
       "norm_label": "page.tsx"
     },
     {
@@ -2709,7 +2718,7 @@
       "source_file": "frontend/src/app/dashboard/contacts/page.tsx",
       "source_location": "L38",
       "id": "contacts_page_submit",
-      "community": 51,
+      "community": 52,
       "norm_label": "submit()"
     },
     {
@@ -2880,7 +2889,7 @@
       "source_file": "frontend/src/app/dashboard/settings/page.tsx",
       "source_location": "L1",
       "id": "frontend_src_app_dashboard_settings_page_tsx",
-      "community": 52,
+      "community": 53,
       "norm_label": "page.tsx"
     },
     {
@@ -2889,7 +2898,7 @@
       "source_file": "frontend/src/app/dashboard/settings/page.tsx",
       "source_location": "L42",
       "id": "settings_page_settingspage",
-      "community": 52,
+      "community": 53,
       "norm_label": "settingspage()"
     },
     {
@@ -3186,7 +3195,7 @@
       "source_file": "frontend/src/app/dashboard/canned/page.tsx",
       "source_location": "L1",
       "id": "frontend_src_app_dashboard_canned_page_tsx",
-      "community": 37,
+      "community": 38,
       "norm_label": "page.tsx"
     },
     {
@@ -3195,7 +3204,7 @@
       "source_file": "frontend/src/app/dashboard/canned/page.tsx",
       "source_location": "L30",
       "id": "canned_page_handlesave",
-      "community": 37,
+      "community": 38,
       "norm_label": "handlesave()"
     },
     {
@@ -3204,7 +3213,7 @@
       "source_file": "frontend/src/app/dashboard/canned/page.tsx",
       "source_location": "L47",
       "id": "canned_page_handledelete",
-      "community": 37,
+      "community": 38,
       "norm_label": "handledelete()"
     },
     {
@@ -3258,7 +3267,7 @@
       "source_file": "frontend/src/app/dashboard/labels/page.tsx",
       "source_location": "L1",
       "id": "frontend_src_app_dashboard_labels_page_tsx",
-      "community": 38,
+      "community": 39,
       "norm_label": "page.tsx"
     },
     {
@@ -3267,7 +3276,7 @@
       "source_file": "frontend/src/app/dashboard/labels/page.tsx",
       "source_location": "L33",
       "id": "labels_page_handlesave",
-      "community": 38,
+      "community": 39,
       "norm_label": "handlesave()"
     },
     {
@@ -3276,7 +3285,7 @@
       "source_file": "frontend/src/app/dashboard/labels/page.tsx",
       "source_location": "L49",
       "id": "labels_page_handledelete",
-      "community": 38,
+      "community": 39,
       "norm_label": "handledelete()"
     },
     {
@@ -3771,7 +3780,7 @@
       "source_file": "frontend/src/app/dashboard/tickets/calendar/page.tsx",
       "source_location": "L1",
       "id": "frontend_src_app_dashboard_tickets_calendar_page_tsx",
-      "community": 34,
+      "community": 35,
       "norm_label": "page.tsx"
     },
     {
@@ -3780,7 +3789,7 @@
       "source_file": "frontend/src/app/dashboard/tickets/calendar/page.tsx",
       "source_location": "L74",
       "id": "calendar_page_ticketsforday",
-      "community": 34,
+      "community": 35,
       "norm_label": "ticketsforday()"
     },
     {
@@ -3789,7 +3798,7 @@
       "source_file": "frontend/src/app/dashboard/tickets/calendar/page.tsx",
       "source_location": "L78",
       "id": "calendar_page_googleeventsforday",
-      "community": 34,
+      "community": 35,
       "norm_label": "googleeventsforday()"
     },
     {
@@ -3798,7 +3807,7 @@
       "source_file": "frontend/src/app/dashboard/tickets/calendar/page.tsx",
       "source_location": "L235",
       "id": "calendar_page_clsx",
-      "community": 34,
+      "community": 35,
       "norm_label": "clsx()"
     },
     {
@@ -3834,7 +3843,7 @@
       "source_file": "frontend/src/app/dashboard/tickets/reports/page.tsx",
       "source_location": "L72",
       "id": "reports_page_fetchreport",
-      "community": 6,
+      "community": 3,
       "norm_label": "fetchreport()"
     },
     {
@@ -3849,10 +3858,55 @@
     {
       "label": "page.tsx",
       "file_type": "code",
+      "source_file": "frontend/src/app/dashboard/tickets/recurring/page.tsx",
+      "source_location": "L1",
+      "id": "frontend_src_app_dashboard_tickets_recurring_page_tsx",
+      "community": 30,
+      "norm_label": "page.tsx"
+    },
+    {
+      "label": "handleStop()",
+      "file_type": "code",
+      "source_file": "frontend/src/app/dashboard/tickets/recurring/page.tsx",
+      "source_location": "L73",
+      "id": "recurring_page_handlestop",
+      "community": 30,
+      "norm_label": "handlestop()"
+    },
+    {
+      "label": "handleSetEnd()",
+      "file_type": "code",
+      "source_file": "frontend/src/app/dashboard/tickets/recurring/page.tsx",
+      "source_location": "L87",
+      "id": "recurring_page_handlesetend",
+      "community": 30,
+      "norm_label": "handlesetend()"
+    },
+    {
+      "label": "handleClearEnd()",
+      "file_type": "code",
+      "source_file": "frontend/src/app/dashboard/tickets/recurring/page.tsx",
+      "source_location": "L100",
+      "id": "recurring_page_handleclearend",
+      "community": 30,
+      "norm_label": "handleclearend()"
+    },
+    {
+      "label": "clsx()",
+      "file_type": "code",
+      "source_file": "frontend/src/app/dashboard/tickets/recurring/page.tsx",
+      "source_location": "L176",
+      "id": "recurring_page_clsx",
+      "community": 30,
+      "norm_label": "clsx()"
+    },
+    {
+      "label": "page.tsx",
+      "file_type": "code",
       "source_file": "frontend/src/app/select/page.tsx",
       "source_location": "L1",
       "id": "frontend_src_app_select_page_tsx",
-      "community": 30,
+      "community": 31,
       "norm_label": "page.tsx"
     },
     {
@@ -3861,7 +3915,7 @@
       "source_file": "frontend/src/app/select/page.tsx",
       "source_location": "L40",
       "id": "select_page_handleorgselect",
-      "community": 30,
+      "community": 31,
       "norm_label": "handleorgselect()"
     },
     {
@@ -3870,7 +3924,7 @@
       "source_file": "frontend/src/app/select/page.tsx",
       "source_location": "L51",
       "id": "select_page_handlecreateworkspace",
-      "community": 30,
+      "community": 31,
       "norm_label": "handlecreateworkspace()"
     },
     {
@@ -3879,7 +3933,7 @@
       "source_file": "frontend/src/app/select/page.tsx",
       "source_location": "L66",
       "id": "select_page_handleworkspaceselect",
-      "community": 30,
+      "community": 31,
       "norm_label": "handleworkspaceselect()"
     },
     {
@@ -3888,7 +3942,7 @@
       "source_file": "frontend/src/app/select/page.tsx",
       "source_location": "L73",
       "id": "select_page_planbadge",
-      "community": 30,
+      "community": 31,
       "norm_label": "planbadge()"
     },
     {
@@ -3897,7 +3951,7 @@
       "source_file": "frontend/src/components/layout/Sidebar.tsx",
       "source_location": "L1",
       "id": "frontend_src_components_layout_sidebar_tsx",
-      "community": 31,
+      "community": 32,
       "norm_label": "sidebar.tsx"
     },
     {
@@ -3906,7 +3960,7 @@
       "source_file": "frontend/src/components/layout/Sidebar.tsx",
       "source_location": "L62",
       "id": "layout_sidebar_handler",
-      "community": 31,
+      "community": 32,
       "norm_label": "handler()"
     },
     {
@@ -3915,7 +3969,7 @@
       "source_file": "frontend/src/components/layout/Sidebar.tsx",
       "source_location": "L69",
       "id": "layout_sidebar_handleworkspaceswitch",
-      "community": 31,
+      "community": 32,
       "norm_label": "handleworkspaceswitch()"
     },
     {
@@ -3924,7 +3978,7 @@
       "source_file": "frontend/src/components/layout/Sidebar.tsx",
       "source_location": "L76",
       "id": "layout_sidebar_isactive",
-      "community": 31,
+      "community": 32,
       "norm_label": "isactive()"
     },
     {
@@ -3933,7 +3987,7 @@
       "source_file": "frontend/src/components/layout/Sidebar.tsx",
       "source_location": "L93",
       "id": "layout_sidebar_clsx",
-      "community": 31,
+      "community": 32,
       "norm_label": "clsx()"
     },
     {
@@ -3942,7 +3996,7 @@
       "source_file": "frontend/src/components/layout/Header.tsx",
       "source_location": "L1",
       "id": "frontend_src_components_layout_header_tsx",
-      "community": 39,
+      "community": 40,
       "norm_label": "header.tsx"
     },
     {
@@ -3951,7 +4005,7 @@
       "source_file": "frontend/src/components/layout/Header.tsx",
       "source_location": "L26",
       "id": "layout_header_handler",
-      "community": 39,
+      "community": 40,
       "norm_label": "handler()"
     },
     {
@@ -3960,7 +4014,7 @@
       "source_file": "frontend/src/components/layout/Header.tsx",
       "source_location": "L35",
       "id": "layout_header_handleopen",
-      "community": 39,
+      "community": 40,
       "norm_label": "handleopen()"
     },
     {
@@ -4221,7 +4275,7 @@
       "source_file": "frontend/src/lib/api.ts",
       "source_location": "L1",
       "id": "frontend_src_lib_api_ts",
-      "community": 53,
+      "community": 54,
       "norm_label": "api.ts"
     },
     {
@@ -4230,7 +4284,7 @@
       "source_file": "frontend/src/lib/api.ts",
       "source_location": "L23",
       "id": "lib_api_processqueue",
-      "community": 53,
+      "community": 54,
       "norm_label": "processqueue()"
     },
     {
@@ -4302,7 +4356,7 @@
       "source_file": "frontend/src/types/index.ts",
       "source_location": "L1",
       "id": "frontend_src_types_index_ts",
-      "community": 71,
+      "community": 72,
       "norm_label": "index.ts"
     },
     {
@@ -4311,7 +4365,7 @@
       "source_file": "frontend/src/store/auth.ts",
       "source_location": "L1",
       "id": "frontend_src_store_auth_ts",
-      "community": 72,
+      "community": 73,
       "norm_label": "auth.ts"
     },
     {
@@ -4320,7 +4374,7 @@
       "source_file": "frontend/src/store/workspace.ts",
       "source_location": "L1",
       "id": "frontend_src_store_workspace_ts",
-      "community": 73,
+      "community": 74,
       "norm_label": "workspace.ts"
     },
     {
@@ -4356,7 +4410,7 @@
       "source_file": "frontend/src/store/sidebar.ts",
       "source_location": "L1",
       "id": "frontend_src_store_sidebar_ts",
-      "community": 74,
+      "community": 75,
       "norm_label": "sidebar.ts"
     },
     {
@@ -5988,6 +6042,17 @@
       "source_location": "L756",
       "weight": 1.0,
       "source": "tickets_tickets_service_getresolutionreport",
+      "target": "config_database_query"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "backend/src/modules/tickets/tickets.service.js",
+      "source_location": "L792",
+      "weight": 1.0,
+      "source": "tickets_tickets_service_listrecurringtickets",
       "target": "config_database_query"
     },
     {
@@ -8297,6 +8362,16 @@
       "source_file": "backend/src/modules/tickets/tickets.service.js",
       "source_location": "L784",
       "weight": 1.0,
+      "source": "backend_src_modules_tickets_tickets_service_js",
+      "target": "tickets_tickets_service_listrecurringtickets",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/src/modules/tickets/tickets.service.js",
+      "source_location": "L784",
+      "weight": 1.0,
       "confidence_score": 1.0,
       "source": "backend_src_modules_tickets_tickets_service_js",
       "target": "tickets_tickets_service_spawnduerecurringtickets"
@@ -9454,9 +9529,9 @@
       "source_file": "backend/src/services/google-calendar.service.js",
       "source_location": "L108",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "backend_src_services_google_calendar_service_js",
-      "target": "services_google_calendar_service_toeventtimes",
-      "confidence_score": 1.0
+      "target": "services_google_calendar_service_toeventtimes"
     },
     {
       "relation": "contains",
@@ -9636,9 +9711,9 @@
       "source_file": "backend/src/services/google-calendar.service.js",
       "source_location": "L126",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "services_google_calendar_service_createevent",
-      "target": "services_google_calendar_service_toeventtimes",
-      "confidence_score": 1.0
+      "target": "services_google_calendar_service_toeventtimes"
     },
     {
       "relation": "calls",
@@ -9647,9 +9722,9 @@
       "source_file": "backend/src/services/google-calendar.service.js",
       "source_location": "L170",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "services_google_calendar_service_updateevent",
-      "target": "services_google_calendar_service_toeventtimes",
-      "confidence_score": 1.0
+      "target": "services_google_calendar_service_toeventtimes"
     },
     {
       "relation": "calls",
@@ -11089,6 +11164,46 @@
     {
       "relation": "contains",
       "confidence": "EXTRACTED",
+      "source_file": "frontend/src/app/dashboard/tickets/recurring/page.tsx",
+      "source_location": "L73",
+      "weight": 1.0,
+      "source": "frontend_src_app_dashboard_tickets_recurring_page_tsx",
+      "target": "recurring_page_handlestop",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/app/dashboard/tickets/recurring/page.tsx",
+      "source_location": "L87",
+      "weight": 1.0,
+      "source": "frontend_src_app_dashboard_tickets_recurring_page_tsx",
+      "target": "recurring_page_handlesetend",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/app/dashboard/tickets/recurring/page.tsx",
+      "source_location": "L100",
+      "weight": 1.0,
+      "source": "frontend_src_app_dashboard_tickets_recurring_page_tsx",
+      "target": "recurring_page_handleclearend",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/app/dashboard/tickets/recurring/page.tsx",
+      "source_location": "L176",
+      "weight": 1.0,
+      "source": "frontend_src_app_dashboard_tickets_recurring_page_tsx",
+      "target": "recurring_page_clsx",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
       "source_file": "frontend/src/app/select/page.tsx",
       "source_location": "L40",
       "weight": 1.0,
@@ -11680,5 +11795,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "99a5ecbd4d0b8a837856a74a3658eb7338c9f186"
+  "built_at_commit": "fff036a3937f7d73ce33282fdae24378533c2fb0"
 }
