@@ -261,7 +261,7 @@
       "source_file": "backend/src/modules/organizations/organizations.service.js",
       "source_location": "L1",
       "id": "backend_src_modules_organizations_organizations_service_js",
-      "community": 21,
+      "community": 20,
       "norm_label": "organizations.service.js"
     },
     {
@@ -270,7 +270,7 @@
       "source_file": "backend/src/modules/organizations/organizations.service.js",
       "source_location": "L7",
       "id": "organizations_organizations_service_listforuser",
-      "community": 21,
+      "community": 20,
       "norm_label": "listforuser()"
     },
     {
@@ -279,7 +279,7 @@
       "source_file": "backend/src/modules/organizations/organizations.service.js",
       "source_location": "L34",
       "id": "organizations_organizations_service_getbyid",
-      "community": 21,
+      "community": 20,
       "norm_label": "getbyid()"
     },
     {
@@ -288,7 +288,7 @@
       "source_file": "backend/src/modules/organizations/organizations.service.js",
       "source_location": "L41",
       "id": "organizations_organizations_service_update",
-      "community": 21,
+      "community": 20,
       "norm_label": "update()"
     },
     {
@@ -297,7 +297,7 @@
       "source_file": "backend/src/modules/organizations/organizations.service.js",
       "source_location": "L63",
       "id": "organizations_organizations_service_listmembers",
-      "community": 21,
+      "community": 20,
       "norm_label": "listmembers()"
     },
     {
@@ -306,7 +306,7 @@
       "source_file": "backend/src/modules/organizations/organizations.service.js",
       "source_location": "L92",
       "id": "organizations_organizations_service_invitemember",
-      "community": 21,
+      "community": 20,
       "norm_label": "invitemember()"
     },
     {
@@ -315,7 +315,7 @@
       "source_file": "backend/src/modules/organizations/organizations.service.js",
       "source_location": "L107",
       "id": "organizations_organizations_service_removemember",
-      "community": 21,
+      "community": 20,
       "norm_label": "removemember()"
     },
     {
@@ -324,7 +324,7 @@
       "source_file": "backend/src/modules/organizations/organizations.service.js",
       "source_location": "L125",
       "id": "organizations_organizations_service_updatememberrole",
-      "community": 21,
+      "community": 20,
       "norm_label": "updatememberrole()"
     },
     {
@@ -342,7 +342,7 @@
       "source_file": "backend/src/modules/workspaces/workspaces.service.js",
       "source_location": "L1",
       "id": "backend_src_modules_workspaces_workspaces_service_js",
-      "community": 12,
+      "community": 14,
       "norm_label": "workspaces.service.js"
     },
     {
@@ -351,7 +351,7 @@
       "source_file": "backend/src/modules/workspaces/workspaces.service.js",
       "source_location": "L12",
       "id": "workspaces_workspaces_service_listfororg",
-      "community": 12,
+      "community": 14,
       "norm_label": "listfororg()"
     },
     {
@@ -360,7 +360,7 @@
       "source_file": "backend/src/modules/workspaces/workspaces.service.js",
       "source_location": "L42",
       "id": "workspaces_workspaces_service_create",
-      "community": 12,
+      "community": 14,
       "norm_label": "create()"
     },
     {
@@ -369,7 +369,7 @@
       "source_file": "backend/src/modules/workspaces/workspaces.service.js",
       "source_location": "L65",
       "id": "workspaces_workspaces_service_getbyid",
-      "community": 12,
+      "community": 14,
       "norm_label": "getbyid()"
     },
     {
@@ -378,7 +378,7 @@
       "source_file": "backend/src/modules/workspaces/workspaces.service.js",
       "source_location": "L72",
       "id": "workspaces_workspaces_service_update",
-      "community": 12,
+      "community": 14,
       "norm_label": "update()"
     },
     {
@@ -387,7 +387,7 @@
       "source_file": "backend/src/modules/workspaces/workspaces.service.js",
       "source_location": "L118",
       "id": "workspaces_workspaces_service_listmembers",
-      "community": 12,
+      "community": 14,
       "norm_label": "listmembers()"
     },
     {
@@ -396,7 +396,7 @@
       "source_file": "backend/src/modules/workspaces/workspaces.service.js",
       "source_location": "L130",
       "id": "workspaces_workspaces_service_addmember",
-      "community": 12,
+      "community": 14,
       "norm_label": "addmember()"
     },
     {
@@ -405,7 +405,7 @@
       "source_file": "backend/src/modules/workspaces/workspaces.service.js",
       "source_location": "L172",
       "id": "workspaces_workspaces_service_removemember",
-      "community": 12,
+      "community": 14,
       "norm_label": "removemember()"
     },
     {
@@ -414,7 +414,7 @@
       "source_file": "backend/src/modules/workspaces/workspaces.service.js",
       "source_location": "L179",
       "id": "workspaces_workspaces_service_resetmemberpassword",
-      "community": 12,
+      "community": 14,
       "norm_label": "resetmemberpassword()"
     },
     {
@@ -423,7 +423,7 @@
       "source_file": "backend/src/modules/workspaces/workspaces.service.js",
       "source_location": "L205",
       "id": "workspaces_workspaces_service_updatememberrole",
-      "community": 12,
+      "community": 14,
       "norm_label": "updatememberrole()"
     },
     {
@@ -450,7 +450,7 @@
       "source_file": "backend/src/modules/inboxes/inboxes.service.js",
       "source_location": "L1",
       "id": "backend_src_modules_inboxes_inboxes_service_js",
-      "community": 14,
+      "community": 13,
       "norm_label": "inboxes.service.js"
     },
     {
@@ -459,7 +459,7 @@
       "source_file": "backend/src/modules/inboxes/inboxes.service.js",
       "source_location": "L5",
       "id": "inboxes_inboxes_service_list",
-      "community": 14,
+      "community": 13,
       "norm_label": "list()"
     },
     {
@@ -468,7 +468,7 @@
       "source_file": "backend/src/modules/inboxes/inboxes.service.js",
       "source_location": "L19",
       "id": "inboxes_inboxes_service_getbyid",
-      "community": 14,
+      "community": 13,
       "norm_label": "getbyid()"
     },
     {
@@ -477,7 +477,7 @@
       "source_file": "backend/src/modules/inboxes/inboxes.service.js",
       "source_location": "L27",
       "id": "inboxes_inboxes_service_create",
-      "community": 14,
+      "community": 13,
       "norm_label": "create()"
     },
     {
@@ -486,7 +486,7 @@
       "source_file": "backend/src/modules/inboxes/inboxes.service.js",
       "source_location": "L46",
       "id": "inboxes_inboxes_service_update",
-      "community": 14,
+      "community": 13,
       "norm_label": "update()"
     },
     {
@@ -495,7 +495,7 @@
       "source_file": "backend/src/modules/inboxes/inboxes.service.js",
       "source_location": "L82",
       "id": "inboxes_inboxes_service_remove",
-      "community": 14,
+      "community": 13,
       "norm_label": "remove()"
     },
     {
@@ -504,7 +504,7 @@
       "source_file": "backend/src/modules/inboxes/inboxes.service.js",
       "source_location": "L92",
       "id": "inboxes_inboxes_service_listmembers",
-      "community": 14,
+      "community": 13,
       "norm_label": "listmembers()"
     },
     {
@@ -513,7 +513,7 @@
       "source_file": "backend/src/modules/inboxes/inboxes.service.js",
       "source_location": "L107",
       "id": "inboxes_inboxes_service_addmember",
-      "community": 14,
+      "community": 13,
       "norm_label": "addmember()"
     },
     {
@@ -522,7 +522,7 @@
       "source_file": "backend/src/modules/inboxes/inboxes.service.js",
       "source_location": "L128",
       "id": "inboxes_inboxes_service_removemember",
-      "community": 14,
+      "community": 13,
       "norm_label": "removemember()"
     },
     {
@@ -531,7 +531,7 @@
       "source_file": "backend/src/modules/inboxes/inboxes.service.js",
       "source_location": "L136",
       "id": "inboxes_inboxes_service_getuserinboxids",
-      "community": 14,
+      "community": 13,
       "norm_label": "getuserinboxids()"
     },
     {
@@ -756,7 +756,7 @@
       "source_file": "backend/src/modules/messages/messages.router.js",
       "source_location": "L1",
       "id": "backend_src_modules_messages_messages_router_js",
-      "community": 44,
+      "community": 45,
       "norm_label": "messages.router.js"
     },
     {
@@ -765,7 +765,7 @@
       "source_file": "backend/src/modules/messages/messages.router.js",
       "source_location": "L15",
       "id": "messages_messages_router_assertconversationaccess",
-      "community": 44,
+      "community": 45,
       "norm_label": "assertconversationaccess()"
     },
     {
@@ -1062,7 +1062,7 @@
       "source_file": "backend/src/modules/departments/departments.service.js",
       "source_location": "L1",
       "id": "backend_src_modules_departments_departments_service_js",
-      "community": 13,
+      "community": 12,
       "norm_label": "departments.service.js"
     },
     {
@@ -1071,7 +1071,7 @@
       "source_file": "backend/src/modules/departments/departments.service.js",
       "source_location": "L7",
       "id": "departments_departments_service_list",
-      "community": 13,
+      "community": 12,
       "norm_label": "list()"
     },
     {
@@ -1080,7 +1080,7 @@
       "source_file": "backend/src/modules/departments/departments.service.js",
       "source_location": "L23",
       "id": "departments_departments_service_getbyid",
-      "community": 13,
+      "community": 12,
       "norm_label": "getbyid()"
     },
     {
@@ -1089,7 +1089,7 @@
       "source_file": "backend/src/modules/departments/departments.service.js",
       "source_location": "L31",
       "id": "departments_departments_service_create",
-      "community": 13,
+      "community": 12,
       "norm_label": "create()"
     },
     {
@@ -1098,7 +1098,7 @@
       "source_file": "backend/src/modules/departments/departments.service.js",
       "source_location": "L40",
       "id": "departments_departments_service_update",
-      "community": 13,
+      "community": 12,
       "norm_label": "update()"
     },
     {
@@ -1107,7 +1107,7 @@
       "source_file": "backend/src/modules/departments/departments.service.js",
       "source_location": "L59",
       "id": "departments_departments_service_remove",
-      "community": 13,
+      "community": 12,
       "norm_label": "remove()"
     },
     {
@@ -1116,7 +1116,7 @@
       "source_file": "backend/src/modules/departments/departments.service.js",
       "source_location": "L67",
       "id": "departments_departments_service_listagents",
-      "community": 13,
+      "community": 12,
       "norm_label": "listagents()"
     },
     {
@@ -1125,7 +1125,7 @@
       "source_file": "backend/src/modules/departments/departments.service.js",
       "source_location": "L84",
       "id": "departments_departments_service_assignagent",
-      "community": 13,
+      "community": 12,
       "norm_label": "assignagent()"
     },
     {
@@ -1134,7 +1134,7 @@
       "source_file": "backend/src/modules/departments/departments.service.js",
       "source_location": "L100",
       "id": "departments_departments_service_removeagent",
-      "community": 13,
+      "community": 12,
       "norm_label": "removeagent()"
     },
     {
@@ -1143,7 +1143,7 @@
       "source_file": "backend/src/modules/departments/departments.service.js",
       "source_location": "L110",
       "id": "departments_departments_service_listunassignedagents",
-      "community": 13,
+      "community": 12,
       "norm_label": "listunassignedagents()"
     },
     {
@@ -1215,7 +1215,7 @@
       "source_file": "backend/src/modules/labels/labels.service.js",
       "source_location": "L1",
       "id": "backend_src_modules_labels_labels_service_js",
-      "community": 20,
+      "community": 21,
       "norm_label": "labels.service.js"
     },
     {
@@ -1224,7 +1224,7 @@
       "source_file": "backend/src/modules/labels/labels.service.js",
       "source_location": "L5",
       "id": "labels_labels_service_list",
-      "community": 20,
+      "community": 21,
       "norm_label": "list()"
     },
     {
@@ -1233,7 +1233,7 @@
       "source_file": "backend/src/modules/labels/labels.service.js",
       "source_location": "L13",
       "id": "labels_labels_service_create",
-      "community": 20,
+      "community": 21,
       "norm_label": "create()"
     },
     {
@@ -1242,7 +1242,7 @@
       "source_file": "backend/src/modules/labels/labels.service.js",
       "source_location": "L22",
       "id": "labels_labels_service_update",
-      "community": 20,
+      "community": 21,
       "norm_label": "update()"
     },
     {
@@ -1251,7 +1251,7 @@
       "source_file": "backend/src/modules/labels/labels.service.js",
       "source_location": "L41",
       "id": "labels_labels_service_remove",
-      "community": 20,
+      "community": 21,
       "norm_label": "remove()"
     },
     {
@@ -1260,7 +1260,7 @@
       "source_file": "backend/src/modules/labels/labels.service.js",
       "source_location": "L47",
       "id": "labels_labels_service_getforconversation",
-      "community": 20,
+      "community": 21,
       "norm_label": "getforconversation()"
     },
     {
@@ -1269,7 +1269,7 @@
       "source_file": "backend/src/modules/labels/labels.service.js",
       "source_location": "L58",
       "id": "labels_labels_service_addtoconversation",
-      "community": 20,
+      "community": 21,
       "norm_label": "addtoconversation()"
     },
     {
@@ -1278,7 +1278,7 @@
       "source_file": "backend/src/modules/labels/labels.service.js",
       "source_location": "L66",
       "id": "labels_labels_service_removefromconversation",
-      "community": 20,
+      "community": 21,
       "norm_label": "removefromconversation()"
     },
     {
@@ -2232,7 +2232,7 @@
       "source_file": "backend/src/services/pdf.service.js",
       "source_location": "L1",
       "id": "backend_src_services_pdf_service_js",
-      "community": 45,
+      "community": 44,
       "norm_label": "pdf.service.js"
     },
     {
@@ -2241,7 +2241,7 @@
       "source_file": "backend/src/services/pdf.service.js",
       "source_location": "L12",
       "id": "services_pdf_service_extractpdftext",
-      "community": 45,
+      "community": 44,
       "norm_label": "extractpdftext()"
     },
     {
@@ -8362,9 +8362,9 @@
       "source_file": "backend/src/modules/tickets/tickets.service.js",
       "source_location": "L784",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "backend_src_modules_tickets_tickets_service_js",
-      "target": "tickets_tickets_service_listrecurringtickets",
-      "confidence_score": 1.0
+      "target": "tickets_tickets_service_listrecurringtickets"
     },
     {
       "relation": "contains",
@@ -11167,9 +11167,9 @@
       "source_file": "frontend/src/app/dashboard/tickets/recurring/page.tsx",
       "source_location": "L73",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "frontend_src_app_dashboard_tickets_recurring_page_tsx",
-      "target": "recurring_page_handlestop",
-      "confidence_score": 1.0
+      "target": "recurring_page_handlestop"
     },
     {
       "relation": "contains",
@@ -11177,9 +11177,9 @@
       "source_file": "frontend/src/app/dashboard/tickets/recurring/page.tsx",
       "source_location": "L87",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "frontend_src_app_dashboard_tickets_recurring_page_tsx",
-      "target": "recurring_page_handlesetend",
-      "confidence_score": 1.0
+      "target": "recurring_page_handlesetend"
     },
     {
       "relation": "contains",
@@ -11187,9 +11187,9 @@
       "source_file": "frontend/src/app/dashboard/tickets/recurring/page.tsx",
       "source_location": "L100",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "frontend_src_app_dashboard_tickets_recurring_page_tsx",
-      "target": "recurring_page_handleclearend",
-      "confidence_score": 1.0
+      "target": "recurring_page_handleclearend"
     },
     {
       "relation": "contains",
@@ -11197,9 +11197,9 @@
       "source_file": "frontend/src/app/dashboard/tickets/recurring/page.tsx",
       "source_location": "L176",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "frontend_src_app_dashboard_tickets_recurring_page_tsx",
-      "target": "recurring_page_clsx",
-      "confidence_score": 1.0
+      "target": "recurring_page_clsx"
     },
     {
       "relation": "contains",
@@ -11795,5 +11795,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "fff036a3937f7d73ce33282fdae24378533c2fb0"
+  "built_at_commit": "504132845fd5aaa72cb17b0c01f29267792a9731"
 }

@@ -114,6 +114,29 @@ function toEventTimes(date) {
   };
 }
 
+// Busca board_id e workspace_id do ticket para montar o link
+async function getTicketLink(ticketId) {
+  const r = await query(
+    `SELECT tb.id AS board_id, tb.workspace_id
+     FROM tickets t JOIN ticket_boards tb ON tb.id = t.board_id
+     WHERE t.id = $1`,
+    [ticketId]
+  );
+  if (!r.rows.length) return null;
+  const { board_id, workspace_id } = r.rows[0];
+  const appUrl = process.env.APP_URL || 'http://localhost:3000';
+  return `${appUrl}/dashboard/tickets/${board_id}/${ticketId}`;
+}
+
+// Monta a descrição completa do evento com texto do ticket + link
+async function buildEventDescription(ticketId, description) {
+  const link = await getTicketLink(ticketId);
+  const parts = [];
+  if (description) parts.push(description);
+  if (link)        parts.push(`\n🔗 Ver ticket: ${link}`);
+  return parts.join('\n');
+}
+
 // ── Operações de evento ───────────────────────────────────────────────────────
 
 async function createEvent(userId, ticketId, { title, description, dueDate }) {
@@ -122,14 +145,15 @@ async function createEvent(userId, ticketId, { title, description, dueDate }) {
   if (!client) return;
 
   try {
-    const calendar = google.calendar({ version: 'v3', auth: client });
-    const times    = toEventTimes(dueDate);
+    const calendar    = google.calendar({ version: 'v3', auth: client });
+    const times       = toEventTimes(dueDate);
+    const fullDesc    = await buildEventDescription(ticketId, description);
 
     const res = await calendar.events.insert({
       calendarId:  'primary',
       requestBody: {
         summary:     `[Ticket] ${title}`,
-        description: description || '',
+        description: fullDesc,
         ...times,
         extendedProperties: { private: { gtw_ticket_id: ticketId } },
       },
@@ -164,8 +188,8 @@ async function updateEvent(userId, ticketId, { title, description, dueDate }) {
   try {
     const calendar = google.calendar({ version: 'v3', auth: client });
     const patch = {};
-    if (title !== undefined)       patch.summary     = `[Ticket] ${title}`;
-    if (description !== undefined) patch.description = description || '';
+    if (title !== undefined)       patch.summary = `[Ticket] ${title}`;
+    if (description !== undefined) patch.description = await buildEventDescription(ticketId, description);
     if (dueDate !== undefined && dueDate !== null) {
       const times  = toEventTimes(dueDate);
       patch.start  = times.start;

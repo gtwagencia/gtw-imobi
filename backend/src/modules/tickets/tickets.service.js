@@ -497,9 +497,10 @@ async function updateTicket(ticketId, workspaceId, body, actorId) {
   const newTitle      = body.title       ?? prev.title;
   const newDesc       = body.description ?? prev.description;
 
-  const assigneeChanged = 'assigneeId' in body && body.assigneeId !== prev.assignee_id;
-  const dueDateChanged  = 'dueDate'    in body;
-  const titleChanged    = body.title !== undefined;
+  const assigneeChanged = 'assigneeId'  in body && body.assigneeId  !== prev.assignee_id;
+  const dueDateChanged  = 'dueDate'     in body;
+  const titleChanged    = body.title       !== undefined;
+  const descChanged     = body.description !== undefined;
 
   if (assigneeChanged) {
     // Remove evento do assignee anterior
@@ -512,7 +513,7 @@ async function updateTicket(ticketId, workspaceId, body, actorId) {
       gcal.createEvent(newAssigneeId, ticketId, { title: newTitle, description: newDesc, dueDate: newDueDate })
         .catch(err => console.error('[gcal-sync] createEvent (new assignee):', err.message));
     }
-  } else if ((dueDateChanged || titleChanged) && newAssigneeId) {
+  } else if ((dueDateChanged || titleChanged || descChanged) && newAssigneeId) {
     if (newDueDate) {
       gcal.updateEvent(newAssigneeId, ticketId, { title: newTitle, description: newDesc, dueDate: newDueDate })
         .catch(err => console.error('[gcal-sync] updateEvent:', err.message));

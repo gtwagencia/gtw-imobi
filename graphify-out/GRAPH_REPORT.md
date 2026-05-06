@@ -10,7 +10,7 @@
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `fff036a3`
+- Built from commit: `50413284`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -120,15 +120,15 @@ Nodes (7): buildCustomData(), buildUserData(), listEvents(), sendEvent(), sendLe
 
 ### Community 12 - "Community 12"
 Cohesion: 0.2
-Nodes (9): addMember(), create(), getById(), listForOrg(), listMembers(), removeMember(), resetMemberPassword(), update() (+1 more)
+Nodes (9): assignAgent(), create(), getById(), list(), listAgents(), listUnassignedAgents(), remove(), removeAgent() (+1 more)
 
 ### Community 13 - "Community 13"
 Cohesion: 0.2
-Nodes (9): assignAgent(), create(), getById(), list(), listAgents(), listUnassignedAgents(), remove(), removeAgent() (+1 more)
+Nodes (9): addMember(), create(), getById(), getUserInboxIds(), list(), listMembers(), remove(), removeMember() (+1 more)
 
 ### Community 14 - "Community 14"
 Cohesion: 0.2
-Nodes (9): addMember(), create(), getById(), getUserInboxIds(), list(), listMembers(), remove(), removeMember() (+1 more)
+Nodes (9): addMember(), create(), getById(), listForOrg(), listMembers(), removeMember(), resetMemberPassword(), update() (+1 more)
 
 ### Community 15 - "Community 15"
 Cohesion: 0.47
@@ -148,11 +148,11 @@ Nodes (5): backfillAttending(), isWithinBusinessHours(), runAiAnalysis(), runFol
 
 ### Community 20 - "Community 20"
 Cohesion: 0.25
-Nodes (7): addToConversation(), create(), getForConversation(), list(), remove(), removeFromConversation(), update()
+Nodes (7): getById(), inviteMember(), listForUser(), listMembers(), removeMember(), update(), updateMemberRole()
 
 ### Community 21 - "Community 21"
 Cohesion: 0.25
-Nodes (7): getById(), inviteMember(), listForUser(), listMembers(), removeMember(), update(), updateMemberRole()
+Nodes (7): addToConversation(), create(), getForConversation(), list(), remove(), removeFromConversation(), update()
 
 ### Community 22 - "Community 22"
 Cohesion: 0.52
