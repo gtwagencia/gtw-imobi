@@ -103,9 +103,15 @@ async function getAuthorizedClient(userId) {
   return client;
 }
 
-// Converte due_date para string YYYY-MM-DD (evento de dia inteiro)
-function toDateStr(date) {
-  return new Date(date).toISOString().split('T')[0];
+// Retorna { start, end } no formato dateTime com 1h de duração
+// Preserva o offset do ISO original para não distorcer o horário local
+function toEventTimes(date) {
+  const start = new Date(date);
+  const end   = new Date(start.getTime() + 60 * 60 * 1000); // +1h
+  return {
+    start: { dateTime: start.toISOString() },
+    end:   { dateTime: end.toISOString() },
+  };
 }
 
 // ── Operações de evento ───────────────────────────────────────────────────────
@@ -117,16 +123,14 @@ async function createEvent(userId, ticketId, { title, description, dueDate }) {
 
   try {
     const calendar = google.calendar({ version: 'v3', auth: client });
-    const dateStr  = toDateStr(dueDate);
-    const nextDay  = toDateStr(new Date(new Date(dueDate).getTime() + 86400000));
+    const times    = toEventTimes(dueDate);
 
     const res = await calendar.events.insert({
       calendarId:  'primary',
       requestBody: {
         summary:     `[Ticket] ${title}`,
         description: description || '',
-        start:       { date: dateStr },
-        end:         { date: nextDay },
+        ...times,
         extendedProperties: { private: { gtw_ticket_id: ticketId } },
       },
     });
@@ -163,10 +167,9 @@ async function updateEvent(userId, ticketId, { title, description, dueDate }) {
     if (title !== undefined)       patch.summary     = `[Ticket] ${title}`;
     if (description !== undefined) patch.description = description || '';
     if (dueDate !== undefined && dueDate !== null) {
-      const dateStr = toDateStr(dueDate);
-      const nextDay = toDateStr(new Date(new Date(dueDate).getTime() + 86400000));
-      patch.start = { date: dateStr };
-      patch.end   = { date: nextDay };
+      const times  = toEventTimes(dueDate);
+      patch.start  = times.start;
+      patch.end    = times.end;
     }
     if (!Object.keys(patch).length) return;
 

@@ -52,7 +52,10 @@ export default function TicketCalendarPage() {
         // Carrega eventos Google em paralelo (falha silenciosa se não conectado)
         api.get<GoogleEvent[]>('/integrations/google/events', {
           params: { from: start.toISOString(), to: end.toISOString() },
-        }).then(r => setGoogleEvents(r.data)).catch(() => setGoogleEvents([])),
+        }).then(r => {
+          // Filtra eventos criados pelo próprio sistema (tickets) para não duplicar
+          setGoogleEvents(r.data.filter(e => !e.isTicket));
+        }).catch(() => setGoogleEvents([])),
       ]);
       setTickets(ticketsRes.data);
     } finally {
