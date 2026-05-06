@@ -19,11 +19,11 @@ function getCaller(req) {
 router.get('/', authenticate, workspaceContext, async (req, res, next) => {
   try {
     const { status, inboxId, assigneeId, departmentId, contactId, labelId,
-            metaSource, metaCampaign, page, limit } = req.query;
+            isGroup, metaSource, metaCampaign, page, limit } = req.query;
     const result = await svc.list(
       req.params.workspaceId,
       { status, inboxId, assigneeId, departmentId, contactId, labelId,
-        metaSource, metaCampaign,
+        isGroup, metaSource, metaCampaign,
         page: parseInt(page, 10) || 1,
         limit: Math.min(parseInt(limit, 10) || 30, 100) },
       getCaller(req)

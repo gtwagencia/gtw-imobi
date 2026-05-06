@@ -463,7 +463,16 @@ router.post('/evolution/:inboxId', async (req, res) => {
 
         // ── Grupos: só processa se groups_enabled no inbox ────────────
         if (isGroup) {
-          if (!inbox.groups_enabled) continue;
+          logger.info('[webhook] grupo detectado', {
+            inboxId,
+            remoteJid,
+            groups_enabled: inbox.groups_enabled,
+            msgKey: msg.key,
+          });
+          if (!inbox.groups_enabled) {
+            logger.warn('[webhook] grupo ignorado — groups_enabled=false no inbox', { inboxId, remoteJid });
+            continue;
+          }
           await handleGroupMessage(msg, inbox, io, event);
           continue;
         }
