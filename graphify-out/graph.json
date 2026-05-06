@@ -108,7 +108,7 @@
       "source_file": "backend/src/middleware/orgContext.js",
       "source_location": "L1",
       "id": "backend_src_middleware_orgcontext_js",
-      "community": 44,
+      "community": 42,
       "norm_label": "orgcontext.js"
     },
     {
@@ -117,7 +117,7 @@
       "source_file": "backend/src/middleware/orgContext.js",
       "source_location": "L9",
       "id": "middleware_orgcontext_orgcontext",
-      "community": 44,
+      "community": 42,
       "norm_label": "orgcontext()"
     },
     {
@@ -342,7 +342,7 @@
       "source_file": "backend/src/modules/workspaces/workspaces.service.js",
       "source_location": "L1",
       "id": "backend_src_modules_workspaces_workspaces_service_js",
-      "community": 12,
+      "community": 13,
       "norm_label": "workspaces.service.js"
     },
     {
@@ -351,7 +351,7 @@
       "source_file": "backend/src/modules/workspaces/workspaces.service.js",
       "source_location": "L12",
       "id": "workspaces_workspaces_service_listfororg",
-      "community": 12,
+      "community": 13,
       "norm_label": "listfororg()"
     },
     {
@@ -360,7 +360,7 @@
       "source_file": "backend/src/modules/workspaces/workspaces.service.js",
       "source_location": "L42",
       "id": "workspaces_workspaces_service_create",
-      "community": 12,
+      "community": 13,
       "norm_label": "create()"
     },
     {
@@ -369,7 +369,7 @@
       "source_file": "backend/src/modules/workspaces/workspaces.service.js",
       "source_location": "L65",
       "id": "workspaces_workspaces_service_getbyid",
-      "community": 12,
+      "community": 13,
       "norm_label": "getbyid()"
     },
     {
@@ -378,7 +378,7 @@
       "source_file": "backend/src/modules/workspaces/workspaces.service.js",
       "source_location": "L72",
       "id": "workspaces_workspaces_service_update",
-      "community": 12,
+      "community": 13,
       "norm_label": "update()"
     },
     {
@@ -387,7 +387,7 @@
       "source_file": "backend/src/modules/workspaces/workspaces.service.js",
       "source_location": "L118",
       "id": "workspaces_workspaces_service_listmembers",
-      "community": 12,
+      "community": 13,
       "norm_label": "listmembers()"
     },
     {
@@ -396,7 +396,7 @@
       "source_file": "backend/src/modules/workspaces/workspaces.service.js",
       "source_location": "L130",
       "id": "workspaces_workspaces_service_addmember",
-      "community": 12,
+      "community": 13,
       "norm_label": "addmember()"
     },
     {
@@ -405,7 +405,7 @@
       "source_file": "backend/src/modules/workspaces/workspaces.service.js",
       "source_location": "L172",
       "id": "workspaces_workspaces_service_removemember",
-      "community": 12,
+      "community": 13,
       "norm_label": "removemember()"
     },
     {
@@ -414,7 +414,7 @@
       "source_file": "backend/src/modules/workspaces/workspaces.service.js",
       "source_location": "L179",
       "id": "workspaces_workspaces_service_resetmemberpassword",
-      "community": 12,
+      "community": 13,
       "norm_label": "resetmemberpassword()"
     },
     {
@@ -423,7 +423,7 @@
       "source_file": "backend/src/modules/workspaces/workspaces.service.js",
       "source_location": "L205",
       "id": "workspaces_workspaces_service_updatememberrole",
-      "community": 12,
+      "community": 13,
       "norm_label": "updatememberrole()"
     },
     {
@@ -756,7 +756,7 @@
       "source_file": "backend/src/modules/messages/messages.router.js",
       "source_location": "L1",
       "id": "backend_src_modules_messages_messages_router_js",
-      "community": 43,
+      "community": 44,
       "norm_label": "messages.router.js"
     },
     {
@@ -765,7 +765,7 @@
       "source_file": "backend/src/modules/messages/messages.router.js",
       "source_location": "L15",
       "id": "messages_messages_router_assertconversationaccess",
-      "community": 43,
+      "community": 44,
       "norm_label": "assertconversationaccess()"
     },
     {
@@ -1062,7 +1062,7 @@
       "source_file": "backend/src/modules/departments/departments.service.js",
       "source_location": "L1",
       "id": "backend_src_modules_departments_departments_service_js",
-      "community": 13,
+      "community": 12,
       "norm_label": "departments.service.js"
     },
     {
@@ -1071,7 +1071,7 @@
       "source_file": "backend/src/modules/departments/departments.service.js",
       "source_location": "L7",
       "id": "departments_departments_service_list",
-      "community": 13,
+      "community": 12,
       "norm_label": "list()"
     },
     {
@@ -1080,7 +1080,7 @@
       "source_file": "backend/src/modules/departments/departments.service.js",
       "source_location": "L23",
       "id": "departments_departments_service_getbyid",
-      "community": 13,
+      "community": 12,
       "norm_label": "getbyid()"
     },
     {
@@ -1089,7 +1089,7 @@
       "source_file": "backend/src/modules/departments/departments.service.js",
       "source_location": "L31",
       "id": "departments_departments_service_create",
-      "community": 13,
+      "community": 12,
       "norm_label": "create()"
     },
     {
@@ -1098,7 +1098,7 @@
       "source_file": "backend/src/modules/departments/departments.service.js",
       "source_location": "L40",
       "id": "departments_departments_service_update",
-      "community": 13,
+      "community": 12,
       "norm_label": "update()"
     },
     {
@@ -1107,7 +1107,7 @@
       "source_file": "backend/src/modules/departments/departments.service.js",
       "source_location": "L59",
       "id": "departments_departments_service_remove",
-      "community": 13,
+      "community": 12,
       "norm_label": "remove()"
     },
     {
@@ -1116,7 +1116,7 @@
       "source_file": "backend/src/modules/departments/departments.service.js",
       "source_location": "L67",
       "id": "departments_departments_service_listagents",
-      "community": 13,
+      "community": 12,
       "norm_label": "listagents()"
     },
     {
@@ -1125,7 +1125,7 @@
       "source_file": "backend/src/modules/departments/departments.service.js",
       "source_location": "L84",
       "id": "departments_departments_service_assignagent",
-      "community": 13,
+      "community": 12,
       "norm_label": "assignagent()"
     },
     {
@@ -1134,7 +1134,7 @@
       "source_file": "backend/src/modules/departments/departments.service.js",
       "source_location": "L100",
       "id": "departments_departments_service_removeagent",
-      "community": 13,
+      "community": 12,
       "norm_label": "removeagent()"
     },
     {
@@ -1143,7 +1143,7 @@
       "source_file": "backend/src/modules/departments/departments.service.js",
       "source_location": "L110",
       "id": "departments_departments_service_listunassignedagents",
-      "community": 13,
+      "community": 12,
       "norm_label": "listunassignedagents()"
     },
     {
@@ -2223,7 +2223,7 @@
       "source_file": "backend/src/services/pdf.service.js",
       "source_location": "L1",
       "id": "backend_src_services_pdf_service_js",
-      "community": 42,
+      "community": 43,
       "norm_label": "pdf.service.js"
     },
     {
@@ -2232,7 +2232,7 @@
       "source_file": "backend/src/services/pdf.service.js",
       "source_location": "L12",
       "id": "services_pdf_service_extractpdftext",
-      "community": 42,
+      "community": 43,
       "norm_label": "extractpdftext()"
     },
     {
@@ -2524,19 +2524,19 @@
       "norm_label": "getauthorizedclient()"
     },
     {
-      "label": "toDateStr()",
+      "label": "toEventTimes()",
       "file_type": "code",
       "source_file": "backend/src/services/google-calendar.service.js",
-      "source_location": "L107",
-      "id": "services_google_calendar_service_todatestr",
+      "source_location": "L108",
+      "id": "services_google_calendar_service_toeventtimes",
       "community": 5,
-      "norm_label": "todatestr()"
+      "norm_label": "toeventtimes()"
     },
     {
       "label": "createEvent()",
       "file_type": "code",
       "source_file": "backend/src/services/google-calendar.service.js",
-      "source_location": "L113",
+      "source_location": "L119",
       "id": "services_google_calendar_service_createevent",
       "community": 5,
       "norm_label": "createevent()"
@@ -2545,7 +2545,7 @@
       "label": "updateEvent()",
       "file_type": "code",
       "source_file": "backend/src/services/google-calendar.service.js",
-      "source_location": "L145",
+      "source_location": "L149",
       "id": "services_google_calendar_service_updateevent",
       "community": 5,
       "norm_label": "updateevent()"
@@ -2554,7 +2554,7 @@
       "label": "deleteEvent()",
       "file_type": "code",
       "source_file": "backend/src/services/google-calendar.service.js",
-      "source_location": "L191",
+      "source_location": "L194",
       "id": "services_google_calendar_service_deleteevent",
       "community": 5,
       "norm_label": "deleteevent()"
@@ -2563,7 +2563,7 @@
       "label": "listEvents()",
       "file_type": "code",
       "source_file": "backend/src/services/google-calendar.service.js",
-      "source_location": "L220",
+      "source_location": "L223",
       "id": "services_google_calendar_service_listevents",
       "community": 5,
       "norm_label": "listevents()"
@@ -3778,7 +3778,7 @@
       "label": "ticketsForDay()",
       "file_type": "code",
       "source_file": "frontend/src/app/dashboard/tickets/calendar/page.tsx",
-      "source_location": "L71",
+      "source_location": "L74",
       "id": "calendar_page_ticketsforday",
       "community": 34,
       "norm_label": "ticketsforday()"
@@ -3787,7 +3787,7 @@
       "label": "googleEventsForDay()",
       "file_type": "code",
       "source_file": "frontend/src/app/dashboard/tickets/calendar/page.tsx",
-      "source_location": "L75",
+      "source_location": "L78",
       "id": "calendar_page_googleeventsforday",
       "community": 34,
       "norm_label": "googleeventsforday()"
@@ -3796,7 +3796,7 @@
       "label": "clsx()",
       "file_type": "code",
       "source_file": "frontend/src/app/dashboard/tickets/calendar/page.tsx",
-      "source_location": "L232",
+      "source_location": "L235",
       "id": "calendar_page_clsx",
       "community": 34,
       "norm_label": "clsx()"
@@ -3834,7 +3834,7 @@
       "source_file": "frontend/src/app/dashboard/tickets/reports/page.tsx",
       "source_location": "L72",
       "id": "reports_page_fetchreport",
-      "community": 3,
+      "community": 6,
       "norm_label": "fetchreport()"
     },
     {
@@ -4376,6 +4376,15 @@
       "id": "hooks_usenotifications_usenotifications",
       "community": 1,
       "norm_label": "usenotifications()"
+    },
+    {
+      "label": "toDateStr()",
+      "file_type": "code",
+      "source_file": "backend/src/services/google-calendar.service.js",
+      "source_location": "L107",
+      "community": 5,
+      "norm_label": "todatestr()",
+      "id": "services_google_calendar_service_todatestr"
     }
   ],
   "links": [
@@ -9443,11 +9452,11 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/src/services/google-calendar.service.js",
-      "source_location": "L107",
+      "source_location": "L108",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "backend_src_services_google_calendar_service_js",
-      "target": "services_google_calendar_service_todatestr"
+      "target": "services_google_calendar_service_toeventtimes",
+      "confidence_score": 1.0
     },
     {
       "relation": "contains",
@@ -9488,6 +9497,16 @@
       "confidence_score": 1.0,
       "source": "backend_src_services_google_calendar_service_js",
       "target": "services_google_calendar_service_listevents"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/src/services/google-calendar.service.js",
+      "source_location": "L107",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "backend_src_services_google_calendar_service_js",
+      "target": "services_google_calendar_service_todatestr"
     },
     {
       "relation": "calls",
@@ -9615,6 +9634,39 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/src/services/google-calendar.service.js",
+      "source_location": "L126",
+      "weight": 1.0,
+      "source": "services_google_calendar_service_createevent",
+      "target": "services_google_calendar_service_toeventtimes",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/src/services/google-calendar.service.js",
+      "source_location": "L170",
+      "weight": 1.0,
+      "source": "services_google_calendar_service_updateevent",
+      "target": "services_google_calendar_service_toeventtimes",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/src/services/google-calendar.service.js",
+      "source_location": "L156",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "services_google_calendar_service_updateevent",
+      "target": "services_google_calendar_service_createevent"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/src/services/google-calendar.service.js",
       "source_location": "L120",
       "weight": 1.0,
       "confidence_score": 1.0,
@@ -9631,17 +9683,6 @@
       "confidence_score": 1.0,
       "source": "services_google_calendar_service_updateevent",
       "target": "services_google_calendar_service_todatestr"
-    },
-    {
-      "relation": "calls",
-      "context": "call",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/src/services/google-calendar.service.js",
-      "source_location": "L156",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "services_google_calendar_service_updateevent",
-      "target": "services_google_calendar_service_createevent"
     },
     {
       "relation": "contains",
@@ -11639,5 +11680,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "b10c692bcd103a2c22dbf7fea68de5b094f9a834"
+  "built_at_commit": "99a5ecbd4d0b8a837856a74a3658eb7338c9f186"
 }

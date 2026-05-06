@@ -8,7 +8,7 @@ import api from '@/lib/api';
 import type { TicketBoard } from '@/types';
 import {
   Plus, LayoutGrid, Archive, Settings, Users,
-  Ticket, Calendar, CheckSquare, BarChart2, Copy,
+  Ticket, Calendar, CheckSquare, BarChart2, Copy, Repeat,
 } from 'lucide-react';
 import clsx from 'clsx';
 import { formatDistanceToNow } from 'date-fns';
@@ -234,6 +234,13 @@ export default function TicketsPage() {
             >
               <Calendar className="w-4 h-4" />
               Calendário
+            </button>
+            <button
+              onClick={() => router.push('/dashboard/tickets/recurring')}
+              className="btn-secondary text-sm flex items-center gap-1.5"
+            >
+              <Repeat className="w-4 h-4" />
+              Recorrentes
             </button>
             <button
               onClick={() => setShowCreate(true)}

@@ -781,6 +781,37 @@ async function getResolutionReport(workspaceId, { from, to, boardId }) {
 
 // ── Recurring ticket spawner ──────────────────────────────────────────────────
 
+async function listRecurringTickets(workspaceId, userId, isAdmin) {
+  const params = [workspaceId];
+  let visibilityClause = '';
+  if (!isAdmin) {
+    params.push(userId);
+    visibilityClause = `AND (t.assignee_id = $2 OR t.created_by = $2)`;
+  }
+
+  const r = await query(
+    `SELECT t.id, t.title, t.priority, t.due_date,
+            t.recurrence_type, t.recurrence_interval, t.recurrence_end,
+            t.is_recurring, t.created_at,
+            tb.id AS board_id, tb.name AS board_name, tb.color AS board_color,
+            tc.name AS column_name,
+            u.name  AS assignee_name,
+            (SELECT COUNT(*) FROM tickets child WHERE child.parent_ticket_id = t.id)::int AS spawn_count,
+            (SELECT MAX(child.created_at) FROM tickets child WHERE child.parent_ticket_id = t.id) AS last_spawn_at
+     FROM tickets t
+     JOIN ticket_boards tb ON tb.id = t.board_id
+     JOIN ticket_columns tc ON tc.id = t.column_id
+     LEFT JOIN users u ON u.id = t.assignee_id
+     WHERE tb.workspace_id = $1
+       AND t.is_recurring = true
+       AND NOT tb.is_archived
+       ${visibilityClause}
+     ORDER BY t.recurrence_end NULLS LAST, t.title ASC`,
+    params
+  );
+  return r.rows;
+}
+
 async function spawnDueRecurringTickets() {
   const r = await query(
     `SELECT t.* FROM tickets t
@@ -820,12 +851,30 @@ async function spawnDueRecurringTickets() {
     }
 
     if (shouldSpawn) {
-      // Compute next due date
+      // Calcula próximo due_date preservando o horário original (ex: sempre às 9h)
+      // Soma o intervalo fixo da recorrência, não o tempo decorrido desde a criação
       let dueDate = null;
       if (tmpl.due_date) {
-        const original = new Date(tmpl.due_date);
-        const diffMs = now - new Date(tmpl.created_at);
-        dueDate = new Date(original.getTime() + diffMs);
+        const original  = new Date(tmpl.due_date);
+        const diffDays  = Math.floor((now - new Date(tmpl.created_at)) / 86400000);
+        let   addMs     = 0;
+
+        if (type === 'daily')    addMs = diffDays * 86400000;
+        else if (type === 'weekly')   addMs = Math.floor(diffDays / 7)  * 7  * 86400000;
+        else if (type === 'biweekly') addMs = Math.floor(diffDays / 14) * 14 * 86400000;
+        else if (type === 'monthly') {
+          const next = new Date(original);
+          next.setMonth(next.getMonth() + Math.floor(diffDays / 30));
+          dueDate = next;
+        } else if (type === 'yearly') {
+          const next = new Date(original);
+          next.setFullYear(next.getFullYear() + Math.floor(diffDays / 365));
+          dueDate = next;
+        } else if (type === 'custom' && tmpl.recurrence_interval) {
+          addMs = Math.floor(diffDays / tmpl.recurrence_interval) * tmpl.recurrence_interval * 86400000;
+        }
+
+        if (!dueDate) dueDate = new Date(original.getTime() + addMs);
       }
 
       const newTicket = await query(
@@ -1015,6 +1064,7 @@ module.exports = {
   createLabel,
   deleteLabel,
   getResolutionReport,
+  listRecurringTickets,
   spawnDueRecurringTickets,
   createTicketFromConversation,
   listComments,

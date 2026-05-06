@@ -684,6 +684,51 @@ export default function TicketDetailPage() {
                   placeholder="0"
                 />
               </div>
+
+              {/* Recorrência */}
+              <div>
+                <label className="text-xs text-gray-500 mb-2 block">Recorrência</label>
+                <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer mb-2">
+                  <input
+                    type="checkbox"
+                    checked={!!ticket.is_recurring}
+                    onChange={e => patch({ isRecurring: e.target.checked } as any)}
+                    className="rounded"
+                  />
+                  Tarefa recorrente
+                </label>
+                {ticket.is_recurring && (
+                  <div className="space-y-2">
+                    <select
+                      value={ticket.recurrence_type || 'weekly'}
+                      onChange={e => patch({ recurrenceType: e.target.value } as any)}
+                      className="input w-full text-sm"
+                    >
+                      <option value="daily">Diariamente</option>
+                      <option value="weekly">Semanalmente</option>
+                      <option value="biweekly">A cada 15 dias</option>
+                      <option value="monthly">Mensalmente</option>
+                      <option value="yearly">Anualmente</option>
+                      <option value="custom">Personalizado (dias)</option>
+                    </select>
+                    {ticket.recurrence_type === 'custom' && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <span className="text-gray-500 text-xs">A cada</span>
+                        <input
+                          type="number" min="1"
+                          value={ticket.recurrence_interval || 7}
+                          onChange={e => patch({ recurrenceInterval: parseInt(e.target.value) } as any)}
+                          className="input w-16 text-sm"
+                        />
+                        <span className="text-gray-500 text-xs">dias</span>
+                      </div>
+                    )}
+                    <p className="text-xs text-gray-400">
+                      Um novo ticket será criado automaticamente conforme o prazo definido acima.
+                    </p>
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Labels */}

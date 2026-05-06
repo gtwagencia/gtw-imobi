@@ -386,6 +386,16 @@ router.get('/my-tasks', ...auth, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// ── Recurring tickets ─────────────────────────────────────────────────────────
+
+router.get('/recurring', ...auth, async (req, res, next) => {
+  try {
+    const isAdmin = ['admin', 'owner'].includes(req.workspaceRole) || req.user.isSuperAdmin;
+    const tickets = await svc.listRecurringTickets(req.params.workspaceId, req.user.sub, isAdmin);
+    res.json(tickets);
+  } catch (err) { next(err); }
+});
+
 // ── Calendar ──────────────────────────────────────────────────────────────────
 
 router.get('/calendar', ...auth, async (req, res, next) => {
