@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/store/auth';
 import api from '@/lib/api';
@@ -121,9 +121,19 @@ export default function TicketDetailPage() {
   const [mentionQuery, setMentionQuery] = useState('');
   const [mentionPos,   setMentionPos]   = useState(0);
   const [mentionIdx,   setMentionIdx]   = useState(0);
-  const timerRef    = useRef<ReturnType<typeof setInterval> | null>(null);
-  const fileRef     = useRef<HTMLInputElement>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const timerRef       = useRef<ReturnType<typeof setInterval> | null>(null);
+  const fileRef        = useRef<HTMLInputElement>(null);
+  const textareaRef    = useRef<HTMLTextAreaElement>(null);
+  const descriptionRef = useRef<HTMLTextAreaElement>(null);
+
+  // Ajusta altura dos textareas assim que o ticket carrega (sem precisar digitar)
+  useLayoutEffect(() => {
+    if (descriptionRef.current) {
+      const el = descriptionRef.current;
+      el.style.height = 'auto';
+      el.style.height = el.scrollHeight + 'px';
+    }
+  }, [ticket?.description]);
 
   const canEdit = true; // board role check simplified — backend enforces permissions
 
@@ -425,6 +435,7 @@ export default function TicketDetailPage() {
               <div className="mt-3">
                 {canEdit ? (
                   <textarea
+                    ref={descriptionRef}
                     value={ticket.description || ''}
                     onChange={e => {
                       setTicket(p => p ? { ...p, description: e.target.value } : p);

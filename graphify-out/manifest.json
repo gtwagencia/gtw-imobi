@@ -1,0 +1,458 @@
+{
+  "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\backend\\src\\server.js": {
+    "mtime": 1777998109.887,
+    "hash": "863c7fa473c2986a7349562f01be2ef2"
+  },
+  "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\backend\\src\\config\\database.js": {
+    "mtime": 1773230000.871,
+    "hash": "676a14b93ad458efff3a236eadf658f0"
+  },
+  "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\backend\\src\\middleware\\auth.js": {
+    "mtime": 1773230014.625,
+    "hash": "53f1eba9ec164e1d5578ae1a185b1949"
+  },
+  "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\backend\\src\\middleware\\orgContext.js": {
+    "mtime": 1773240546.127,
+    "hash": "d1fc48271f526e0615f52d45fa007d99"
+  },
+  "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\backend\\src\\middleware\\workspaceContext.js": {
+    "mtime": 1777304284.843,
+    "hash": "6ae6d939d62282f9c1fc751b3b25c22c"
+  },
+  "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\backend\\src\\modules\\auth\\auth.service.js": {
+    "mtime": 1774401407.74,
+    "hash": "199631e47add2749ffae51ce05434ee1"
+  },
+  "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\backend\\src\\modules\\auth\\auth.router.js": {
+    "mtime": 1773242628.63,
+    "hash": "b64d1eed4c28a4cad2e6f202999ad410"
+  },
+  "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\backend\\src\\modules\\organizations\\organizations.service.js": {
+    "mtime": 1777316901.69,
+    "hash": "2430df89779c13c49651fcb04db03ba2"
+  },
+  "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\backend\\src\\modules\\organizations\\organizations.router.js": {
+    "mtime": 1777316908.015,
+    "hash": "2c7bc85d20e7b8299284e1422c6d59d5"
+  },
+  "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\backend\\src\\modules\\workspaces\\workspaces.service.js": {
+    "mtime": 1777398363.933,
+    "hash": "08e3efe37edd5f5f17b8e44e382f97b9"
+  },
+  "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\backend\\src\\modules\\workspaces\\workspaces.router.js": {
+    "mtime": 1777398374.196,
+    "hash": "f7f06d1012f275d419b166dd66c83c56"
+  },
+  "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\backend\\src\\modules\\inboxes\\inboxes.service.js": {
+    "mtime": 1777315072.399,
+    "hash": "70cb1c9c5b6ed448980c2846c564933a"
+  },
+  "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\backend\\src\\modules\\inboxes\\inboxes.router.js": {
+    "mtime": 1777315108.827,
+    "hash": "c1fd3b1f6e23f67370c9cc5ed95068aa"
+  },
+  "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\backend\\src\\modules\\contacts\\contacts.service.js": {
+    "mtime": 1774396695.234,
+    "hash": "26f558d9de5d6cc51b6d4043217f585b"
+  },
+  "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\backend\\src\\modules\\contacts\\contacts.router.js": {
+    "mtime": 1774581783.18,
+    "hash": "10cfdcc44e84a3705367b170892953e8"
+  },
+  "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\backend\\src\\modules\\conversations\\conversations.service.js": {
+    "mtime": 1778005301.569,
+    "hash": "4d1f805bfec056c31771a28ff4b281e1"
+  },
+  "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\backend\\src\\modules\\conversations\\conversations.router.js": {
+    "mtime": 1778005312.345,
+    "hash": "f2e8140d5b29ff418ea5d82f50aa971a"
+  },
+  "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\backend\\src\\modules\\messages\\messages.service.js": {
+    "mtime": 1774573708.719,
+    "hash": "5d5e2c0e90034aabc4155b2f6232e22c"
+  },
+  "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\backend\\src\\modules\\messages\\messages.router.js": {
+    "mtime": 1774555888.452,
+    "hash": "379c93116e7819d5eb10b93e4bd0838c"
+  },
+  "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\backend\\src\\modules\\kanban\\kanban.service.js": {
+    "mtime": 1774730056.483,
+    "hash": "6d50dcca861590cd872ac30b6ddd40ba"
+  },
+  "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\backend\\src\\modules\\kanban\\kanban.router.js": {
+    "mtime": 1777552087.621,
+    "hash": "fc2f5dc4733a129ef72d8668f828ba11"
+  },
+  "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\backend\\src\\modules\\meta\\meta.service.js": {
+    "mtime": 1777552094.764,
+    "hash": "9b3cc46ed06916d4177aa6f83a72b230"
+  },
+  "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\backend\\src\\modules\\meta\\meta.router.js": {
+    "mtime": 1773240821.643,
+    "hash": "fc47f71d56c5bcfb3d8b225ec82c8a7a"
+  },
+  "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\backend\\src\\modules\\webhooks\\webhooks.router.js": {
+    "mtime": 1777469274.035,
+    "hash": "a4a2629795e5bf8bb2f5706363022b6a"
+  },
+  "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\backend\\src\\modules\\departments\\departments.service.js": {
+    "mtime": 1773261475.383,
+    "hash": "4029935bd4ba56e55ca13a9c78b57e0e"
+  },
+  "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\backend\\src\\modules\\departments\\departments.router.js": {
+    "mtime": 1773244064.587,
+    "hash": "4329522d81cb13be95a563f727409a12"
+  },
+  "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\backend\\src\\modules\\canned-responses\\canned-responses.service.js": {
+    "mtime": 1773269210.272,
+    "hash": "1ce137599ecc5a69e087550df8bbb7c1"
+  },
+  "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\backend\\src\\modules\\canned-responses\\canned-responses.router.js": {
+    "mtime": 1773269214.836,
+    "hash": "0fdb6d1961dc13c3bdcb42e62e8c8f12"
+  },
+  "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\backend\\src\\modules\\labels\\labels.service.js": {
+    "mtime": 1773269220.927,
+    "hash": "8cc618c69cad139afb9a5518d67b69b0"
+  },
+  "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\backend\\src\\modules\\labels\\labels.router.js": {
+    "mtime": 1773269227.117,
+    "hash": "f3c23b16f7197238810de987c6e3cd7c"
+  },
+  "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\backend\\src\\modules\\reports\\reports.service.js": {
+    "mtime": 1773269238.281,
+    "hash": "29d79badc93abd33cdc44d738a10f4c4"
+  },
+  "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\backend\\src\\modules\\reports\\reports.router.js": {
+    "mtime": 1773269241.144,
+    "hash": "13a4c4199c3ea793ea3d303db8aec1c4"
+  },
+  "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\backend\\src\\modules\\templates\\templates.router.js": {
+    "mtime": 1774538008.877,
+    "hash": "181244d12c41dc9e19eb47b1a59b6184"
+  },
+  "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\backend\\src\\modules\\uploads\\uploads.router.js": {
+    "mtime": 1777567256.597,
+    "hash": "341e5cda2263eaa055c0251b57e12cec"
+  },
+  "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\backend\\src\\modules\\pipelines\\pipelines.service.js": {
+    "mtime": 1777552752.899,
+    "hash": "e545bd637d963e070a9075e98f523e37"
+  },
+  "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\backend\\src\\modules\\pipelines\\pipelines.router.js": {
+    "mtime": 1774578890.886,
+    "hash": "dbc2594684995b0f3c118d9d45660017"
+  },
+  "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\backend\\src\\modules\\tickets\\tickets.service.js": {
+    "mtime": 1778002794.247,
+    "hash": "3bdcd40ef9ecf21e2520414617eadedd"
+  },
+  "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\backend\\src\\modules\\tickets\\tickets.router.js": {
+    "mtime": 1777989196.146,
+    "hash": "7c1bfdd68943f2c9bac5ba69e4267171"
+  },
+  "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\backend\\src\\modules\\integrations\\google-calendar.router.js": {
+    "mtime": 1777990259.509,
+    "hash": "f63f7913cdf0c4a153307d7e76d800cb"
+  },
+  "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\backend\\src\\modules\\integrations\\mail.router.js": {
+    "mtime": 1777995767.301,
+    "hash": "1c3ab43decacbf7889e694175f827539"
+  },
+  "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\backend\\src\\jobs\\followUp.job.js": {
+    "mtime": 1777388307.44,
+    "hash": "0fcf6ca3c1e775c26337380f6e1cc7fd"
+  },
+  "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\backend\\src\\utils\\logger.js": {
+    "mtime": 1773230006.189,
+    "hash": "9a02b04068fa4fe41c694ba80657ff71"
+  },
+  "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\backend\\src\\db\\migrate.js": {
+    "mtime": 1774404539.884,
+    "hash": "6352ee373e4941d67ae43d6118b5deea"
+  },
+  "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\backend\\src\\db\\migrations\\001_init.sql": {
+    "mtime": 1773229982.355,
+    "hash": "f52ff262898a6da260d6ea6048aa04e3"
+  },
+  "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\backend\\src\\db\\migrations\\002_departments.sql": {
+    "mtime": 1773244029.374,
+    "hash": "9e68402bdb50d0f79a824bc037d72341"
+  },
+  "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\backend\\src\\db\\migrations\\003_crm_ai.sql": {
+    "mtime": 1773261342.097,
+    "hash": "aec04dde2f8628705f96226fb765edb3"
+  },
+  "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\backend\\src\\db\\migrations\\004_features.sql": {
+    "mtime": 1773269202.683,
+    "hash": "c79fa5279b109ace8c624a28a5c34c74"
+  },
+  "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\backend\\src\\db\\migrations\\005_security.sql": {
+    "mtime": 1774401657.687,
+    "hash": "e0579e90ca9932e7bf4aaba0d1f85780"
+  },
+  "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\backend\\src\\db\\migrations\\006_inbox_department.sql": {
+    "mtime": 1774408175.471,
+    "hash": "c9f8f8415298ce2ac3a41104e0049faa"
+  },
+  "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\backend\\src\\db\\migrations\\007_openai.sql": {
+    "mtime": 1774532074.088,
+    "hash": "c3508ec48fac383787324b3c96413595"
+  },
+  "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\backend\\src\\db\\migrations\\008_pdf_extraction.sql": {
+    "mtime": 1774555864.253,
+    "hash": "2a63c0dc653565b21cbe057d210daa9c"
+  },
+  "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\backend\\src\\db\\migrations\\009_pipelines.sql": {
+    "mtime": 1774578834.496,
+    "hash": "c48cd32a5c18b370274678525e02d5b0"
+  },
+  "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\backend\\src\\db\\migrations\\010_meta_attribution.sql": {
+    "mtime": 1774730018.712,
+    "hash": "e98a912a3992bca2c8429057d1024232"
+  },
+  "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\backend\\src\\db\\migrations\\011_tickets.sql": {
+    "mtime": 1776087059.679,
+    "hash": "08fabe28e82af238e5de441cfdc00672"
+  },
+  "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\backend\\src\\db\\migrations\\012_ticket_contact_name.sql": {
+    "mtime": 1776105356.734,
+    "hash": "4861c8e9576b6ab1395c46b99a3a5b04"
+  },
+  "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\backend\\src\\db\\migrations\\013_groups.sql": {
+    "mtime": 1777124869.045,
+    "hash": "33decd747563cb50fe0217bd8cec586b"
+  },
+  "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\backend\\src\\db\\migrations\\014_tickets_only_role.sql": {
+    "mtime": 1777304203.019,
+    "hash": "924af244816b734393efd0128c165c62"
+  },
+  "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\backend\\src\\db\\migrations\\015_inbox_memberships.sql": {
+    "mtime": 1777315048.198,
+    "hash": "260803ef063518359d07790af1de14e4"
+  },
+  "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\backend\\src\\db\\migrations\\016_conversation_meta.sql": {
+    "mtime": 1777378382.81,
+    "hash": "b11706c74ee6e0c7654750298ca76875"
+  },
+  "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\backend\\src\\db\\migrations\\017_conversation_meta_ads.sql": {
+    "mtime": 1777386235.408,
+    "hash": "c615a21f410e9436aa70ba4eaabaeb54"
+  },
+  "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\backend\\src\\db\\migrations\\018_ai_analysis_interval.sql": {
+    "mtime": 1777388284.44,
+    "hash": "8926dd49fe1dce1ac7cbb0705502239d"
+  },
+  "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\backend\\src\\db\\migrations\\019_ticket_comments_attachments.sql": {
+    "mtime": 1777398286.348,
+    "hash": "e89084dda19c7d3f6ea7ec389db29453"
+  },
+  "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\backend\\src\\db\\migrations\\020_stage_is_purchase.sql": {
+    "mtime": 1777552075.464,
+    "hash": "bf1b0ccc16f5a9511c69aa5330780aad"
+  },
+  "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\backend\\src\\db\\migrations\\021_google_calendar_integration.sql": {
+    "mtime": 1777990205.622,
+    "hash": "ec7cccd1774c01b23ade4834c82745d6"
+  },
+  "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\backend\\src\\services\\ai.service.js": {
+    "mtime": 1777552970.439,
+    "hash": "2202940662cbdcb1289dd2f735ba5c2d"
+  },
+  "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\backend\\src\\services\\storage.service.js": {
+    "mtime": 1774412251.95,
+    "hash": "1b0c073bb7dcacb6165274365b9fb81e"
+  },
+  "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\backend\\src\\services\\pdf.service.js": {
+    "mtime": 1774555873.23,
+    "hash": "026f1c10530de51b99ba8a5c4384f30e"
+  },
+  "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\backend\\src\\services\\mail.js": {
+    "mtime": 1778002763.904,
+    "hash": "688d49e8b37f50aa9b551508d5bbc4e7"
+  },
+  "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\backend\\src\\services\\ticket-notifications.js": {
+    "mtime": 1778002787.329,
+    "hash": "4d990cb3213d1bf47384ad3f9967a071"
+  },
+  "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\backend\\src\\services\\google-calendar.service.js": {
+    "mtime": 1777990239.196,
+    "hash": "a357e2c1e01638717f20a60a3028c8cc"
+  },
+  "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\frontend\\next.config.js": {
+    "mtime": 1773242139.72,
+    "hash": "b048e3c22a52cb4295af1a7e15e91ccc"
+  },
+  "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\frontend\\tailwind.config.js": {
+    "mtime": 1773240851.714,
+    "hash": "602ee84891bdee661d87edde6faafc8f"
+  },
+  "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\frontend\\postcss.config.js": {
+    "mtime": 1773240855.349,
+    "hash": "8640f9b2e6475cc3f5b1ff4548925765"
+  },
+  "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\frontend\\src\\app\\layout.tsx": {
+    "mtime": 1773240921.383,
+    "hash": "26fceb29b6c2720a1a5a2c8bc6dfdcdb"
+  },
+  "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\frontend\\src\\app\\page.tsx": {
+    "mtime": 1773240927.057,
+    "hash": "706e0e5ceb148ab67fd740bf6d49818b"
+  },
+  "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\frontend\\src\\app\\login\\page.tsx": {
+    "mtime": 1773242392.558,
+    "hash": "51e472a89edb6630f336fc2e7c04d3e0"
+  },
+  "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\frontend\\src\\app\\dashboard\\layout.tsx": {
+    "mtime": 1777984371.432,
+    "hash": "0db3c04b6dc12da6445e5d1413d741b4"
+  },
+  "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\frontend\\src\\app\\dashboard\\page.tsx": {
+    "mtime": 1773241009.808,
+    "hash": "27e1051e42411fc7a0b6b3038b32e0d8"
+  },
+  "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\frontend\\src\\app\\dashboard\\conversations\\page.tsx": {
+    "mtime": 1777570160.392,
+    "hash": "f856a5238d7d1b7caa30857b77dda373"
+  },
+  "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\frontend\\src\\app\\dashboard\\contacts\\page.tsx": {
+    "mtime": 1774398520.697,
+    "hash": "219c22fb70992fb0fe1e31b9e1273ab6"
+  },
+  "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\frontend\\src\\app\\dashboard\\kanban\\page.tsx": {
+    "mtime": 1774580810.668,
+    "hash": "0c507abb1daf5edcfbfa6787ab2e01f8"
+  },
+  "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\frontend\\src\\app\\dashboard\\kanban\\pipelines\\page.tsx": {
+    "mtime": 1777567173.364,
+    "hash": "36da8960fd38b748139e8cc46ac4db13"
+  },
+  "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\frontend\\src\\app\\dashboard\\settings\\page.tsx": {
+    "mtime": 1777398420.742,
+    "hash": "fb8b5cbbc8b9bcdb08aae0318349fb23"
+  },
+  "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\frontend\\src\\app\\dashboard\\inboxes\\page.tsx": {
+    "mtime": 1777315213.587,
+    "hash": "89dc195e5663e110dcb67cdececd2a5b"
+  },
+  "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\frontend\\src\\app\\dashboard\\org\\page.tsx": {
+    "mtime": 1777316924.857,
+    "hash": "33a9094744741bf9563032175ddf2b20"
+  },
+  "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\frontend\\src\\app\\dashboard\\profile\\page.tsx": {
+    "mtime": 1777995819.354,
+    "hash": "d5efc163364a061703143ba9c1305a3a"
+  },
+  "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\frontend\\src\\app\\dashboard\\departments\\page.tsx": {
+    "mtime": 1773244226.965,
+    "hash": "8100496ca8b831b548b368501d820879"
+  },
+  "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\frontend\\src\\app\\dashboard\\reports\\page.tsx": {
+    "mtime": 1774404237.325,
+    "hash": "e0e281df802e6521bda3b6097d654f18"
+  },
+  "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\frontend\\src\\app\\dashboard\\canned\\page.tsx": {
+    "mtime": 1773269950.315,
+    "hash": "5f7c271de2b48eb427355264096ade8f"
+  },
+  "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\frontend\\src\\app\\dashboard\\members\\page.tsx": {
+    "mtime": 1777314231.065,
+    "hash": "3256a878b18e51800b81daaf05bf6467"
+  },
+  "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\frontend\\src\\app\\dashboard\\labels\\page.tsx": {
+    "mtime": 1774566279.547,
+    "hash": "772fab09e7321fbfacdfaa80e43d1bc4"
+  },
+  "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\frontend\\src\\app\\dashboard\\tickets\\page.tsx": {
+    "mtime": 1777310696.465,
+    "hash": "38a8a7cec21299d992ad400ee61c0bd3"
+  },
+  "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\frontend\\src\\app\\dashboard\\tickets\\[boardId]\\page.tsx": {
+    "mtime": 1777995619.036,
+    "hash": "afc8bc93f32e6f4cfe7f442c35f4dded"
+  },
+  "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\frontend\\src\\app\\dashboard\\tickets\\[boardId]\\[ticketId]\\page.tsx": {
+    "mtime": 1778002741.304,
+    "hash": "6149617adef51d17b758770109933979"
+  },
+  "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\frontend\\src\\app\\dashboard\\tickets\\my-tasks\\page.tsx": {
+    "mtime": 1777304189.29,
+    "hash": "2fdbf6775ef5be26f544f60e8f05944f"
+  },
+  "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\frontend\\src\\app\\dashboard\\tickets\\calendar\\page.tsx": {
+    "mtime": 1777990454.512,
+    "hash": "ef463d384ed523ab06189077f71c5388"
+  },
+  "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\frontend\\src\\app\\dashboard\\tickets\\reports\\page.tsx": {
+    "mtime": 1777304184.539,
+    "hash": "5ffb9e4e8762d0c23f0bfc23a2ba0f28"
+  },
+  "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\frontend\\src\\app\\select\\page.tsx": {
+    "mtime": 1774410418.056,
+    "hash": "5dcd5a505b0d6225aa7535c56a420a5c"
+  },
+  "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\frontend\\src\\components\\layout\\Sidebar.tsx": {
+    "mtime": 1777570516.684,
+    "hash": "b8c8c0d91e9bc367e801c7416aa8e19a"
+  },
+  "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\frontend\\src\\components\\layout\\Header.tsx": {
+    "mtime": 1777500455.89,
+    "hash": "43a024da214dc2327c77b8970b733470"
+  },
+  "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\frontend\\src\\components\\chat\\ConversationList.tsx": {
+    "mtime": 1778005391.536,
+    "hash": "b763645ca225fa6ab9ace761bff8fad9"
+  },
+  "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\frontend\\src\\components\\chat\\ChatWindow.tsx": {
+    "mtime": 1777500510.1,
+    "hash": "c030b9feb140b3f5d32b16c3690a070c"
+  },
+  "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\frontend\\src\\lib\\api.ts": {
+    "mtime": 1773240887.961,
+    "hash": "d671074227d2a28249ff3666bc7f6f29"
+  },
+  "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\frontend\\src\\lib\\socket.ts": {
+    "mtime": 1774567704.822,
+    "hash": "9c94b8cf9e46ab7bf985d10f6cda77bb"
+  },
+  "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\frontend\\src\\types\\index.ts": {
+    "mtime": 1777552743.221,
+    "hash": "b4a70434bb8dde87326f74b2fe44d78b"
+  },
+  "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\frontend\\src\\store\\auth.ts": {
+    "mtime": 1774406525.08,
+    "hash": "0da8b09a030c0542364419455ba7c271"
+  },
+  "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\frontend\\src\\store\\workspace.ts": {
+    "mtime": 1774410408.42,
+    "hash": "636559f0dca8d5abc0dab94fd1786730"
+  },
+  "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\frontend\\src\\store\\notifications.ts": {
+    "mtime": 1777989218.749,
+    "hash": "0b899c5d010e3a2fcc9423459884333e"
+  },
+  "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\frontend\\src\\store\\sidebar.ts": {
+    "mtime": 1777500386.594,
+    "hash": "9dbd5dd6f8854ffe2577f19574b4338e"
+  },
+  "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\frontend\\src\\hooks\\useNotifications.ts": {
+    "mtime": 1774398429.686,
+    "hash": "edc3bddce61330dff2e57a10ecffc8c0"
+  },
+  "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\docker-compose.yml": {
+    "mtime": 1778009919.632,
+    "hash": "0ca0452e04eb759f23b0ee1a11904881"
+  },
+  "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\docker-stack.yml": {
+    "mtime": 1777996677.882,
+    "hash": "3d914c2e2a04fb6e1c082d17e159f5fa"
+  },
+  "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\CLAUDE.md": {
+    "mtime": 1778025356.473,
+    "hash": "2ed67c68f28bc1ef95ac24167431d7e8"
+  },
+  "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\traefik\\docker-compose.traefik.yml": {
+    "mtime": 1774401320.888,
+    "hash": "661bb4f7748589192eebd3211aa80a55"
+  }
+}
