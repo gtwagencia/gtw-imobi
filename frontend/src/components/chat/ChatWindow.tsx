@@ -86,14 +86,16 @@ export default function ChatWindow({ conversation, onStatusChange, onBack }: Pro
     joinConversation(conversation.id);
   }, [conversation.id]);
 
-  // ── Socket listeners (registrado uma única vez, usa ref para filtrar) ──
+  // ── Socket listeners + fallback polling ───────────────────────────
   useEffect(() => {
     const socket = getSocket();
+
     const onNew = (msg: Message) => {
       if (msg.conversation_id === conversationRef.current) {
         setMessages((prev) => prev.some(m => m.id === msg.id) ? prev : [...prev, msg]);
       }
     };
+
     const onStatus = ({ evolutionMsgId, status }: { evolutionMsgId: string; status: string }) => {
       setMessages((prev) => prev.map((m) =>
         m.evolution_msg_id === evolutionMsgId
@@ -101,11 +103,38 @@ export default function ChatWindow({ conversation, onStatusChange, onBack }: Pro
           : m
       ));
     };
+
+    // Ao reconectar o socket, recarrega mensagens da conversa ativa
+    const onReconnect = () => {
+      joinConversation(conversationRef.current);
+      api.get(`/conversations/${conversationRef.current}/messages`)
+        .then(({ data }) => setMessages(data.data))
+        .catch(() => {});
+    };
+
     socket.on('message:new',    onNew);
     socket.on('message:status', onStatus);
+    socket.on('connect',        onReconnect);
+
+    // Polling de fallback: recarrega a cada 15s caso o socket não entregue
+    const poll = setInterval(() => {
+      if (!conversationRef.current) return;
+      api.get(`/conversations/${conversationRef.current}/messages`)
+        .then(({ data }) => {
+          setMessages(prev => {
+            const existingIds = new Set(prev.map(m => m.id));
+            const newMsgs = (data.data as Message[]).filter(m => !existingIds.has(m.id));
+            return newMsgs.length > 0 ? [...prev, ...newMsgs] : prev;
+          });
+        })
+        .catch(() => {});
+    }, 15000);
+
     return () => {
       socket.off('message:new',    onNew);
       socket.off('message:status', onStatus);
+      socket.off('connect',        onReconnect);
+      clearInterval(poll);
     };
   }, []);
 

@@ -92,8 +92,8 @@
     "hash": "fc47f71d56c5bcfb3d8b225ec82c8a7a"
   },
   "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\backend\\src\\modules\\webhooks\\webhooks.router.js": {
-    "mtime": 1778034670.462,
-    "hash": "c045def65c058104d33a25c405a6a9f2"
+    "mtime": 1778035543.037,
+    "hash": "e807da0ce3eaa2070eaa88429cb2872c"
   },
   "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\backend\\src\\modules\\departments\\departments.service.js": {
     "mtime": 1773261475.383,
@@ -408,20 +408,20 @@
     "hash": "43a024da214dc2327c77b8970b733470"
   },
   "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\frontend\\src\\components\\chat\\ConversationList.tsx": {
-    "mtime": 1778005391.536,
-    "hash": "b763645ca225fa6ab9ace761bff8fad9"
+    "mtime": 1778034957.315,
+    "hash": "b9736d82636e001cc4612a614d55f388"
   },
   "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\frontend\\src\\components\\chat\\ChatWindow.tsx": {
-    "mtime": 1777500510.1,
-    "hash": "c030b9feb140b3f5d32b16c3690a070c"
+    "mtime": 1778035983.256,
+    "hash": "5e68bf83743869ff315c9f242c27d93e"
   },
   "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\frontend\\src\\lib\\api.ts": {
     "mtime": 1773240887.961,
     "hash": "d671074227d2a28249ff3666bc7f6f29"
   },
   "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\frontend\\src\\lib\\socket.ts": {
-    "mtime": 1774567704.822,
-    "hash": "9c94b8cf9e46ab7bf985d10f6cda77bb"
+    "mtime": 1778035945.136,
+    "hash": "2fadc6726107129849fad3bc0e04e732"
   },
   "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\frontend\\src\\types\\index.ts": {
     "mtime": 1778033155.503,
@@ -444,8 +444,8 @@
     "hash": "9dbd5dd6f8854ffe2577f19574b4338e"
   },
   "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\frontend\\src\\hooks\\useNotifications.ts": {
-    "mtime": 1774398429.686,
-    "hash": "edc3bddce61330dff2e57a10ecffc8c0"
+    "mtime": 1778035964.507,
+    "hash": "404626dc08b653000e394bd97b2a8088"
   },
   "G:\\Meu Drive\\Relat\u00f3rios Claude\\gtw-platform\\docker-compose.yml": {
     "mtime": 1778009919.632,

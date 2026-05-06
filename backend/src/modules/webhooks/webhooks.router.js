@@ -220,12 +220,29 @@ async function handleGroupMessage(msg, inbox, io, event) {
     const senderName = msg.pushName || normalizePhone(senderJid) || 'Desconhecido';
     const groupPhone = normalizePhone(remoteJid);                  // só os dígitos do ID do grupo
 
-    // Nome do grupo — a Evolution manda em campos diferentes dependendo da versão
-    const groupName  = event?.data?.name          // v1
-      || event?.data?.subject                     // GROUPS_UPSERT field
-      || msg.message?.groupInviteMessage?.groupName
-      || msg.pushName                              // às vezes vem aqui
-      || `Grupo ${groupPhone}`;
+    // Nome do grupo — tenta várias fontes, nunca usa pushName (é o remetente)
+    let groupName = event?.data?.name
+      || event?.data?.subject
+      || msg.message?.groupInviteMessage?.groupName;
+
+    // Se ainda não tem nome, busca na Evolution API
+    if (!groupName && inbox.evolution_api_url && inbox.evolution_api_key && inbox.evolution_instance) {
+      try {
+        const resp = await axios.get(
+          `${inbox.evolution_api_url}/group/findGroupInfos/${inbox.evolution_instance}`,
+          {
+            params:  { groupJid: remoteJid },
+            headers: { apikey: inbox.evolution_api_key },
+            timeout: 5000,
+          }
+        );
+        groupName = resp.data?.subject || resp.data?.name || null;
+      } catch {
+        // silently ignore — usa o fallback abaixo
+      }
+    }
+
+    groupName = groupName || `Grupo ${groupPhone}`;
 
     // Upsert contato-grupo
     let contact;

@@ -1,10 +1,11 @@
 'use client';
 
 import { useRef, useState, useEffect } from 'react';
-import { Bell, Menu } from 'lucide-react';
+import { Bell, Menu, MessageSquare, Ticket, UserCheck, MessageCircle, Users } from 'lucide-react';
 import { useAuth } from '@/store/auth';
 import { useNotifications } from '@/store/notifications';
 import { useSidebar } from '@/store/sidebar';
+import { useRouter } from 'next/navigation';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import clsx from 'clsx';
@@ -14,10 +15,19 @@ interface HeaderProps {
   actions?: React.ReactNode;
 }
 
+const NOTIF_CONFIG = {
+  new_conversation: { icon: MessageSquare, color: 'text-green-500',  bg: 'bg-green-50',  label: 'Conversa'  },
+  new_message:      { icon: MessageSquare, color: 'text-brand-500',  bg: 'bg-brand-50',  label: 'Mensagem'  },
+  ticket_assigned:  { icon: UserCheck,     color: 'text-indigo-500', bg: 'bg-indigo-50', label: 'Ticket'    },
+  ticket_comment:   { icon: MessageCircle, color: 'text-purple-500', bg: 'bg-purple-50', label: 'Comentário'},
+  ticket_updated:   { icon: Ticket,        color: 'text-orange-500', bg: 'bg-orange-50', label: 'Ticket'    },
+} as const;
+
 export default function Header({ title, actions }: HeaderProps) {
   const { currentWorkspace }                        = useAuth();
   const { notifications, unreadCount, markAllRead } = useNotifications();
   const { toggle } = useSidebar();
+  const router = useRouter();
 
   const [open, setOpen] = useState(false);
   const dropRef = useRef<HTMLDivElement>(null);
@@ -86,36 +96,54 @@ export default function Header({ title, actions }: HeaderProps) {
                 )}
               </div>
 
-              <div className="max-h-96 overflow-y-auto">
+              <div className="max-h-96 overflow-y-auto divide-y divide-gray-50">
                 {notifications.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-10 text-center px-4">
                     <Bell className="w-8 h-8 text-gray-200 mb-3" />
                     <p className="text-sm text-gray-400">Nenhuma notificação ainda</p>
                   </div>
                 ) : (
-                  notifications.map((n) => (
-                    <div
-                      key={n.id}
-                      className={clsx(
-                        'px-4 py-3 border-b border-gray-50 last:border-0 hover:bg-gray-50 transition-colors',
-                        !n.read && 'bg-brand-50'
-                      )}
-                    >
-                      <div className="flex items-start gap-2">
+                  notifications.map((n) => {
+                    const cfg = NOTIF_CONFIG[n.type] ?? NOTIF_CONFIG.new_message;
+                    const Icon = cfg.icon;
+                    return (
+                      <div
+                        key={n.id}
+                        onClick={() => {
+                          if (n.url) { router.push(n.url); setOpen(false); }
+                        }}
+                        className={clsx(
+                          'flex items-start gap-3 px-4 py-3 transition-colors',
+                          n.url && 'cursor-pointer hover:bg-gray-50',
+                          !n.read && 'bg-blue-50/40'
+                        )}
+                      >
+                        {/* Ícone colorido por tipo */}
                         <div className={clsx(
-                          'w-2 h-2 rounded-full flex-shrink-0 mt-1.5',
-                          n.type === 'new_conversation' ? 'bg-green-500' : 'bg-brand-500'
-                        )} />
+                          'w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5',
+                          cfg.bg
+                        )}>
+                          <Icon className={clsx('w-4 h-4', cfg.color)} />
+                        </div>
+
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-gray-900">{n.title}</p>
-                          <p className="text-xs text-gray-500 mt-0.5 truncate">{n.body}</p>
+                          <div className="flex items-center gap-1.5 mb-0.5">
+                            <span className={clsx('text-xs font-semibold uppercase tracking-wide', cfg.color)}>
+                              {cfg.label}
+                            </span>
+                            {!n.read && (
+                              <span className="w-1.5 h-1.5 rounded-full bg-blue-500 flex-shrink-0" />
+                            )}
+                          </div>
+                          <p className="text-sm font-medium text-gray-900 truncate">{n.title}</p>
+                          <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{n.body}</p>
                           <p className="text-xs text-gray-400 mt-1">
                             {formatDistanceToNow(n.createdAt, { addSuffix: true, locale: ptBR })}
                           </p>
                         </div>
                       </div>
-                    </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
             </div>

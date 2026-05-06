@@ -16,12 +16,17 @@ function ensureSocket(): Socket {
   if (!socket) {
     socket = io(SOCKET_URL, {
       autoConnect:          false,
+      transports:           ['websocket', 'polling'], // WebSocket primeiro
       reconnection:         true,
       reconnectionAttempts: Infinity,
       reconnectionDelay:    1000,
-      reconnectionDelayMax: 10000,
+      reconnectionDelayMax: 5000,  // máximo 5s entre tentativas
+      timeout:              10000,
     });
-    socket.on('connect', rejoinRooms);
+    socket.on('connect',          rejoinRooms);
+    socket.on('connect_error',    (e) => console.warn('[socket] connect error:', e.message));
+    socket.on('disconnect',       (r) => console.warn('[socket] disconnected:', r));
+    socket.on('reconnect',        (n) => console.log('[socket] reconnected after', n, 'attempts'));
   }
   return socket;
 }

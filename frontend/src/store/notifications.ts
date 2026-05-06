@@ -7,6 +7,7 @@ interface Notification {
   type:      'new_conversation' | 'new_message' | 'ticket_assigned' | 'ticket_comment' | 'ticket_updated';
   title:     string;
   body:      string;
+  url?:      string;
   read:      boolean;
   createdAt: Date;
 }
@@ -100,16 +101,25 @@ export const useNotifications = create<NotificationState>((set, get) => ({
         type:  'new_conversation',
         title: 'Nova conversa',
         body:  `${payload.contactName} iniciou uma conversa`,
+        url:   `/dashboard/conversations?id=${payload.conversationId}`,
       });
       if (get().soundEnabled) playNotificationSound();
       showBrowserNotification('Nova conversa', `${payload.contactName} iniciou uma conversa`);
     });
 
-    socket.on('message:new', (msg: { direction: string; content: string; contact_name?: string }) => {
+    socket.on('message:new', (msg: {
+      direction: string; content: string; contact_name?: string;
+      conversation_id?: string; is_group?: boolean;
+    }) => {
       if (msg.direction !== 'inbound') return;
 
       const body = msg.content || 'Mídia recebida';
-      get().add({ type: 'new_message', title: 'Nova mensagem', body });
+      get().add({
+        type:  'new_message',
+        title: msg.contact_name ? `${msg.is_group ? '👥 ' : ''}${msg.contact_name}` : 'Nova mensagem',
+        body,
+        url:   msg.conversation_id ? `/dashboard/conversations?id=${msg.conversation_id}` : undefined,
+      });
 
       if (get().soundEnabled) playNotificationSound();
       showBrowserNotification(
@@ -137,7 +147,12 @@ export const useNotifications = create<NotificationState>((set, get) => ({
 
       // Atribuição: só notifica o novo assignee
       if (payload._assigneeChanged && payload.assignee_id === me) {
-        get().add({ type: 'ticket_assigned', title: 'Ticket atribuído a você', body: payload.title });
+        get().add({
+          type:  'ticket_assigned',
+          title: 'Ticket atribuído a você',
+          body:  payload.title,
+          url:   `/dashboard/tickets/${payload.board_id}/${payload.id}`,
+        });
         if (get().soundEnabled) playNotificationSound();
         showBrowserNotification('Ticket atribuído a você', payload.title);
       }
@@ -161,7 +176,12 @@ export const useNotifications = create<NotificationState>((set, get) => ({
         const body = payload.preview
           ? `${payload.actorName}: ${payload.preview}`
           : `${payload.actorName} comentou`;
-        get().add({ type: 'ticket_comment', title: payload.ticketTitle, body });
+        get().add({
+          type:  'ticket_comment',
+          title: payload.ticketTitle,
+          body,
+          url:   `/dashboard/tickets/${payload.boardId}/${payload.ticketId}`,
+        });
         if (get().soundEnabled) playNotificationSound();
         showBrowserNotification(`Comentário: ${payload.ticketTitle}`, body);
       }

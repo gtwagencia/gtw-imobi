@@ -1,16 +1,16 @@
-# Graph Report - gtw-platform  (2026-05-05)
+# Graph Report - gtw-platform  (2026-05-06)
 
 ## Corpus Check
-- 112 files · ~78,888 words
+- 112 files · ~79,481 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 496 nodes · 713 edges · 76 communities (72 shown, 4 thin omitted)
-- Extraction: 73% EXTRACTED · 27% INFERRED · 0% AMBIGUOUS · INFERRED: 190 edges (avg confidence: 0.8)
+- 501 nodes · 721 edges · 76 communities (72 shown, 4 thin omitted)
+- Extraction: 74% EXTRACTED · 26% INFERRED · 0% AMBIGUOUS · INFERRED: 191 edges (avg confidence: 0.8)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `59439b3f`
+- Built from commit: `e9889f3f`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -45,7 +45,7 @@
 - [[_COMMUNITY_Community 34|Community 34]]
 - [[_COMMUNITY_Community 36|Community 36]]
 - [[_COMMUNITY_Community 41|Community 41]]
-- [[_COMMUNITY_Community 42|Community 42]]
+- [[_COMMUNITY_Community 44|Community 44]]
 - [[_COMMUNITY_Community 45|Community 45]]
 
 ## God Nodes (most connected - your core abstractions)
@@ -80,27 +80,27 @@ Nodes (50): query(), addAttachment(), addBoardMember(), addManualTime(), archive
 
 ### Community 1 - "Community 1"
 Cohesion: 0.05
-Nodes (11): handleAddManualTime(), handleStopTimer(), loadTimeLogs(), patch(), onUpdated(), DashboardLayout(), useNotifications(), connectSocket() (+3 more)
+Nodes (13): cancelSelection(), onReconnect(), openTicketFromSelection(), openTicketModal(), DashboardLayout(), getAudioCtx(), init(), playSound() (+5 more)
 
 ### Community 2 - "Community 2"
-Cohesion: 0.06
-Nodes (10): loadBoard(), createTicket(), handleAnalyze(), handleSendPurchase(), Alert(), fetchReport(), handleCommentKeyDown(), selectMention() (+2 more)
+Cohesion: 0.07
+Nodes (9): loadBoard(), createTicket(), handleAnalyze(), handleSendPurchase(), Alert(), handleCommentKeyDown(), selectMention(), submitComment() (+1 more)
 
 ### Community 3 - "Community 3"
+Cohesion: 0.09
+Nodes (5): handleAddManualTime(), handleStopTimer(), loadTimeLogs(), patch(), onUpdated()
+
+### Community 4 - "Community 4"
 Cohesion: 0.22
 Nodes (20): baseLayout(), btn(), sendMail(), sendMailSilent(), testConnection(), ticketBadge(), tplAssigned(), tplComment() (+12 more)
 
-### Community 4 - "Community 4"
+### Community 5 - "Community 5"
 Cohesion: 0.24
 Nodes (17): buildEventDescription(), createEvent(), deleteEvent(), disconnect(), getAuthorizedClient(), getAuthUrl(), getOAuthClient(), getRedirectUri() (+9 more)
 
-### Community 5 - "Community 5"
-Cohesion: 0.12
-Nodes (3): cancelSelection(), openTicketFromSelection(), openTicketModal()
-
 ### Community 6 - "Community 6"
-Cohesion: 0.15
-Nodes (4): getDueDateLabel(), applyPreset(), exportCsv(), format()
+Cohesion: 0.14
+Nodes (5): getDueDateLabel(), applyPreset(), exportCsv(), fetchReport(), format()
 
 ### Community 7 - "Community 7"
 Cohesion: 0.29
@@ -115,20 +115,20 @@ Cohesion: 0.24
 Nodes (11): createPipeline(), createStage(), getDefaultPipeline(), getPipeline(), getPipelineForInbox(), listPipelines(), removePipeline(), removeStage() (+3 more)
 
 ### Community 11 - "Community 11"
-Cohesion: 0.2
-Nodes (9): assignAgent(), create(), getById(), list(), listAgents(), listUnassignedAgents(), remove(), removeAgent() (+1 more)
+Cohesion: 0.31
+Nodes (7): buildCustomData(), buildUserData(), listEvents(), sendEvent(), sendLeadEvent(), sendPurchaseEvent(), sha256()
 
 ### Community 12 - "Community 12"
 Cohesion: 0.2
-Nodes (9): addMember(), create(), getById(), listForOrg(), listMembers(), removeMember(), resetMemberPassword(), update() (+1 more)
+Nodes (9): addMember(), create(), getById(), getUserInboxIds(), list(), listMembers(), remove(), removeMember() (+1 more)
 
 ### Community 13 - "Community 13"
 Cohesion: 0.2
-Nodes (9): addMember(), create(), getById(), getUserInboxIds(), list(), listMembers(), remove(), removeMember() (+1 more)
+Nodes (9): assignAgent(), create(), getById(), list(), listAgents(), listUnassignedAgents(), remove(), removeAgent() (+1 more)
 
 ### Community 14 - "Community 14"
-Cohesion: 0.31
-Nodes (7): buildCustomData(), buildUserData(), listEvents(), sendEvent(), sendLeadEvent(), sendPurchaseEvent(), sha256()
+Cohesion: 0.2
+Nodes (9): addMember(), create(), getById(), listForOrg(), listMembers(), removeMember(), resetMemberPassword(), update() (+1 more)
 
 ### Community 15 - "Community 15"
 Cohesion: 0.47
@@ -148,19 +148,19 @@ Nodes (5): backfillAttending(), isWithinBusinessHours(), runAiAnalysis(), runFol
 
 ### Community 20 - "Community 20"
 Cohesion: 0.25
-Nodes (7): getById(), inviteMember(), listForUser(), listMembers(), removeMember(), update(), updateMemberRole()
+Nodes (7): addToConversation(), create(), getForConversation(), list(), remove(), removeFromConversation(), update()
 
 ### Community 21 - "Community 21"
 Cohesion: 0.25
-Nodes (7): addToConversation(), create(), getForConversation(), list(), remove(), removeFromConversation(), update()
+Nodes (7): getById(), inviteMember(), listForUser(), listMembers(), removeMember(), update(), updateMemberRole()
 
 ### Community 22 - "Community 22"
-Cohesion: 0.29
-Nodes (6): create(), getById(), list(), listConversations(), remove(), update()
-
-### Community 23 - "Community 23"
 Cohesion: 0.52
 Nodes (6): autoAssignAgent(), cleanMime(), extractMessageContent(), handleGroupMessage(), normalizePhone(), resolveMediaUrl()
+
+### Community 23 - "Community 23"
+Cohesion: 0.29
+Nodes (6): create(), getById(), list(), listConversations(), remove(), update()
 
 ### Community 24 - "Community 24"
 Cohesion: 0.38
@@ -180,11 +180,11 @@ Nodes (3): handleCreateWorkspace(), handleOrgSelect(), handleWorkspaceSelect()
 
 ### Community 33 - "Community 33"
 Cohesion: 0.5
-Nodes (3): getAgentPerformance(), getSummary(), getVolumeByDay()
+Nodes (3): insertInbound(), list(), send()
 
 ### Community 34 - "Community 34"
 Cohesion: 0.5
-Nodes (3): insertInbound(), list(), send()
+Nodes (3): getAgentPerformance(), getSummary(), getVolumeByDay()
 
 ## Knowledge Gaps
 - **4 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
@@ -192,10 +192,12 @@ Nodes (3): insertInbound(), list(), send()
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `query()` connect `Community 0` to `Community 3`, `Community 4`, `Community 7`, `Community 8`, `Community 9`, `Community 11`, `Community 12`, `Community 13`, `Community 14`, `Community 15`, `Community 16`, `Community 17`, `Community 18`, `Community 20`, `Community 21`, `Community 22`, `Community 23`, `Community 25`, `Community 27`, `Community 33`, `Community 34`, `Community 36`, `Community 41`, `Community 42`, `Community 45`?**
-  _High betweenness centrality (0.268) - this node is a cross-community bridge._
-- **Why does `getSocket()` connect `Community 1` to `Community 5`?**
-  _High betweenness centrality (0.027) - this node is a cross-community bridge._
+- **Why does `query()` connect `Community 0` to `Community 4`, `Community 5`, `Community 7`, `Community 8`, `Community 9`, `Community 11`, `Community 12`, `Community 13`, `Community 14`, `Community 15`, `Community 16`, `Community 17`, `Community 18`, `Community 20`, `Community 21`, `Community 22`, `Community 23`, `Community 25`, `Community 27`, `Community 33`, `Community 34`, `Community 36`, `Community 41`, `Community 44`, `Community 45`?**
+  _High betweenness centrality (0.263) - this node is a cross-community bridge._
+- **Why does `getSocket()` connect `Community 1` to `Community 3`?**
+  _High betweenness centrality (0.031) - this node is a cross-community bridge._
+- **Why does `Alert()` connect `Community 2` to `Community 6`?**
+  _High betweenness centrality (0.029) - this node is a cross-community bridge._
 - **Are the 171 inferred relationships involving `query()` (e.g. with `orgContext()` and `workspaceContext()`) actually correct?**
   _`query()` has 171 INFERRED edges - model-reasoned connections that need verification._
 - **Should `Community 0` be split into smaller, more focused modules?**
@@ -203,6 +205,4 @@ _Questions this graph is uniquely positioned to answer:_
 - **Should `Community 1` be split into smaller, more focused modules?**
   _Cohesion score 0.05 - nodes in this community are weakly interconnected._
 - **Should `Community 2` be split into smaller, more focused modules?**
-  _Cohesion score 0.06 - nodes in this community are weakly interconnected._
-- **Should `Community 5` be split into smaller, more focused modules?**
-  _Cohesion score 0.12 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.07 - nodes in this community are weakly interconnected._
