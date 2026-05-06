@@ -28,7 +28,7 @@ function buildUserData(contact, metaCtwaClid) {
     em:      contact.email ? sha256(contact.email)                    : undefined,
     fbc:     metaCtwaClid  ? `fb.1.${Date.now()}.${metaCtwaClid}`    :
              contact.meta_lead_id ? `fb.1.${Date.now()}.${contact.meta_lead_id}` : undefined,
-    country: 'br', // código ISO sem hash — Meta não aceita hash aqui
+    country: sha256('br'), // Meta exige SHA256 em todos os campos de user_data
   };
 }
 
@@ -54,55 +54,71 @@ async function sendEvent(workspace, { eventName, contact, deal, sourceUrl, metaC
       event_name:    eventName,
       event_time:    eventTime,
       event_id:      eventId,
-      action_source: 'chat', // WhatsApp = chat; 'crm' não é valor válido na CAPI
+      action_source: 'chat',
       event_source_url: sourceUrl,
       user_data:     buildUserData(contact, metaCtwaClid || deal?.meta_ctwa_clid),
       custom_data:   deal ? buildCustomData(deal) : undefined,
     }],
   };
 
-  // Log to DB (pending)
-  const logRes = await query(
-    `INSERT INTO meta_conversion_events
-       (workspace_id, contact_id, deal_id, event_name, event_value, currency, payload, status)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,'pending') RETURNING *`,
-    [
-      workspace.id,
-      contact?.id || null,
-      deal?.id    || null,
-      eventName,
-      deal?.value || null,
-      deal?.currency || 'BRL',
-      payload,
-    ]
-  );
-  const log = logRes.rows[0];
+  let log = null;
 
-  // Send to Meta
   try {
+    // Log to DB (pending)
+    const logRes = await query(
+      `INSERT INTO meta_conversion_events
+         (workspace_id, contact_id, deal_id, event_name, event_value, currency, payload, status)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,'pending') RETURNING *`,
+      [
+        workspace.id,
+        contact?.id || null,
+        deal?.id    || null,
+        eventName,
+        deal?.value || null,
+        deal?.currency || 'BRL',
+        payload,
+      ]
+    );
+    log = logRes.rows[0];
+
+    // Send to Meta
     const resp = await axios.post(
       `${META_API_BASE}/${workspace.meta_pixel_id}/events`,
       { ...payload, access_token: workspace.meta_conversions_token },
       { timeout: 10000 }
     );
 
-    await query(
-      `UPDATE meta_conversion_events
-       SET status = 'sent', meta_response = $1, sent_at = NOW()
-       WHERE id = $2`,
-      [resp.data, log.id]
-    );
+    if (log) {
+      await query(
+        `UPDATE meta_conversion_events SET status = 'sent', meta_response = $1, sent_at = NOW() WHERE id = $2`,
+        [resp.data, log.id]
+      );
+    }
 
     logger.info('Meta event sent', { eventName, pixelId: workspace.meta_pixel_id });
     return { ok: true, response: resp.data };
+
   } catch (err) {
     const errorData = err.response?.data || { message: err.message };
-    await query(
-      `UPDATE meta_conversion_events SET status = 'failed', meta_response = $1 WHERE id = $2`,
-      [errorData, log.id]
-    );
     logger.error('Meta event failed', { eventName, error: err.message, metaError: errorData });
-    throw Object.assign(new Error('Falha ao enviar evento Meta: ' + err.message), { status: 502 });
+
+    if (log) {
+      await query(
+        `UPDATE meta_conversion_events SET status = 'failed', meta_response = $1 WHERE id = $2`,
+        [errorData, log.id]
+      ).catch(() => {});
+    }
+
+    // Extrai mensagem legível do erro da Meta API
+    const metaMsg = err.response?.data?.error?.message
+      || err.response?.data?.error_user_msg
+      || err.message
+      || 'Erro desconhecido';
+
+    throw Object.assign(
+      new Error(`Falha ao enviar evento ${eventName} para o Meta: ${metaMsg}`),
+      { status: err.response?.status || 502 }
+    );
   }
 }
 

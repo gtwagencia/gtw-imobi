@@ -342,7 +342,7 @@
       "source_file": "backend/src/modules/workspaces/workspaces.service.js",
       "source_location": "L1",
       "id": "backend_src_modules_workspaces_workspaces_service_js",
-      "community": 11,
+      "community": 13,
       "norm_label": "workspaces.service.js"
     },
     {
@@ -351,7 +351,7 @@
       "source_file": "backend/src/modules/workspaces/workspaces.service.js",
       "source_location": "L12",
       "id": "workspaces_workspaces_service_listfororg",
-      "community": 11,
+      "community": 13,
       "norm_label": "listfororg()"
     },
     {
@@ -360,7 +360,7 @@
       "source_file": "backend/src/modules/workspaces/workspaces.service.js",
       "source_location": "L42",
       "id": "workspaces_workspaces_service_create",
-      "community": 11,
+      "community": 13,
       "norm_label": "create()"
     },
     {
@@ -369,7 +369,7 @@
       "source_file": "backend/src/modules/workspaces/workspaces.service.js",
       "source_location": "L65",
       "id": "workspaces_workspaces_service_getbyid",
-      "community": 11,
+      "community": 13,
       "norm_label": "getbyid()"
     },
     {
@@ -378,7 +378,7 @@
       "source_file": "backend/src/modules/workspaces/workspaces.service.js",
       "source_location": "L72",
       "id": "workspaces_workspaces_service_update",
-      "community": 11,
+      "community": 13,
       "norm_label": "update()"
     },
     {
@@ -387,7 +387,7 @@
       "source_file": "backend/src/modules/workspaces/workspaces.service.js",
       "source_location": "L118",
       "id": "workspaces_workspaces_service_listmembers",
-      "community": 11,
+      "community": 13,
       "norm_label": "listmembers()"
     },
     {
@@ -396,7 +396,7 @@
       "source_file": "backend/src/modules/workspaces/workspaces.service.js",
       "source_location": "L130",
       "id": "workspaces_workspaces_service_addmember",
-      "community": 11,
+      "community": 13,
       "norm_label": "addmember()"
     },
     {
@@ -405,7 +405,7 @@
       "source_file": "backend/src/modules/workspaces/workspaces.service.js",
       "source_location": "L172",
       "id": "workspaces_workspaces_service_removemember",
-      "community": 11,
+      "community": 13,
       "norm_label": "removemember()"
     },
     {
@@ -414,7 +414,7 @@
       "source_file": "backend/src/modules/workspaces/workspaces.service.js",
       "source_location": "L179",
       "id": "workspaces_workspaces_service_resetmemberpassword",
-      "community": 11,
+      "community": 13,
       "norm_label": "resetmemberpassword()"
     },
     {
@@ -423,7 +423,7 @@
       "source_file": "backend/src/modules/workspaces/workspaces.service.js",
       "source_location": "L205",
       "id": "workspaces_workspaces_service_updatememberrole",
-      "community": 11,
+      "community": 13,
       "norm_label": "updatememberrole()"
     },
     {
@@ -450,7 +450,7 @@
       "source_file": "backend/src/modules/inboxes/inboxes.service.js",
       "source_location": "L1",
       "id": "backend_src_modules_inboxes_inboxes_service_js",
-      "community": 12,
+      "community": 11,
       "norm_label": "inboxes.service.js"
     },
     {
@@ -459,7 +459,7 @@
       "source_file": "backend/src/modules/inboxes/inboxes.service.js",
       "source_location": "L5",
       "id": "inboxes_inboxes_service_list",
-      "community": 12,
+      "community": 11,
       "norm_label": "list()"
     },
     {
@@ -468,7 +468,7 @@
       "source_file": "backend/src/modules/inboxes/inboxes.service.js",
       "source_location": "L19",
       "id": "inboxes_inboxes_service_getbyid",
-      "community": 12,
+      "community": 11,
       "norm_label": "getbyid()"
     },
     {
@@ -477,7 +477,7 @@
       "source_file": "backend/src/modules/inboxes/inboxes.service.js",
       "source_location": "L27",
       "id": "inboxes_inboxes_service_create",
-      "community": 12,
+      "community": 11,
       "norm_label": "create()"
     },
     {
@@ -486,7 +486,7 @@
       "source_file": "backend/src/modules/inboxes/inboxes.service.js",
       "source_location": "L46",
       "id": "inboxes_inboxes_service_update",
-      "community": 12,
+      "community": 11,
       "norm_label": "update()"
     },
     {
@@ -495,7 +495,7 @@
       "source_file": "backend/src/modules/inboxes/inboxes.service.js",
       "source_location": "L82",
       "id": "inboxes_inboxes_service_remove",
-      "community": 12,
+      "community": 11,
       "norm_label": "remove()"
     },
     {
@@ -504,7 +504,7 @@
       "source_file": "backend/src/modules/inboxes/inboxes.service.js",
       "source_location": "L92",
       "id": "inboxes_inboxes_service_listmembers",
-      "community": 12,
+      "community": 11,
       "norm_label": "listmembers()"
     },
     {
@@ -513,7 +513,7 @@
       "source_file": "backend/src/modules/inboxes/inboxes.service.js",
       "source_location": "L107",
       "id": "inboxes_inboxes_service_addmember",
-      "community": 12,
+      "community": 11,
       "norm_label": "addmember()"
     },
     {
@@ -522,7 +522,7 @@
       "source_file": "backend/src/modules/inboxes/inboxes.service.js",
       "source_location": "L128",
       "id": "inboxes_inboxes_service_removemember",
-      "community": 12,
+      "community": 11,
       "norm_label": "removemember()"
     },
     {
@@ -531,7 +531,7 @@
       "source_file": "backend/src/modules/inboxes/inboxes.service.js",
       "source_location": "L136",
       "id": "inboxes_inboxes_service_getuserinboxids",
-      "community": 12,
+      "community": 11,
       "norm_label": "getuserinboxids()"
     },
     {
@@ -1062,7 +1062,7 @@
       "source_file": "backend/src/modules/departments/departments.service.js",
       "source_location": "L1",
       "id": "backend_src_modules_departments_departments_service_js",
-      "community": 13,
+      "community": 12,
       "norm_label": "departments.service.js"
     },
     {
@@ -1071,7 +1071,7 @@
       "source_file": "backend/src/modules/departments/departments.service.js",
       "source_location": "L7",
       "id": "departments_departments_service_list",
-      "community": 13,
+      "community": 12,
       "norm_label": "list()"
     },
     {
@@ -1080,7 +1080,7 @@
       "source_file": "backend/src/modules/departments/departments.service.js",
       "source_location": "L23",
       "id": "departments_departments_service_getbyid",
-      "community": 13,
+      "community": 12,
       "norm_label": "getbyid()"
     },
     {
@@ -1089,7 +1089,7 @@
       "source_file": "backend/src/modules/departments/departments.service.js",
       "source_location": "L31",
       "id": "departments_departments_service_create",
-      "community": 13,
+      "community": 12,
       "norm_label": "create()"
     },
     {
@@ -1098,7 +1098,7 @@
       "source_file": "backend/src/modules/departments/departments.service.js",
       "source_location": "L40",
       "id": "departments_departments_service_update",
-      "community": 13,
+      "community": 12,
       "norm_label": "update()"
     },
     {
@@ -1107,7 +1107,7 @@
       "source_file": "backend/src/modules/departments/departments.service.js",
       "source_location": "L59",
       "id": "departments_departments_service_remove",
-      "community": 13,
+      "community": 12,
       "norm_label": "remove()"
     },
     {
@@ -1116,7 +1116,7 @@
       "source_file": "backend/src/modules/departments/departments.service.js",
       "source_location": "L67",
       "id": "departments_departments_service_listagents",
-      "community": 13,
+      "community": 12,
       "norm_label": "listagents()"
     },
     {
@@ -1125,7 +1125,7 @@
       "source_file": "backend/src/modules/departments/departments.service.js",
       "source_location": "L84",
       "id": "departments_departments_service_assignagent",
-      "community": 13,
+      "community": 12,
       "norm_label": "assignagent()"
     },
     {
@@ -1134,7 +1134,7 @@
       "source_file": "backend/src/modules/departments/departments.service.js",
       "source_location": "L100",
       "id": "departments_departments_service_removeagent",
-      "community": 13,
+      "community": 12,
       "norm_label": "removeagent()"
     },
     {
@@ -1143,7 +1143,7 @@
       "source_file": "backend/src/modules/departments/departments.service.js",
       "source_location": "L110",
       "id": "departments_departments_service_listunassignedagents",
-      "community": 13,
+      "community": 12,
       "norm_label": "listunassignedagents()"
     },
     {
@@ -2788,7 +2788,7 @@
       "label": "onDragEnd()",
       "file_type": "code",
       "source_file": "frontend/src/app/dashboard/kanban/page.tsx",
-      "source_location": "L426",
+      "source_location": "L428",
       "id": "kanban_page_ondragend",
       "community": 2,
       "norm_label": "ondragend()"
@@ -2797,7 +2797,7 @@
       "label": "handleAnalyze()",
       "file_type": "code",
       "source_file": "frontend/src/app/dashboard/kanban/page.tsx",
-      "source_location": "L444",
+      "source_location": "L446",
       "id": "kanban_page_handleanalyze",
       "community": 2,
       "norm_label": "handleanalyze()"
@@ -11907,5 +11907,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "33f5ef57c70f9ccd3bc5f6e3a254ac56bde0dc61"
+  "built_at_commit": "e218a9d10ad9aafe8c247acd827f60061057fefe"
 }
