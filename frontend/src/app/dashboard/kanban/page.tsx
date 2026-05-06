@@ -10,7 +10,7 @@ import type { KanbanStage, Deal, Pipeline, Inbox } from '@/types';
 import {
   GripVertical, MessageSquare, Clock, User, Brain,
   RefreshCw, AlertCircle, ChevronRight, ChevronDown,
-  Settings, Filter,
+  Settings, Filter, Send,
 } from 'lucide-react';
 import clsx from 'clsx';
 import { formatDistanceToNow } from 'date-fns';
@@ -59,6 +59,26 @@ interface DealCardProps {
 function DealCard({ deal, dragHandleProps, isDragging, onAnalyze, analyzing, workspaceId }: DealCardProps) {
   const router = useRouter();
   const [summaryExpanded, setSummaryExpanded] = useState(false);
+  const [sendingMeta, setSendingMeta] = useState(false);
+  const [metaSent,    setMetaSent]    = useState(false);
+
+  async function handleSendPurchase(e: React.MouseEvent) {
+    e.stopPropagation();
+    if (sendingMeta) return;
+    setSendingMeta(true);
+    try {
+      await api.post(`/workspaces/${workspaceId}/meta/purchase`, {
+        contactId: deal.contact_id,
+        dealId:    deal.id,
+      });
+      setMetaSent(true);
+      setTimeout(() => setMetaSent(false), 3000);
+    } catch {
+      alert('Falha ao enviar evento para o Meta. Verifique as configurações de CAPI.');
+    } finally {
+      setSendingMeta(false);
+    }
+  }
 
   const hasUnread   = (deal.unread_count ?? 0) > 0;
   const isWaiting   = hasUnread && deal.last_inbound_at && !deal.conv_status?.includes('resolved');
@@ -204,6 +224,26 @@ function DealCard({ deal, dragHandleProps, isDragging, onAnalyze, analyzing, wor
               </button>
             );
           })()}
+
+          {/* Reenviar Purchase para Meta (leads de campanha) */}
+          {deal.meta_source === 'paid' && (
+            <button
+              onClick={handleSendPurchase}
+              disabled={sendingMeta}
+              title={metaSent ? 'Enviado!' : 'Enviar evento de compra ao Meta CAPI'}
+              className={clsx(
+                'p-1 transition-colors',
+                metaSent    ? 'text-green-500' :
+                sendingMeta ? 'text-gray-300 cursor-wait' :
+                              'text-gray-300 hover:text-blue-500'
+              )}
+            >
+              {sendingMeta
+                ? <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                : <Send className="w-3.5 h-3.5" />
+              }
+            </button>
+          )}
 
           {/* Open conversation */}
           {deal.conversation_id && (

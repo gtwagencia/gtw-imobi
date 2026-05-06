@@ -5,11 +5,11 @@ const { query } = require('../../config/database');
 // ── Default stages ─────────────────────────────────────────────────────────
 
 const DEFAULT_STAGES = [
-  { name: 'Novo Lead',               color: '#6366f1', position: 0 },
-  { name: 'Em Atendimento',          color: '#f97316', position: 1 },
-  { name: 'Qualificado para Venda',  color: '#eab308', position: 2 },
-  { name: 'Comprou',                 color: '#22c55e', position: 3 },
-  { name: 'Negócio Perdido',         color: '#ef4444', position: 4 },
+  { name: 'Novo Lead',               color: '#6366f1', position: 0, is_purchase: false },
+  { name: 'Em Atendimento',          color: '#f97316', position: 1, is_purchase: false },
+  { name: 'Qualificado para Venda',  color: '#eab308', position: 2, is_purchase: false },
+  { name: 'Comprou',                 color: '#22c55e', position: 3, is_purchase: true  },
+  { name: 'Negócio Perdido',         color: '#ef4444', position: 4, is_purchase: false },
 ];
 
 async function seedDefaultStages(workspaceId) {
@@ -207,32 +207,6 @@ async function updateDeal(dealId, workspaceId, body) {
   );
   if (!r.rows.length) throw Object.assign(new Error('Deal não encontrado'), { status: 404 });
   const updated = r.rows[0];
-
-  // Auto-send Purchase event when deal moves to "Comprou" stage
-  if (body.stageId) {
-    const stageRes = await query(
-      `SELECT ks.name FROM kanban_stages ks WHERE ks.id = $1`,
-      [body.stageId]
-    );
-    if (stageRes.rows[0]?.name === 'Comprou') {
-      const wsRes = await query(
-        `SELECT w.meta_pixel_id, w.meta_conversions_token,
-                c.phone, c.email
-         FROM deals d
-         JOIN workspaces w ON w.id = d.workspace_id
-         JOIN contacts c ON c.id = d.contact_id
-         WHERE d.id = $1`,
-        [dealId]
-      );
-      const row = wsRes.rows[0];
-      if (row?.meta_pixel_id && row?.meta_conversions_token) {
-        const metaSvc = require('../meta/meta.service');
-        const workspace = { meta_pixel_id: row.meta_pixel_id, meta_conversions_token: row.meta_conversions_token };
-        const contact   = { phone: row.phone, email: row.email };
-        metaSvc.sendPurchaseEvent(workspace, { contact, deal: updated }).catch(() => {});
-      }
-    }
-  }
 
   return updated;
 }
