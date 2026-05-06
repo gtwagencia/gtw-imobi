@@ -212,7 +212,7 @@ async function extractMessageContent(msg, inbox) {
  * - Cria/reutiliza uma conversa is_group=true por inbox+group
  * - Armazena sender_jid e sender_name de cada mensagem
  */
-async function handleGroupMessage(msg, inbox, io) {
+async function handleGroupMessage(msg, inbox, io, event) {
   try {
     const remoteJid  = msg.key?.remoteJid;                        // ex: 123456@g.us
     const isFromMe   = !!msg.key?.fromMe;
@@ -223,6 +223,7 @@ async function handleGroupMessage(msg, inbox, io) {
     // Nome do grupo: vem em alguns eventos; fallback para o ID
     const groupName  = msg.message?.groupInviteMessage?.groupName
       || event?.data?.name
+      || msg.message?.conversation
       || `Grupo ${groupPhone}`;
 
     // Upsert contato-grupo

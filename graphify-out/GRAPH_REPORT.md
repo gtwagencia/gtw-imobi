@@ -1,7 +1,7 @@
 # Graph Report - gtw-platform  (2026-05-05)
 
 ## Corpus Check
-- 112 files · ~78,833 words
+- 112 files · ~78,859 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
@@ -10,7 +10,7 @@
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `e218a9d1`
+- Built from commit: `52166783`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -116,11 +116,11 @@ Nodes (11): createPipeline(), createStage(), getDefaultPipeline(), getPipeline()
 
 ### Community 11 - "Community 11"
 Cohesion: 0.2
-Nodes (9): addMember(), create(), getById(), getUserInboxIds(), list(), listMembers(), remove(), removeMember() (+1 more)
+Nodes (9): assignAgent(), create(), getById(), list(), listAgents(), listUnassignedAgents(), remove(), removeAgent() (+1 more)
 
 ### Community 12 - "Community 12"
 Cohesion: 0.2
-Nodes (9): assignAgent(), create(), getById(), list(), listAgents(), listUnassignedAgents(), remove(), removeAgent() (+1 more)
+Nodes (9): addMember(), create(), getById(), getUserInboxIds(), list(), listMembers(), remove(), removeMember() (+1 more)
 
 ### Community 13 - "Community 13"
 Cohesion: 0.2
@@ -148,11 +148,11 @@ Nodes (5): backfillAttending(), isWithinBusinessHours(), runAiAnalysis(), runFol
 
 ### Community 20 - "Community 20"
 Cohesion: 0.25
-Nodes (7): getById(), inviteMember(), listForUser(), listMembers(), removeMember(), update(), updateMemberRole()
+Nodes (7): addToConversation(), create(), getForConversation(), list(), remove(), removeFromConversation(), update()
 
 ### Community 21 - "Community 21"
 Cohesion: 0.25
-Nodes (7): addToConversation(), create(), getForConversation(), list(), remove(), removeFromConversation(), update()
+Nodes (7): getById(), inviteMember(), listForUser(), listMembers(), removeMember(), update(), updateMemberRole()
 
 ### Community 22 - "Community 22"
 Cohesion: 0.29
