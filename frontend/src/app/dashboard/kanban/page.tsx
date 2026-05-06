@@ -73,8 +73,10 @@ function DealCard({ deal, dragHandleProps, isDragging, onAnalyze, analyzing, wor
       });
       setMetaSent(true);
       setTimeout(() => setMetaSent(false), 3000);
-    } catch {
-      alert('Falha ao enviar evento para o Meta. Verifique as configurações de CAPI.');
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { error?: string } } })
+        ?.response?.data?.error || 'Falha ao enviar evento para o Meta.';
+      alert(msg);
     } finally {
       setSendingMeta(false);
     }
