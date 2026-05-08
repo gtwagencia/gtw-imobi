@@ -313,6 +313,14 @@ function startJobs() {
     runTicketDueSoon().catch(err => logger.error('Ticket due-soon error', { err: err.message }));
   });
 
+  // Daily digest email — every day at 07:00 BRT (10:00 UTC)
+  cron.schedule('0 10 * * *', () => {
+    const notif = require('../services/ticket-notifications');
+    notif.sendDailyDigests()
+      .then(() => logger.info('Daily digests sent'))
+      .catch(err => logger.error('Daily digest error', { err: err.message }));
+  });
+
   logger.info('Background jobs started (follow-up + AI analysis + SLA check + ticket reminders)');
 }
 

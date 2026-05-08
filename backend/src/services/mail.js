@@ -205,6 +205,83 @@ function tplMention({ mentionedName, actorName, ticketTitle, boardName, commentC
   `);
 }
 
+// ── Template: digest diário ──────────────────────────────────────────────────
+
+function priorityLabel(p) {
+  return { urgent: '🔴 Urgente', high: '🟠 Alta', medium: '🔵 Média', low: '⚪ Baixa' }[p] || p;
+}
+
+function fmtDate(iso) {
+  if (!iso) return '';
+  return new Date(iso).toLocaleDateString('pt-BR', {
+    day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
+  });
+}
+
+function ticketRow(t, appUrl) {
+  const url    = `${appUrl}/dashboard/tickets/${t.board_id}/${t.id}`;
+  const overdue = t.is_overdue ? ' style="color:#dc2626;"' : '';
+  return `
+  <tr>
+    <td style="padding:10px 0;border-bottom:1px solid #f3f4f6;vertical-align:top;">
+      <a href="${url}" style="font-size:14px;font-weight:600;color:#1d1d1f;text-decoration:none;">${t.title}</a>
+      <div style="font-size:12px;color:#6b7280;margin-top:2px;">
+        ${t.board_name}${t.due_date ? ` · <span${overdue}>${t.is_overdue ? '⚠️ Venceu ' : ''}${fmtDate(t.due_date)}</span>` : ''}
+        · ${priorityLabel(t.priority)}
+      </div>
+    </td>
+  </tr>`;
+}
+
+function section(title, color, rows) {
+  if (!rows.length) return '';
+  return `
+  <div style="margin-bottom:24px;">
+    <div style="font-size:13px;font-weight:700;color:${color};text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;">${title}</div>
+    <table width="100%" cellpadding="0" cellspacing="0">${rows.join('')}</table>
+  </div>`;
+}
+
+/**
+ * @param {Object} opts
+ * @param {string} opts.userName
+ * @param {Array}  opts.dueToday    - tickets com prazo hoje
+ * @param {Array}  opts.overdue     - tickets atrasados
+ * @param {Array}  opts.upcoming    - tickets com prazo nos próximos 3 dias
+ * @param {Array}  opts.reminders   - lembretes do dia
+ * @param {string} opts.appUrl
+ * @param {string} opts.dateLabel   - ex: "Quarta-feira, 7 de maio"
+ */
+function tplDailyDigest({ userName, dueToday, overdue, upcoming, reminders, appUrl, dateLabel }) {
+  const dueTodayRows = dueToday.map(t => ticketRow(t, appUrl));
+  const overdueRows  = overdue.map(t => ticketRow({ ...t, is_overdue: true }, appUrl));
+  const upcomingRows = upcoming.map(t => ticketRow(t, appUrl));
+
+  const reminderRows = reminders.map(r => `
+  <tr>
+    <td style="padding:8px 0;border-bottom:1px solid #f3f4f6;font-size:14px;color:#374151;">
+      🔔 <strong>${r.ticket_title}</strong>${r.message ? ` — ${r.message}` : ''}
+      <div style="font-size:12px;color:#6b7280;margin-top:2px;">${r.board_name} · ${fmtDate(r.remind_at)}</div>
+    </td>
+  </tr>`);
+
+  const body = [
+    section('⚠️ Atrasados', '#dc2626', overdueRows),
+    section('📅 Vencem hoje', '#d97706', dueTodayRows),
+    section('🔔 Lembretes de hoje', '#7c3aed', reminderRows),
+    section('📌 Próximos dias', '#2563eb', upcomingRows),
+  ].join('');
+
+  return baseLayout(`
+    <h2 style="margin:0 0 4px;font-size:20px;color:#111;">Bom dia, ${userName}! ☀️</h2>
+    <p style="margin:0 0 24px;color:#6b7280;font-size:14px;">Aqui está sua agenda para <strong>${dateLabel}</strong>.</p>
+    ${body}
+    <div style="margin-top:8px;">
+      ${btn(`${appUrl}/dashboard/tickets`, 'Abrir Tickets')}
+    </div>
+  `);
+}
+
 // ── Template: prazo vence hoje ────────────────────────────────────────────────
 
 function tplDueSoon({ assigneeName, ticketTitle, boardName, dueDate, ticketUrl }) {
@@ -239,4 +316,5 @@ module.exports = {
   tplStatusChanged,
   tplDueDateChanged,
   tplDueSoon,
+  tplDailyDigest,
 };

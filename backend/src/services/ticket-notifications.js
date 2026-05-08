@@ -1,7 +1,7 @@
 'use strict';
 
 const { query }  = require('../config/database');
-const { sendMailSilent: sendMail, tplAssigned, tplComment, tplMention, tplStatusChanged, tplDueDateChanged, tplDueSoon } = require('./mail');
+const { sendMailSilent: sendMail, tplAssigned, tplComment, tplMention, tplStatusChanged, tplDueDateChanged, tplDueSoon, tplDailyDigest } = require('./mail');
 
 const APP_URL = process.env.APP_URL || 'http://localhost:3000';
 
@@ -257,6 +257,142 @@ async function notifyDueSoon(ticketId) {
   }
 }
 
+/**
+ * Envia o digest diário para todos os usuários ativos com tickets pendentes.
+ * Chamado pelo cron às 07:00 BRT (10:00 UTC).
+ * Cada usuário recebe um único e-mail consolidado com:
+ *   - Tickets atrasados (due_date < hoje, não resolvidos)
+ *   - Tickets vencendo hoje
+ *   - Lembretes com remind_at hoje
+ *   - Tickets vencendo nos próximos 3 dias
+ */
+async function sendDailyDigests() {
+  // Coleta todos os usuários que têm algo pendente hoje
+  const usersRes = await query(
+    `SELECT DISTINCT u.id, u.name, u.email
+     FROM users u
+     WHERE u.email IS NOT NULL AND u.email != ''
+       AND (
+         EXISTS (
+           SELECT 1 FROM tickets t
+           JOIN ticket_boards tb ON tb.id = t.board_id
+           WHERE t.assignee_id = u.id
+             AND t.resolved_at IS NULL
+             AND NOT tb.is_archived
+             AND t.due_date IS NOT NULL
+             AND (t.due_date AT TIME ZONE 'America/Sao_Paulo')::date
+                 <= (NOW() AT TIME ZONE 'America/Sao_Paulo')::date + 3
+         )
+         OR EXISTS (
+           SELECT 1 FROM ticket_reminders tr
+           JOIN tickets t ON t.id = tr.ticket_id
+           JOIN ticket_boards tb ON tb.id = t.board_id
+           WHERE tr.user_id = u.id AND NOT tr.sent
+             AND (tr.remind_at AT TIME ZONE 'America/Sao_Paulo')::date
+                 = (NOW() AT TIME ZONE 'America/Sao_Paulo')::date
+             AND NOT tb.is_archived
+         )
+       )`
+  );
+
+  const todayBRT  = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
+  const todayDate = todayBRT.toISOString().slice(0, 10);
+
+  const dateLabel = todayBRT.toLocaleDateString('pt-BR', {
+    weekday: 'long', day: 'numeric', month: 'long', timeZone: 'America/Sao_Paulo',
+  });
+  // Capitaliza primeiro caractere
+  const dateLabelFmt = dateLabel.charAt(0).toUpperCase() + dateLabel.slice(1);
+
+  for (const user of usersRes.rows) {
+    try {
+      // Tickets atrasados (venceram antes de hoje)
+      const overdueRes = await query(
+        `SELECT t.id, t.title, t.priority, t.due_date,
+                tb.id AS board_id, tb.name AS board_name
+         FROM tickets t
+         JOIN ticket_boards tb ON tb.id = t.board_id
+         WHERE t.assignee_id = $1
+           AND t.resolved_at IS NULL
+           AND NOT tb.is_archived
+           AND t.due_date IS NOT NULL
+           AND (t.due_date AT TIME ZONE 'America/Sao_Paulo')::date < $2::date
+         ORDER BY t.due_date ASC
+         LIMIT 10`,
+        [user.id, todayDate]
+      );
+
+      // Tickets vencendo hoje
+      const dueTodayRes = await query(
+        `SELECT t.id, t.title, t.priority, t.due_date,
+                tb.id AS board_id, tb.name AS board_name
+         FROM tickets t
+         JOIN ticket_boards tb ON tb.id = t.board_id
+         WHERE t.assignee_id = $1
+           AND t.resolved_at IS NULL
+           AND NOT tb.is_archived
+           AND (t.due_date AT TIME ZONE 'America/Sao_Paulo')::date = $2::date
+         ORDER BY t.due_date ASC`,
+        [user.id, todayDate]
+      );
+
+      // Próximos 3 dias (excluindo hoje)
+      const upcomingRes = await query(
+        `SELECT t.id, t.title, t.priority, t.due_date,
+                tb.id AS board_id, tb.name AS board_name
+         FROM tickets t
+         JOIN ticket_boards tb ON tb.id = t.board_id
+         WHERE t.assignee_id = $1
+           AND t.resolved_at IS NULL
+           AND NOT tb.is_archived
+           AND (t.due_date AT TIME ZONE 'America/Sao_Paulo')::date > $2::date
+           AND (t.due_date AT TIME ZONE 'America/Sao_Paulo')::date <= $2::date + 3
+         ORDER BY t.due_date ASC`,
+        [user.id, todayDate]
+      );
+
+      // Lembretes de hoje
+      const remindersRes = await query(
+        `SELECT tr.id, tr.remind_at, tr.message,
+                t.title AS ticket_title,
+                tb.id AS board_id, tb.name AS board_name
+         FROM ticket_reminders tr
+         JOIN tickets t ON t.id = tr.ticket_id
+         JOIN ticket_boards tb ON tb.id = t.board_id
+         WHERE tr.user_id = $1
+           AND NOT tr.sent
+           AND (tr.remind_at AT TIME ZONE 'America/Sao_Paulo')::date = $2::date
+           AND NOT tb.is_archived
+         ORDER BY tr.remind_at ASC`,
+        [user.id, todayDate]
+      );
+
+      const dueToday  = dueTodayRes.rows;
+      const overdue   = overdueRes.rows;
+      const upcoming  = upcomingRes.rows;
+      const reminders = remindersRes.rows;
+
+      if (!dueToday.length && !overdue.length && !upcoming.length && !reminders.length) continue;
+
+      await sendMail({
+        to:      user.email,
+        subject: `[GTW] Agenda do dia — ${dateLabelFmt}`,
+        html:    tplDailyDigest({
+          userName: user.name,
+          dueToday,
+          overdue,
+          upcoming,
+          reminders,
+          appUrl:    APP_URL,
+          dateLabel: dateLabelFmt,
+        }),
+      });
+    } catch (err) {
+      console.error(`[ticket-notifications] sendDailyDigests user=${user.id}:`, err.message);
+    }
+  }
+}
+
 module.exports = {
   notifyAssigned,
   notifyComment,
@@ -264,4 +400,5 @@ module.exports = {
   notifyStatusChanged,
   notifyDueDateChanged,
   notifyDueSoon,
+  sendDailyDigests,
 };
