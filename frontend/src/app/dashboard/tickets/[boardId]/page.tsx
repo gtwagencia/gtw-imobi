@@ -1,18 +1,18 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { getSocket, connectSocket } from '@/lib/socket';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { useAuth } from '@/store/auth';
 import Header from '@/components/layout/Header';
 import api from '@/lib/api';
-import type { TicketBoard, TicketColumn, Ticket, TicketBoardMember, TicketLabel, TicketTimeLog, TicketPriority } from '@/types';
+import type { TicketBoard, TicketColumn, Ticket, TicketBoardMember, TicketLabel, TicketTimeLog, TicketPriority, TicketAlert } from '@/types';
 import {
   Plus, X, Trash2, Clock, User, Flag, Calendar,
   ChevronRight, Settings, Users, GripVertical,
   Tag, RefreshCw, Timer, Play, Square, Edit3, AlertCircle, Phone,
-  MoreVertical, Check, Pencil, Circle,
+  MoreVertical, Check, Pencil, Circle, Bell,
 } from 'lucide-react';
 import clsx from 'clsx';
 import { format, formatDistanceToNow, isPast } from 'date-fns';
@@ -509,7 +509,7 @@ function TicketModal({ ticket, columns, members, labels, workspaceId, onClose, o
 
 // ── Ticket Card ───────────────────────────────────────────────────────────────
 
-function TicketCard({ ticket, isDragging, onClick }: { ticket: Ticket; isDragging: boolean; onClick: () => void }) {
+function TicketCard({ ticket, isDragging, onClick, hasAlert }: { ticket: Ticket; isDragging: boolean; onClick: () => void; hasAlert?: boolean }) {
   const priority = PRIORITY_CONFIG[ticket.priority];
   const isOverdue = ticket.due_date && isPast(new Date(ticket.due_date)) && !ticket.resolved_at;
 
@@ -517,11 +517,17 @@ function TicketCard({ ticket, isDragging, onClick }: { ticket: Ticket; isDraggin
     <div
       onClick={onClick}
       className={clsx(
-        'bg-white rounded-xl border border-gray-200 p-3 cursor-pointer select-none',
+        'relative bg-white rounded-xl border p-3 cursor-pointer select-none',
         'hover:shadow-md transition-shadow',
+        hasAlert ? 'border-indigo-400 shadow-sm shadow-indigo-100' : 'border-gray-200',
         isDragging && 'shadow-xl rotate-1 border-indigo-300',
       )}
     >
+      {hasAlert && (
+        <span className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-indigo-600 rounded-full flex items-center justify-center shadow">
+          <Bell className="w-2.5 h-2.5 text-white" />
+        </span>
+      )}
       {/* Labels */}
       {(ticket.labels?.length ?? 0) > 0 && (
         <div className="flex flex-wrap gap-1 mb-2">
@@ -835,6 +841,16 @@ export default function BoardPage() {
   const [editingColName,setEditingColName]= useState('');
   const colMenuRef = useRef<HTMLDivElement>(null);
 
+  // Add column
+  const [addingColumn,    setAddingColumn]    = useState(false);
+  const [newColName,      setNewColName]      = useState('');
+  const [addingColLoading,setAddingColLoading]= useState(false);
+
+  // In-app alerts
+  const [alerts,         setAlerts]         = useState<TicketAlert[]>([]);
+  const [showAlerts,     setShowAlerts]     = useState(false);
+  const alertsRef = useRef<HTMLDivElement>(null);
+
   const canEdit = (() => {
     if (!board) return false;
     if (!board.user_role) return true; // workspace admin
@@ -853,6 +869,7 @@ export default function BoardPage() {
     loadBoard();
     api.get<TicketLabel[]>(`/workspaces/${currentWorkspace.id}/tickets/labels`).then(r => setLabels(r.data)).catch(() => {});
     api.get<TicketBoardMember[]>(`/workspaces/${currentWorkspace.id}/tickets/boards/${boardId}/members`).then(r => setMembers(r.data)).catch(() => {});
+    api.get<TicketAlert[]>(`/workspaces/${currentWorkspace.id}/tickets/my-alerts`).then(r => setAlerts(r.data)).catch(() => {});
   }, [currentWorkspace, boardId]);
 
   // ── Socket: sincronização em tempo real do board ──────────────────────────
@@ -948,6 +965,13 @@ export default function BoardPage() {
       });
     });
 
+    // Novo alerta in-app (atribuição ou menção)
+    socket.on('ticket:alert', (data: TicketAlert) => {
+      if (data.user_id === myId) {
+        setAlerts(prev => [data, ...prev]);
+      }
+    });
+
     return () => {
       socket.off('ticket:created');
       socket.off('ticket:updated');
@@ -956,14 +980,18 @@ export default function BoardPage() {
       socket.off('column:updated');
       socket.off('column:deleted');
       socket.off('columns:reordered');
+      socket.off('ticket:alert');
     };
   }, [currentWorkspace, boardId, user]);
 
-  // Close col menu on outside click
+  // Close col menu and alerts panel on outside click
   useEffect(() => {
     function handler(e: MouseEvent) {
       if (colMenuRef.current && !colMenuRef.current.contains(e.target as Node)) {
         setColMenuId(null);
+      }
+      if (alertsRef.current && !alertsRef.current.contains(e.target as Node)) {
+        setShowAlerts(false);
       }
     }
     document.addEventListener('mousedown', handler);
@@ -1008,6 +1036,32 @@ export default function BoardPage() {
       columns: prev.columns.filter(c => c.id !== colId),
     } : prev);
     setColMenuId(null);
+  }
+
+  async function handleAddColumn() {
+    if (!currentWorkspace || !newColName.trim()) return;
+    setAddingColLoading(true);
+    try {
+      const { data } = await api.post<TicketColumn>(
+        `/workspaces/${currentWorkspace.id}/tickets/boards/${boardId}/columns`,
+        { name: newColName.trim(), position: (board?.columns.length ?? 99) }
+      );
+      setBoard(prev => prev ? { ...prev, columns: [...prev.columns, { ...data, tickets: [] }] } : prev);
+      setNewColName('');
+      setAddingColumn(false);
+    } finally { setAddingColLoading(false); }
+  }
+
+  async function handleMarkAlertRead(alertId: string) {
+    if (!currentWorkspace) return;
+    await api.put(`/workspaces/${currentWorkspace.id}/tickets/alerts/${alertId}/read`).catch(() => {});
+    setAlerts(prev => prev.filter(a => a.id !== alertId));
+  }
+
+  async function handleMarkAllAlertsRead() {
+    if (!currentWorkspace) return;
+    await api.put(`/workspaces/${currentWorkspace.id}/tickets/alerts/read-all`).catch(() => {});
+    setAlerts([]);
   }
 
   async function loadBoard() {
@@ -1103,6 +1157,9 @@ export default function BoardPage() {
     );
   }
 
+  const alertTicketIds = new Set(alerts.map(a => a.ticket_id));
+  const unreadAlerts = alerts.length;
+
   return (
     <>
       <Header
@@ -1118,6 +1175,72 @@ export default function BoardPage() {
                 Membros
               </button>
             )}
+
+            {/* Alert bell */}
+            <div className="relative" ref={alertsRef}>
+              <button
+                onClick={() => setShowAlerts(s => !s)}
+                className="relative btn-secondary text-sm p-2"
+                title="Meus alertas"
+              >
+                <Bell className="w-4 h-4" />
+                {unreadAlerts > 0 && (
+                  <span className="absolute -top-1 -right-1 w-4 h-4 bg-indigo-600 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+                    {unreadAlerts > 9 ? '9+' : unreadAlerts}
+                  </span>
+                )}
+              </button>
+
+              {showAlerts && (
+                <div className="absolute right-0 top-10 w-80 bg-white rounded-xl shadow-2xl border border-gray-100 z-50 overflow-hidden">
+                  <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+                    <h3 className="text-sm font-semibold text-gray-800">Alertas ({unreadAlerts})</h3>
+                    {unreadAlerts > 0 && (
+                      <button onClick={handleMarkAllAlertsRead} className="text-xs text-indigo-600 hover:text-indigo-800">
+                        Limpar todos
+                      </button>
+                    )}
+                  </div>
+                  <div className="max-h-80 overflow-y-auto">
+                    {alerts.length === 0 ? (
+                      <p className="text-sm text-gray-400 text-center py-6">Nenhum alerta pendente</p>
+                    ) : (
+                      alerts.map(alert => (
+                        <div key={alert.id} className="flex items-start gap-3 px-4 py-3 hover:bg-gray-50 border-b border-gray-50 last:border-0">
+                          <span className={clsx(
+                            'w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5',
+                            alert.type === 'assigned' ? 'bg-blue-100' : 'bg-indigo-100'
+                          )}>
+                            {alert.type === 'assigned'
+                              ? <User className="w-3.5 h-3.5 text-blue-600" />
+                              : <Bell className="w-3.5 h-3.5 text-indigo-600" />
+                            }
+                          </span>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-medium text-gray-900 truncate">{alert.ticket_title}</p>
+                            <p className="text-xs text-gray-500 mt-0.5">{alert.message}</p>
+                            <button
+                              onClick={() => {
+                                handleMarkAlertRead(alert.id);
+                                router.push(`/dashboard/tickets/${alert.board_id}/${alert.ticket_id}`);
+                                setShowAlerts(false);
+                              }}
+                              className="text-xs text-indigo-600 hover:text-indigo-800 mt-1 font-medium"
+                            >
+                              Ver ticket →
+                            </button>
+                          </div>
+                          <button onClick={() => handleMarkAlertRead(alert.id)} className="text-gray-300 hover:text-gray-500 flex-shrink-0">
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
             <button onClick={loadBoard} className="btn-secondary text-sm">
               <RefreshCw className="w-4 h-4" />
             </button>
@@ -1128,7 +1251,7 @@ export default function BoardPage() {
       <div className="flex-1 overflow-x-auto p-6 bg-gray-50">
         <DragDropContext onDragEnd={onDragEnd}>
           <div className="flex gap-4 items-start pb-4">
-            {board.columns.map(col => (
+            {board.columns.map((col) => (
               <div key={col.id} className="w-72 flex-shrink-0 flex flex-col">
                 {/* Column header */}
                 <div className="flex items-center gap-2 mb-2 px-1 group">
@@ -1229,6 +1352,7 @@ export default function BoardPage() {
                               <TicketCard
                                 ticket={ticket}
                                 isDragging={snap.isDragging}
+                                hasAlert={alertTicketIds.has(ticket.id)}
                                 onClick={() => router.push(`/dashboard/tickets/${boardId}/${ticket.id}`)}
                               />
                             </div>
@@ -1263,6 +1387,52 @@ export default function BoardPage() {
                 )}
               </div>
             ))}
+
+            {/* Add column button / inline form (managers only) */}
+            {isManager && (
+              <div className="w-72 flex-shrink-0">
+                {addingColumn ? (
+                  <div className="bg-white rounded-xl border border-indigo-300 p-3 shadow-sm">
+                    <input
+                      autoFocus
+                      value={newColName}
+                      onChange={e => setNewColName(e.target.value)}
+                      placeholder="Nome da coluna..."
+                      className="w-full text-sm border-0 outline-none bg-transparent mb-2"
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') handleAddColumn();
+                        if (e.key === 'Escape') { setAddingColumn(false); setNewColName(''); }
+                      }}
+                    />
+                    <div className="flex justify-end gap-1">
+                      <button
+                        type="button"
+                        onClick={() => { setAddingColumn(false); setNewColName(''); }}
+                        className="text-xs text-gray-400 hover:text-gray-600 px-2 py-1"
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleAddColumn}
+                        disabled={addingColLoading || !newColName.trim()}
+                        className="btn-primary text-xs py-1 px-3 disabled:opacity-40"
+                      >
+                        {addingColLoading ? '...' : 'Criar'}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setAddingColumn(true)}
+                    className="w-full flex items-center gap-2 text-sm text-gray-400 hover:text-indigo-600 hover:bg-white/60 border border-dashed border-gray-300 hover:border-indigo-300 rounded-xl px-4 py-3 transition-all"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Nova coluna
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         </DragDropContext>
       </div>

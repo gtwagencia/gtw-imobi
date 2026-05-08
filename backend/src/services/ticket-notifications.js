@@ -1,14 +1,14 @@
 'use strict';
 
 const { query }  = require('../config/database');
-const { sendMailSilent: sendMail, tplAssigned, tplComment, tplMention, tplStatusChanged, tplDueDateChanged } = require('./mail');
+const { sendMailSilent: sendMail, tplAssigned, tplComment, tplMention, tplStatusChanged, tplDueDateChanged, tplDueSoon } = require('./mail');
 
 const APP_URL = process.env.APP_URL || 'http://localhost:3000';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function ticketUrl(workspaceId, boardId, ticketId) {
-  return `${APP_URL}/dashboard/tickets/${boardId}?ticket=${ticketId}`;
+  return `${APP_URL}/dashboard/tickets/${boardId}/${ticketId}`;
 }
 
 async function getTicketMeta(ticketId) {
@@ -230,10 +230,38 @@ async function notifyMentions(ticketId, workspaceId, commenterId, content) {
   }
 }
 
+/**
+ * Disparado pelo cron diário quando o prazo do ticket é hoje.
+ * Envia apenas para o assignee.
+ */
+async function notifyDueSoon(ticketId) {
+  try {
+    const ticket = await getTicketMeta(ticketId);
+    if (!ticket?.assignee_id) return;
+    const assignee = await getUserInfo(ticket.assignee_id);
+    if (!assignee?.email) return;
+
+    await sendMail({
+      to:      assignee.email,
+      subject: `[GTW] Prazo hoje: ${ticket.title}`,
+      html:    tplDueSoon({
+        assigneeName: assignee.name,
+        ticketTitle:  ticket.title,
+        boardName:    ticket.board_name,
+        dueDate:      ticket.due_date,
+        ticketUrl:    ticketUrl(ticket.workspace_id, ticket.board_id, ticketId),
+      }),
+    });
+  } catch (err) {
+    console.error('[ticket-notifications] notifyDueSoon:', err.message);
+  }
+}
+
 module.exports = {
   notifyAssigned,
   notifyComment,
   notifyMentions,
   notifyStatusChanged,
   notifyDueDateChanged,
+  notifyDueSoon,
 };

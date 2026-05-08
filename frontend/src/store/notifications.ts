@@ -58,6 +58,15 @@ function showBrowserNotification(title: string, body: string) {
   }
 }
 
+// ── Referências dos handlers para remoção precisa (evita remover listeners de outros componentes) ──
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type AnyFn = (...args: any[]) => void;
+let _handlerConvNew:     AnyFn | null = null;
+let _handlerMsgNew:      AnyFn | null = null;
+let _handlerTicketUpd:   AnyFn | null = null;
+let _handlerTicketComment: AnyFn | null = null;
+
 // ── Store ─────────────────────────────────────────────────────────────────────
 
 export const useNotifications = create<NotificationState>((set, get) => ({
@@ -96,7 +105,13 @@ export const useNotifications = create<NotificationState>((set, get) => ({
   initSocket: () => {
     const socket = getSocket();
 
-    socket.on('conversation:new', (payload: { contactName: string; conversationId: string }) => {
+    // Remove APENAS os handlers desta store (não apaga listeners de ConversationList / ChatWindow)
+    if (_handlerConvNew)      { socket.off('conversation:new', _handlerConvNew);    _handlerConvNew      = null; }
+    if (_handlerMsgNew)       { socket.off('message:new',      _handlerMsgNew);     _handlerMsgNew       = null; }
+    if (_handlerTicketUpd)    { socket.off('ticket:updated',   _handlerTicketUpd);  _handlerTicketUpd    = null; }
+    if (_handlerTicketComment){ socket.off('ticket:comment',   _handlerTicketComment); _handlerTicketComment = null; }
+
+    _handlerConvNew = (payload: { contactName: string; conversationId: string }) => {
       get().add({
         type:  'new_conversation',
         title: 'Nova conversa',
@@ -105,9 +120,9 @@ export const useNotifications = create<NotificationState>((set, get) => ({
       });
       if (get().soundEnabled) playNotificationSound();
       showBrowserNotification('Nova conversa', `${payload.contactName} iniciou uma conversa`);
-    });
+    };
 
-    socket.on('message:new', (msg: {
+    _handlerMsgNew = (msg: {
       direction: string; content: string; contact_name?: string;
       conversation_id?: string; is_group?: boolean;
     }) => {
@@ -126,26 +141,21 @@ export const useNotifications = create<NotificationState>((set, get) => ({
         msg.contact_name ? `Mensagem de ${msg.contact_name}` : 'Nova mensagem',
         body
       );
-    });
+    };
 
     // ── Eventos de Tickets ────────────────────────────────────────────────────
 
-    socket.on('ticket:updated', (payload: {
+    _handlerTicketUpd = (payload: {
       id: string;
       title: string;
       board_id: string;
       assignee_id?: string;
-      column_name?: string;
-      due_date?: string;
       _userId: string;
       _assigneeChanged: boolean;
-      _columnChanged:   boolean;
-      _dueDateChanged:  boolean;
     }) => {
       const me = useAuth.getState().user?.id;
       if (!me || payload._userId === me) return;
 
-      // Atribuição: só notifica o novo assignee
       if (payload._assigneeChanged && payload.assignee_id === me) {
         get().add({
           type:  'ticket_assigned',
@@ -156,9 +166,9 @@ export const useNotifications = create<NotificationState>((set, get) => ({
         if (get().soundEnabled) playNotificationSound();
         showBrowserNotification('Ticket atribuído a você', payload.title);
       }
-    });
+    };
 
-    socket.on('ticket:comment', (payload: {
+    _handlerTicketComment = (payload: {
       ticketId:    string;
       ticketTitle: string;
       boardId:     string;
@@ -171,7 +181,6 @@ export const useNotifications = create<NotificationState>((set, get) => ({
       const me = useAuth.getState().user?.id;
       if (!me || payload.actorId === me) return;
 
-      // Notifica se for o assignee ou o criador do ticket
       if (payload.assigneeId === me || payload.createdBy === me) {
         const body = payload.preview
           ? `${payload.actorName}: ${payload.preview}`
@@ -185,6 +194,11 @@ export const useNotifications = create<NotificationState>((set, get) => ({
         if (get().soundEnabled) playNotificationSound();
         showBrowserNotification(`Comentário: ${payload.ticketTitle}`, body);
       }
-    });
+    };
+
+    socket.on('conversation:new', _handlerConvNew);
+    socket.on('message:new',      _handlerMsgNew);
+    socket.on('ticket:updated',   _handlerTicketUpd);
+    socket.on('ticket:comment',   _handlerTicketComment);
   },
 }));

@@ -1002,6 +1002,42 @@ async function deleteAttachment(attachmentId, workspaceId) {
   await query('DELETE FROM ticket_attachments WHERE id = $1 AND workspace_id = $2', [attachmentId, workspaceId]);
 }
 
+// ── In-app alerts (atribuições e menções) ─────────────────────────────────────
+
+async function createAlert(userId, ticketId, boardId, type, message) {
+  const r = await query(
+    `INSERT INTO ticket_alerts (user_id, ticket_id, board_id, type, message)
+     VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+    [userId, ticketId, boardId, type, message || null]
+  );
+  return r.rows[0];
+}
+
+async function listMyAlerts(userId) {
+  const r = await query(
+    `SELECT ta.*, t.title AS ticket_title, tb.name AS board_name
+     FROM ticket_alerts ta
+     JOIN tickets t       ON t.id  = ta.ticket_id
+     JOIN ticket_boards tb ON tb.id = ta.board_id
+     WHERE ta.user_id = $1 AND ta.is_read = false
+     ORDER BY ta.created_at DESC
+     LIMIT 50`,
+    [userId]
+  );
+  return r.rows;
+}
+
+async function markAlertRead(alertId, userId) {
+  await query(
+    `UPDATE ticket_alerts SET is_read = true WHERE id = $1 AND user_id = $2`,
+    [alertId, userId]
+  );
+}
+
+async function markAllAlertsRead(userId) {
+  await query(`UPDATE ticket_alerts SET is_read = true WHERE user_id = $1`, [userId]);
+}
+
 // ── Storage usage ─────────────────────────────────────────────────────────────
 
 async function getStorageUsage(workspaceId) {
@@ -1075,4 +1111,8 @@ module.exports = {
   addAttachment,
   deleteAttachment,
   getStorageUsage,
+  createAlert,
+  listMyAlerts,
+  markAlertRead,
+  markAllAlertsRead,
 };

@@ -1,7 +1,7 @@
 # Graph Report - gtw-platform  (2026-05-06)
 
 ## Corpus Check
-- 112 files · ~79,481 words
+- 112 files · ~79,641 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
@@ -10,7 +10,7 @@
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `e9889f3f`
+- Built from commit: `9670724b`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -120,15 +120,15 @@ Nodes (7): buildCustomData(), buildUserData(), listEvents(), sendEvent(), sendLe
 
 ### Community 12 - "Community 12"
 Cohesion: 0.2
-Nodes (9): addMember(), create(), getById(), getUserInboxIds(), list(), listMembers(), remove(), removeMember() (+1 more)
+Nodes (9): assignAgent(), create(), getById(), list(), listAgents(), listUnassignedAgents(), remove(), removeAgent() (+1 more)
 
 ### Community 13 - "Community 13"
 Cohesion: 0.2
-Nodes (9): assignAgent(), create(), getById(), list(), listAgents(), listUnassignedAgents(), remove(), removeAgent() (+1 more)
+Nodes (9): addMember(), create(), getById(), listForOrg(), listMembers(), removeMember(), resetMemberPassword(), update() (+1 more)
 
 ### Community 14 - "Community 14"
 Cohesion: 0.2
-Nodes (9): addMember(), create(), getById(), listForOrg(), listMembers(), removeMember(), resetMemberPassword(), update() (+1 more)
+Nodes (9): addMember(), create(), getById(), getUserInboxIds(), list(), listMembers(), remove(), removeMember() (+1 more)
 
 ### Community 15 - "Community 15"
 Cohesion: 0.47

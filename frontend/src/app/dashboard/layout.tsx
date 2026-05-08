@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/store/auth';
 import { useNotifications } from '@/store/notifications';
+import { connectSocket } from '@/lib/socket';
 import Sidebar from '@/components/layout/Sidebar';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -22,6 +23,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       router.replace('/select');
       return;
     }
+    // Conecta o socket globalmente para todas as páginas do dashboard
+    connectSocket(currentWorkspace.id, accessToken);
     initSocket();
     requestPermission();
   }, [_hasHydrated, accessToken, user, currentWorkspace, router, initSocket, requestPermission]);

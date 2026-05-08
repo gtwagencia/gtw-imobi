@@ -167,13 +167,21 @@ export default function ConversationList({ workspaceId, selected, onSelect }: Pr
     };
   }, [load, status, selected]);
 
-  // Quando o usuário volta para a aba (tab visibility), recarrega silenciosamente
+  // Quando o usuário volta para a aba, recarrega imediatamente
   useEffect(() => {
     function onVisible() {
       if (document.visibilityState === 'visible') load(false);
     }
     document.addEventListener('visibilitychange', onVisible);
     return () => document.removeEventListener('visibilitychange', onVisible);
+  }, [load]);
+
+  // Polling de fallback a cada 10s caso socket não entregue eventos
+  useEffect(() => {
+    const t = setInterval(() => {
+      if (document.visibilityState === 'visible') load(false);
+    }, 10000);
+    return () => clearInterval(t);
   }, [load]);
 
   const activeFilters = (filters.departmentId ? 1 : 0) + (filters.inboxId ? 1 : 0) + (filters.metaSource ? 1 : 0);

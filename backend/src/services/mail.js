@@ -205,6 +205,30 @@ function tplMention({ mentionedName, actorName, ticketTitle, boardName, commentC
   `);
 }
 
+// ── Template: prazo vence hoje ────────────────────────────────────────────────
+
+function tplDueSoon({ assigneeName, ticketTitle, boardName, dueDate, ticketUrl }) {
+  const dateStr = dueDate
+    ? new Date(dueDate).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+    : 'hoje';
+  return baseLayout(`
+    <h2 style="margin:0 0 6px;font-size:20px;color:#111;">Prazo de ticket vence hoje</h2>
+    <p style="margin:0 0 20px;color:#6b7280;font-size:14px;">
+      Olá <strong>${assigneeName}</strong>, o prazo de um ticket sob sua responsabilidade vence hoje.
+    </p>
+
+    <div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;padding:16px 20px;margin-bottom:24px;">
+      <div style="font-size:16px;font-weight:700;color:#111;margin-bottom:4px;">${ticketTitle}</div>
+      <div style="font-size:13px;color:#6b7280;">Board: <strong>${boardName}</strong></div>
+      <div style="margin-top:10px;font-size:14px;color:#92400e;font-weight:600;">
+        ⏰ Prazo: ${dateStr}
+      </div>
+    </div>
+
+    ${btn(ticketUrl, 'Abrir Ticket')}
+  `);
+}
+
 module.exports = {
   sendMail,
   sendMailSilent,
@@ -214,4 +238,5 @@ module.exports = {
   tplMention,
   tplStatusChanged,
   tplDueDateChanged,
+  tplDueSoon,
 };

@@ -243,7 +243,6 @@ router.get('/tickets/:ticketId', ...auth, async (req, res, next) => {
 
 router.put('/tickets/:ticketId', ...auth, async (req, res, next) => {
   try {
-    // Verifica se o usuário pode editar (precisa ser pelo menos member no board)
     const existing = await svc.getTicket(req.params.ticketId, req.params.workspaceId);
     if (!existing) return res.status(404).json({ error: 'Ticket não encontrado' });
 
@@ -256,14 +255,28 @@ router.put('/tickets/:ticketId', ...auth, async (req, res, next) => {
       return res.status(403).json({ error: 'Sem acesso a este board' });
     }
 
+    const prevAssignee = existing.assignee_id;
     const ticket = await svc.updateTicket(req.params.ticketId, req.params.workspaceId, req.body, req.user.sub);
-    req.app.get('io')?.to(`ws:${req.params.workspaceId}`).emit('ticket:updated', {
+    const io = req.app.get('io');
+    io?.to(`ws:${req.params.workspaceId}`).emit('ticket:updated', {
       ...ticket,
       _userId:          req.user.sub,
       _assigneeChanged: !!req.body.assigneeId,
       _columnChanged:   !!req.body.columnId,
       _dueDateChanged:  'dueDate' in req.body,
     });
+
+    // Cria alerta in-app se o assignee mudou (e não é o próprio actor)
+    if (req.body.assigneeId && ticket.assignee_id && ticket.assignee_id !== req.user.sub && ticket.assignee_id !== prevAssignee) {
+      const actorRes = await query('SELECT name FROM users WHERE id = $1', [req.user.sub]);
+      const actorName = actorRes.rows[0]?.name || 'Alguém';
+      const alert = await svc.createAlert(
+        ticket.assignee_id, ticket.id, ticket.board_id, 'assigned',
+        `${actorName} atribuiu este ticket a você`
+      );
+      io?.to(`ws:${req.params.workspaceId}`).emit('ticket:alert', { ...alert });
+    }
+
     res.json(ticket);
   } catch (err) { next(err); }
 });
@@ -454,18 +467,41 @@ router.post('/tickets/:ticketId/comments', ...auth, upload.single('file'), async
       ),
       query('SELECT name FROM users WHERE id = $1', [req.user.sub]),
     ]);
+    const io = req.app.get('io');
     if (tmRes.rows[0]) {
       const tm = tmRes.rows[0];
-      req.app.get('io')?.to(`ws:${workspaceId}`).emit('ticket:comment', {
+      const actorName = actorRes.rows[0]?.name || 'Alguém';
+      io?.to(`ws:${workspaceId}`).emit('ticket:comment', {
         ticketId:    req.params.ticketId,
         ticketTitle: tm.title,
         boardId:     tm.board_id,
         actorId:     req.user.sub,
-        actorName:   actorRes.rows[0]?.name || 'Alguém',
+        actorName,
         preview:     content?.substring(0, 100) || '',
         assigneeId:  tm.assignee_id,
         createdBy:   tm.created_by,
       });
+
+      // Cria alertas in-app para usuários mencionados com @Nome
+      const mentions = [...(content || '').matchAll(/@([^\s@,]+(?:\s[^\s@,]+)*)/g)].map(m => m[1]);
+      if (mentions.length) {
+        const placeholders = mentions.map((_, i) => `$${i + 2}`).join(', ');
+        const mentionedRes = await query(
+          `SELECT DISTINCT u.id FROM users u
+           JOIN workspace_memberships wm ON wm.user_id = u.id
+           WHERE wm.workspace_id = $1
+             AND u.name = ANY(ARRAY[${placeholders}])
+             AND u.id != $${mentions.length + 2}`,
+          [workspaceId, ...mentions, req.user.sub]
+        );
+        for (const u of mentionedRes.rows) {
+          const alert = await svc.createAlert(
+            u.id, req.params.ticketId, tm.board_id, 'mention',
+            `${actorName} mencionou você em um comentário`
+          );
+          io?.to(`ws:${workspaceId}`).emit('ticket:alert', { ...alert });
+        }
+      }
     }
 
     if (req.file) {
@@ -533,6 +569,28 @@ router.delete('/tickets/:ticketId/attachments/:attachmentId', ...auth, async (re
 router.get('/storage', ...auth, async (req, res, next) => {
   try {
     res.json(await svc.getStorageUsage(req.params.workspaceId));
+  } catch (err) { next(err); }
+});
+
+// ── In-app alerts ─────────────────────────────────────────────────────────────
+
+router.get('/my-alerts', ...auth, async (req, res, next) => {
+  try {
+    res.json(await svc.listMyAlerts(req.user.sub));
+  } catch (err) { next(err); }
+});
+
+router.put('/alerts/read-all', ...auth, async (req, res, next) => {
+  try {
+    await svc.markAllAlertsRead(req.user.sub);
+    res.json({ ok: true });
+  } catch (err) { next(err); }
+});
+
+router.put('/alerts/:alertId/read', ...auth, async (req, res, next) => {
+  try {
+    await svc.markAlertRead(req.params.alertId, req.user.sub);
+    res.json({ ok: true });
   } catch (err) { next(err); }
 });
 

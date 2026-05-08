@@ -241,6 +241,29 @@ async function runRecurringTickets() {
   }
 }
 
+// ── Ticket due-today email ─────────────────────────────────────────────────
+
+async function runTicketDueSoon() {
+  const notif = require('../services/ticket-notifications');
+  // Tickets cujo prazo é HOJE (no fuso de São Paulo), com assignee, não resolvidos
+  const r = await query(
+    `SELECT t.id
+     FROM tickets t
+     WHERE t.due_date IS NOT NULL
+       AND t.resolved_at IS NULL
+       AND t.assignee_id IS NOT NULL
+       AND (t.due_date AT TIME ZONE 'America/Sao_Paulo')::date = (NOW() AT TIME ZONE 'America/Sao_Paulo')::date`
+  );
+  for (const row of r.rows) {
+    try {
+      await notif.notifyDueSoon(row.id);
+      logger.info('Due-soon email sent', { ticketId: row.id });
+    } catch (err) {
+      logger.warn('Due-soon email failed', { ticketId: row.id, err: err.message });
+    }
+  }
+}
+
 // ── Schedule jobs ──────────────────────────────────────────────────────────
 
 function startJobs() {
@@ -283,6 +306,11 @@ function startJobs() {
   // Recurring tickets spawner — every day at 06:00
   cron.schedule('0 6 * * *', () => {
     runRecurringTickets().catch(err => logger.error('Recurring tickets error', { err: err.message }));
+  });
+
+  // Ticket due-today emails — every day at 08:00 BRT (11:00 UTC)
+  cron.schedule('0 11 * * *', () => {
+    runTicketDueSoon().catch(err => logger.error('Ticket due-soon error', { err: err.message }));
   });
 
   logger.info('Background jobs started (follow-up + AI analysis + SLA check + ticket reminders)');

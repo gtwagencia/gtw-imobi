@@ -163,6 +163,7 @@ export interface Message {
   message_type: string;
   content: string | null;
   media_url: string | null;
+  media_mime_type?: string | null;
   status: 'sent' | 'delivered' | 'read' | 'failed';
   sender_id: string | null;
   sender_name: string | null;
@@ -170,6 +171,9 @@ export interface Message {
   is_private: boolean;
   evolution_msg_id: string | null;
   created_at: string;
+  // Campos extras incluídos nos eventos socket (não vêm da REST API)
+  contact_name?: string;
+  is_group?: boolean;
 }
 
 export interface CannedResponse {
@@ -392,6 +396,19 @@ export interface TicketReminder {
   remind_at: string;
   message: string | null;
   sent: boolean;
+}
+
+export interface TicketAlert {
+  id: string;
+  user_id: string;
+  ticket_id: string;
+  board_id: string;
+  type: 'assigned' | 'mention' | 'due_today';
+  message: string | null;
+  is_read: boolean;
+  created_at: string;
+  ticket_title?: string;
+  board_name?: string;
 }
 
 export interface TicketResolutionReport {

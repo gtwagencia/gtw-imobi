@@ -304,8 +304,8 @@ async function handleGroupMessage(msg, inbox, io, event) {
       await query('UPDATE contacts SET name = $1 WHERE id = $2', [groupName, contact.id]);
     }
 
-    io?.to(`conv:${conversation.id}`).emit('message:new', { ...message, is_group: true });
-    io?.to(`ws:${inbox.workspace_id}`).emit('message:new', { ...message, is_group: true });
+    io?.to(`conv:${conversation.id}`).emit('message:new', { ...message, is_group: true, contact_name: groupName });
+    io?.to(`ws:${inbox.workspace_id}`).emit('message:new', { ...message, is_group: true, contact_name: groupName });
     io?.to(`ws:${inbox.workspace_id}`).emit('conversation:updated', {
       conversationId:  conversation.id,
       lastMessageAt:   new Date(),
@@ -401,32 +401,32 @@ router.post('/evolution/:inboxId', async (req, res) => {
   const { inboxId } = req.params;
   const event = req.body;
 
+  // Responde imediatamente para a Evolution API não retentar
+  // O processamento continua assincronamente abaixo
+  res.json({ ok: true });
+
   try {
     const inboxRes = await query('SELECT * FROM inboxes WHERE id = $1', [inboxId]);
-    if (!inboxRes.rows.length) return res.status(404).json({ ok: false });
+    if (!inboxRes.rows.length) return;
     const inbox = inboxRes.rows[0];
 
-    // Validação HMAC: só valida se o inbox tiver hmac_enabled=true E a requisição
-    // trouxer o header de assinatura. A Evolution API não envia assinatura por padrão,
-    // portanto a validação é opt-in por inbox (não ativada automaticamente).
+    // Validação HMAC opcional — apenas loga e ignora se inválida (já respondemos 200)
     if (inbox.hmac_enabled && inbox.webhook_secret) {
       const signature = req.headers['x-hub-signature-256'] || req.headers['x-webhook-hmac'];
       if (!signature) {
-        logger.warn('Webhook rejeitado: HMAC obrigatório mas ausente', { inboxId });
-        return res.status(401).json({ error: 'Assinatura obrigatória' });
+        logger.warn('Webhook HMAC ausente (ignorado)', { inboxId });
+        return;
       }
-      const rawBody   = JSON.stringify(req.body);
-      const expected  = 'sha256=' + crypto.createHmac('sha256', inbox.webhook_secret).update(rawBody).digest('hex');
-      const sigBuf    = Buffer.from(signature);
-      const expBuf    = Buffer.from(expected);
-      const valid     = sigBuf.length === expBuf.length && crypto.timingSafeEqual(sigBuf, expBuf);
+      const rawBody  = JSON.stringify(req.body);
+      const expected = 'sha256=' + crypto.createHmac('sha256', inbox.webhook_secret).update(rawBody).digest('hex');
+      const sigBuf   = Buffer.from(signature);
+      const expBuf   = Buffer.from(expected);
+      const valid    = sigBuf.length === expBuf.length && crypto.timingSafeEqual(sigBuf, expBuf);
       if (!valid) {
-        logger.warn('Webhook rejeitado: assinatura HMAC inválida', { inboxId });
-        return res.status(401).json({ error: 'Assinatura inválida' });
+        logger.warn('Webhook HMAC inválido (ignorado)', { inboxId });
+        return;
       }
     }
-
-    res.json({ ok: true });
 
     const io    = req.app.get('io');
 
@@ -587,8 +587,8 @@ router.post('/evolution/:inboxId', async (req, res) => {
           const kanbanSvc = require('../kanban/kanban.service');
           kanbanSvc.moveToAttending(conversation.id).catch(() => {});
 
-          io?.to(`conv:${conversation.id}`).emit('message:new', message);
-          io?.to(`ws:${inbox.workspace_id}`).emit('message:new', message);
+          io?.to(`conv:${conversation.id}`).emit('message:new', { ...message, contact_name: contact.name });
+          io?.to(`ws:${inbox.workspace_id}`).emit('message:new', { ...message, contact_name: contact.name });
           io?.to(`ws:${inbox.workspace_id}`).emit('conversation:updated', {
             conversationId:  conversation.id,
             lastMessageAt:   new Date(),
@@ -818,8 +818,8 @@ router.post('/evolution/:inboxId', async (req, res) => {
             conversationId: conversation.id, contactName: contact.name, inboxId: inbox.id,
           });
         }
-        io?.to(`conv:${conversation.id}`).emit('message:new', message);
-        io?.to(`ws:${inbox.workspace_id}`).emit('message:new', message);
+        io?.to(`conv:${conversation.id}`).emit('message:new', { ...message, contact_name: contact.name });
+        io?.to(`ws:${inbox.workspace_id}`).emit('message:new', { ...message, contact_name: contact.name });
         io?.to(`ws:${inbox.workspace_id}`).emit('conversation:updated', {
           conversationId:  conversation.id,
           lastMessageAt:   new Date(),
