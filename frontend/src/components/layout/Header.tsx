@@ -1,9 +1,10 @@
 'use client';
 
 import { useRef, useState, useEffect } from 'react';
-import { Bell, Menu, MessageSquare, Ticket, UserCheck, MessageCircle, Users } from 'lucide-react';
+import { Bell, Menu, MessageSquare, Ticket, UserCheck, MessageCircle, Users, AtSign } from 'lucide-react';
 import { useAuth } from '@/store/auth';
 import { useNotifications } from '@/store/notifications';
+import { useAlerts } from '@/store/alerts';
 import { useSidebar } from '@/store/sidebar';
 import { useRouter } from 'next/navigation';
 import { formatDistanceToNow } from 'date-fns';
@@ -26,17 +27,19 @@ const NOTIF_CONFIG = {
 export default function Header({ title, actions }: HeaderProps) {
   const { currentWorkspace }                        = useAuth();
   const { notifications, unreadCount, markAllRead } = useNotifications();
+  const { alerts, unreadCount: alertCount, markRead, markAllRead: markAllAlerts } = useAlerts();
   const { toggle } = useSidebar();
   const router = useRouter();
 
-  const [open, setOpen] = useState(false);
-  const dropRef = useRef<HTMLDivElement>(null);
+  const [open,      setOpen]      = useState(false);
+  const [openAlert, setOpenAlert] = useState(false);
+  const dropRef      = useRef<HTMLDivElement>(null);
+  const alertDropRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     function handler(e: MouseEvent) {
-      if (dropRef.current && !dropRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
+      if (dropRef.current      && !dropRef.current.contains(e.target as Node))      setOpen(false);
+      if (alertDropRef.current && !alertDropRef.current.contains(e.target as Node)) setOpenAlert(false);
     }
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
@@ -67,6 +70,77 @@ export default function Header({ title, actions }: HeaderProps) {
 
       <div className="flex items-center gap-3 ml-4">
         {actions}
+
+        {/* Alerts bell — atribuições e @menções de tickets */}
+        <div className="relative" ref={alertDropRef}>
+          <button
+            onClick={() => setOpenAlert((v) => !v)}
+            className="relative p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+            title="Alertas de tickets"
+          >
+            <AtSign className="w-5 h-5" />
+            {alertCount > 0 && (
+              <span className="absolute top-1 right-1 w-4 h-4 bg-indigo-600 text-white text-xs
+                               rounded-full flex items-center justify-center font-medium leading-none">
+                {alertCount > 9 ? '9+' : alertCount}
+              </span>
+            )}
+          </button>
+
+          {openAlert && (
+            <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-xl shadow-xl
+                            border border-gray-200 overflow-hidden z-50">
+              <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+                <span className="font-semibold text-gray-900 text-sm">Alertas de tickets</span>
+                {alertCount > 0 && currentWorkspace && (
+                  <button
+                    onClick={() => markAllAlerts(currentWorkspace.id)}
+                    className="text-xs text-indigo-600 hover:underline"
+                  >
+                    Limpar todos
+                  </button>
+                )}
+              </div>
+              <div className="max-h-96 overflow-y-auto divide-y divide-gray-50">
+                {alerts.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-10 text-center px-4">
+                    <AtSign className="w-8 h-8 text-gray-200 mb-3" />
+                    <p className="text-sm text-gray-400">Nenhum alerta pendente</p>
+                  </div>
+                ) : (
+                  alerts.map((a) => (
+                    <div
+                      key={a.id}
+                      className="flex items-start gap-3 px-4 py-3 hover:bg-gray-50 cursor-pointer"
+                      onClick={() => {
+                        if (currentWorkspace) markRead(a.id, currentWorkspace.id);
+                        router.push(`/dashboard/tickets/${a.board_id}/${a.ticket_id}`);
+                        setOpenAlert(false);
+                      }}
+                    >
+                      <div className={clsx(
+                        'w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5',
+                        a.type === 'assigned' ? 'bg-blue-50' : 'bg-indigo-50'
+                      )}>
+                        {a.type === 'assigned'
+                          ? <UserCheck className="w-4 h-4 text-blue-500" />
+                          : <AtSign    className="w-4 h-4 text-indigo-500" />
+                        }
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-gray-900 truncate">{a.ticket_title}</p>
+                        <p className="text-xs text-gray-500 mt-0.5">{a.message}</p>
+                        <p className="text-xs text-gray-400 mt-1">
+                          {formatDistanceToNow(new Date(a.created_at), { addSuffix: true, locale: ptBR })}
+                        </p>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+        </div>
 
         {/* Notification bell */}
         <div className="relative" ref={dropRef}>

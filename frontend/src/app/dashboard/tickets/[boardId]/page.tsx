@@ -7,7 +7,8 @@ import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea
 import { useAuth } from '@/store/auth';
 import Header from '@/components/layout/Header';
 import api from '@/lib/api';
-import type { TicketBoard, TicketColumn, Ticket, TicketBoardMember, TicketLabel, TicketTimeLog, TicketPriority, TicketAlert } from '@/types';
+import type { TicketBoard, TicketColumn, Ticket, TicketBoardMember, TicketLabel, TicketTimeLog, TicketPriority } from '@/types';
+import { useAlerts } from '@/store/alerts';
 import {
   Plus, X, Trash2, Clock, User, Flag, Calendar,
   ChevronRight, Settings, Users, GripVertical,
@@ -846,10 +847,8 @@ export default function BoardPage() {
   const [newColName,      setNewColName]      = useState('');
   const [addingColLoading,setAddingColLoading]= useState(false);
 
-  // In-app alerts
-  const [alerts,         setAlerts]         = useState<TicketAlert[]>([]);
-  const [showAlerts,     setShowAlerts]     = useState(false);
-  const alertsRef = useRef<HTMLDivElement>(null);
+  // Alerts — via store global (carregado no dashboard layout)
+  const alertsFromStore = useAlerts((s) => s.alerts);
 
   const canEdit = (() => {
     if (!board) return false;
@@ -869,7 +868,6 @@ export default function BoardPage() {
     loadBoard();
     api.get<TicketLabel[]>(`/workspaces/${currentWorkspace.id}/tickets/labels`).then(r => setLabels(r.data)).catch(() => {});
     api.get<TicketBoardMember[]>(`/workspaces/${currentWorkspace.id}/tickets/boards/${boardId}/members`).then(r => setMembers(r.data)).catch(() => {});
-    api.get<TicketAlert[]>(`/workspaces/${currentWorkspace.id}/tickets/my-alerts`).then(r => setAlerts(r.data)).catch(() => {});
   }, [currentWorkspace, boardId]);
 
   // ── Socket: sincronização em tempo real do board ──────────────────────────
@@ -965,13 +963,6 @@ export default function BoardPage() {
       });
     });
 
-    // Novo alerta in-app (atribuição ou menção)
-    socket.on('ticket:alert', (data: TicketAlert) => {
-      if (data.user_id === myId) {
-        setAlerts(prev => [data, ...prev]);
-      }
-    });
-
     return () => {
       socket.off('ticket:created');
       socket.off('ticket:updated');
@@ -980,18 +971,14 @@ export default function BoardPage() {
       socket.off('column:updated');
       socket.off('column:deleted');
       socket.off('columns:reordered');
-      socket.off('ticket:alert');
     };
   }, [currentWorkspace, boardId, user]);
 
-  // Close col menu and alerts panel on outside click
+  // Close col menu on outside click
   useEffect(() => {
     function handler(e: MouseEvent) {
       if (colMenuRef.current && !colMenuRef.current.contains(e.target as Node)) {
         setColMenuId(null);
-      }
-      if (alertsRef.current && !alertsRef.current.contains(e.target as Node)) {
-        setShowAlerts(false);
       }
     }
     document.addEventListener('mousedown', handler);
@@ -1050,18 +1037,6 @@ export default function BoardPage() {
       setNewColName('');
       setAddingColumn(false);
     } finally { setAddingColLoading(false); }
-  }
-
-  async function handleMarkAlertRead(alertId: string) {
-    if (!currentWorkspace) return;
-    await api.put(`/workspaces/${currentWorkspace.id}/tickets/alerts/${alertId}/read`).catch(() => {});
-    setAlerts(prev => prev.filter(a => a.id !== alertId));
-  }
-
-  async function handleMarkAllAlertsRead() {
-    if (!currentWorkspace) return;
-    await api.put(`/workspaces/${currentWorkspace.id}/tickets/alerts/read-all`).catch(() => {});
-    setAlerts([]);
   }
 
   async function loadBoard() {
@@ -1157,8 +1132,7 @@ export default function BoardPage() {
     );
   }
 
-  const alertTicketIds = new Set(alerts.map(a => a.ticket_id));
-  const unreadAlerts = alerts.length;
+  const alertTicketIds = new Set(alertsFromStore.map(a => a.ticket_id));
 
   return (
     <>
@@ -1175,72 +1149,6 @@ export default function BoardPage() {
                 Membros
               </button>
             )}
-
-            {/* Alert bell */}
-            <div className="relative" ref={alertsRef}>
-              <button
-                onClick={() => setShowAlerts(s => !s)}
-                className="relative btn-secondary text-sm p-2"
-                title="Meus alertas"
-              >
-                <Bell className="w-4 h-4" />
-                {unreadAlerts > 0 && (
-                  <span className="absolute -top-1 -right-1 w-4 h-4 bg-indigo-600 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
-                    {unreadAlerts > 9 ? '9+' : unreadAlerts}
-                  </span>
-                )}
-              </button>
-
-              {showAlerts && (
-                <div className="absolute right-0 top-10 w-80 bg-white rounded-xl shadow-2xl border border-gray-100 z-50 overflow-hidden">
-                  <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
-                    <h3 className="text-sm font-semibold text-gray-800">Alertas ({unreadAlerts})</h3>
-                    {unreadAlerts > 0 && (
-                      <button onClick={handleMarkAllAlertsRead} className="text-xs text-indigo-600 hover:text-indigo-800">
-                        Limpar todos
-                      </button>
-                    )}
-                  </div>
-                  <div className="max-h-80 overflow-y-auto">
-                    {alerts.length === 0 ? (
-                      <p className="text-sm text-gray-400 text-center py-6">Nenhum alerta pendente</p>
-                    ) : (
-                      alerts.map(alert => (
-                        <div key={alert.id} className="flex items-start gap-3 px-4 py-3 hover:bg-gray-50 border-b border-gray-50 last:border-0">
-                          <span className={clsx(
-                            'w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5',
-                            alert.type === 'assigned' ? 'bg-blue-100' : 'bg-indigo-100'
-                          )}>
-                            {alert.type === 'assigned'
-                              ? <User className="w-3.5 h-3.5 text-blue-600" />
-                              : <Bell className="w-3.5 h-3.5 text-indigo-600" />
-                            }
-                          </span>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-xs font-medium text-gray-900 truncate">{alert.ticket_title}</p>
-                            <p className="text-xs text-gray-500 mt-0.5">{alert.message}</p>
-                            <button
-                              onClick={() => {
-                                handleMarkAlertRead(alert.id);
-                                router.push(`/dashboard/tickets/${alert.board_id}/${alert.ticket_id}`);
-                                setShowAlerts(false);
-                              }}
-                              className="text-xs text-indigo-600 hover:text-indigo-800 mt-1 font-medium"
-                            >
-                              Ver ticket →
-                            </button>
-                          </div>
-                          <button onClick={() => handleMarkAlertRead(alert.id)} className="text-gray-300 hover:text-gray-500 flex-shrink-0">
-                            <X className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-
             <button onClick={loadBoard} className="btn-secondary text-sm">
               <RefreshCw className="w-4 h-4" />
             </button>

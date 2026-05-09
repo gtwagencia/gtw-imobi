@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/store/auth';
 import { useNotifications } from '@/store/notifications';
+import { useAlerts } from '@/store/alerts';
 import { connectSocket } from '@/lib/socket';
 import Sidebar from '@/components/layout/Sidebar';
 
@@ -12,6 +13,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const { user, accessToken, currentWorkspace, _hasHydrated } = useAuth();
   const initSocket        = useNotifications((s) => s.initSocket);
   const requestPermission = useNotifications((s) => s.requestPermission);
+  const loadAlerts        = useAlerts((s) => s.load);
+  const initAlertsSocket  = useAlerts((s) => s.initSocket);
 
   useEffect(() => {
     if (!_hasHydrated) return;
@@ -23,11 +26,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       router.replace('/select');
       return;
     }
-    // Conecta o socket globalmente para todas as páginas do dashboard
     connectSocket(currentWorkspace.id, accessToken);
     initSocket();
     requestPermission();
-  }, [_hasHydrated, accessToken, user, currentWorkspace, router, initSocket, requestPermission]);
+    loadAlerts(currentWorkspace.id);
+    initAlertsSocket(user.id);
+  }, [_hasHydrated, accessToken, user, currentWorkspace, router, initSocket, requestPermission, loadAlerts, initAlertsSocket]);
 
   if (!_hasHydrated || !accessToken || !user || !currentWorkspace) return null;
 
