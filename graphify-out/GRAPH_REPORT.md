@@ -1,16 +1,16 @@
-# Graph Report - gtw-platform  (2026-05-08)
+# Graph Report - gtw-platform  (2026-05-09)
 
 ## Corpus Check
-- 113 files · ~81,134 words
+- 114 files · ~82,219 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 511 nodes · 744 edges · 76 communities (72 shown, 4 thin omitted)
-- Extraction: 73% EXTRACTED · 27% INFERRED · 0% AMBIGUOUS · INFERRED: 198 edges (avg confidence: 0.8)
+- 518 nodes · 759 edges · 76 communities (72 shown, 4 thin omitted)
+- Extraction: 74% EXTRACTED · 26% INFERRED · 0% AMBIGUOUS · INFERRED: 201 edges (avg confidence: 0.8)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `4963faeb`
+- Built from commit: `d8dc3433`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -49,14 +49,14 @@
 - [[_COMMUNITY_Community 43|Community 43]]
 
 ## God Nodes (most connected - your core abstractions)
-1. `query()` - 178 edges
-2. `baseLayout()` - 8 edges
-3. `getTicketMeta()` - 8 edges
-4. `getUserInfo()` - 8 edges
-5. `createEvent()` - 8 edges
-6. `updateEvent()` - 8 edges
-7. `getSocket()` - 8 edges
-8. `btn()` - 7 edges
+1. `query()` - 179 edges
+2. `baseLayout()` - 9 edges
+3. `getSocket()` - 9 edges
+4. `btn()` - 8 edges
+5. `getTicketMeta()` - 8 edges
+6. `getUserInfo()` - 8 edges
+7. `createEvent()` - 8 edges
+8. `updateEvent()` - 8 edges
 9. `getAuthorizedClient()` - 7 edges
 10. `getUserWithOrgs()` - 6 edges
 
@@ -79,20 +79,20 @@ Cohesion: 0.07
 Nodes (54): query(), addAttachment(), addBoardMember(), addManualTime(), archiveBoard(), createAlert(), createBoard(), createColumn() (+46 more)
 
 ### Community 1 - "Community 1"
-Cohesion: 0.07
+Cohesion: 0.05
 Nodes (13): cancelSelection(), onReconnect(), openTicketFromSelection(), openTicketModal(), DashboardLayout(), getAudioCtx(), init(), playSound() (+5 more)
 
 ### Community 2 - "Community 2"
-Cohesion: 0.06
-Nodes (5): handleAddManualTime(), handleStopTimer(), loadTimeLogs(), patch(), onUpdated()
-
-### Community 3 - "Community 3"
 Cohesion: 0.07
 Nodes (9): loadBoard(), createTicket(), handleAnalyze(), handleSendPurchase(), Alert(), handleCommentKeyDown(), selectMention(), submitComment() (+1 more)
 
+### Community 3 - "Community 3"
+Cohesion: 0.17
+Nodes (28): baseLayout(), btn(), fmtDate(), priorityLabel(), section(), sendMail(), sendMailSilent(), testConnection() (+20 more)
+
 ### Community 4 - "Community 4"
-Cohesion: 0.21
-Nodes (22): baseLayout(), btn(), sendMail(), sendMailSilent(), testConnection(), ticketBadge(), tplAssigned(), tplComment() (+14 more)
+Cohesion: 0.08
+Nodes (5): handleAddManualTime(), handleStopTimer(), loadTimeLogs(), patch(), onUpdated()
 
 ### Community 5 - "Community 5"
 Cohesion: 0.24
@@ -116,15 +116,15 @@ Nodes (11): createPipeline(), createStage(), getDefaultPipeline(), getPipeline()
 
 ### Community 11 - "Community 11"
 Cohesion: 0.2
-Nodes (9): addMember(), create(), getById(), getUserInboxIds(), list(), listMembers(), remove(), removeMember() (+1 more)
+Nodes (9): assignAgent(), create(), getById(), list(), listAgents(), listUnassignedAgents(), remove(), removeAgent() (+1 more)
 
 ### Community 12 - "Community 12"
 Cohesion: 0.2
-Nodes (9): addMember(), create(), getById(), listForOrg(), listMembers(), removeMember(), resetMemberPassword(), update() (+1 more)
+Nodes (9): addMember(), create(), getById(), getUserInboxIds(), list(), listMembers(), remove(), removeMember() (+1 more)
 
 ### Community 13 - "Community 13"
 Cohesion: 0.2
-Nodes (9): assignAgent(), create(), getById(), list(), listAgents(), listUnassignedAgents(), remove(), removeAgent() (+1 more)
+Nodes (9): addMember(), create(), getById(), listForOrg(), listMembers(), removeMember(), resetMemberPassword(), update() (+1 more)
 
 ### Community 14 - "Community 14"
 Cohesion: 0.31
@@ -180,11 +180,11 @@ Nodes (3): handleCreateWorkspace(), handleOrgSelect(), handleWorkspaceSelect()
 
 ### Community 33 - "Community 33"
 Cohesion: 0.5
-Nodes (3): insertInbound(), list(), send()
+Nodes (3): getAgentPerformance(), getSummary(), getVolumeByDay()
 
 ### Community 34 - "Community 34"
 Cohesion: 0.5
-Nodes (3): getAgentPerformance(), getSummary(), getVolumeByDay()
+Nodes (3): insertInbound(), list(), send()
 
 ## Knowledge Gaps
 - **4 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
@@ -192,17 +192,17 @@ Nodes (3): getAgentPerformance(), getSummary(), getVolumeByDay()
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `query()` connect `Community 0` to `Community 4`, `Community 5`, `Community 7`, `Community 8`, `Community 9`, `Community 11`, `Community 12`, `Community 13`, `Community 14`, `Community 15`, `Community 16`, `Community 17`, `Community 18`, `Community 20`, `Community 21`, `Community 22`, `Community 23`, `Community 25`, `Community 27`, `Community 33`, `Community 34`, `Community 36`, `Community 41`, `Community 42`, `Community 43`?**
-  _High betweenness centrality (0.265) - this node is a cross-community bridge._
-- **Why does `getSocket()` connect `Community 1` to `Community 2`?**
+- **Why does `query()` connect `Community 0` to `Community 3`, `Community 5`, `Community 7`, `Community 8`, `Community 9`, `Community 11`, `Community 12`, `Community 13`, `Community 14`, `Community 15`, `Community 16`, `Community 17`, `Community 18`, `Community 20`, `Community 21`, `Community 22`, `Community 23`, `Community 25`, `Community 27`, `Community 33`, `Community 34`, `Community 36`, `Community 41`, `Community 42`, `Community 43`?**
+  _High betweenness centrality (0.269) - this node is a cross-community bridge._
+- **Why does `getSocket()` connect `Community 1` to `Community 4`?**
   _High betweenness centrality (0.031) - this node is a cross-community bridge._
-- **Why does `Alert()` connect `Community 3` to `Community 6`?**
+- **Why does `sendDailyDigests()` connect `Community 3` to `Community 0`?**
   _High betweenness centrality (0.029) - this node is a cross-community bridge._
-- **Are the 176 inferred relationships involving `query()` (e.g. with `orgContext()` and `workspaceContext()`) actually correct?**
-  _`query()` has 176 INFERRED edges - model-reasoned connections that need verification._
+- **Are the 177 inferred relationships involving `query()` (e.g. with `orgContext()` and `workspaceContext()`) actually correct?**
+  _`query()` has 177 INFERRED edges - model-reasoned connections that need verification._
 - **Should `Community 0` be split into smaller, more focused modules?**
   _Cohesion score 0.07 - nodes in this community are weakly interconnected._
 - **Should `Community 1` be split into smaller, more focused modules?**
-  _Cohesion score 0.07 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.05 - nodes in this community are weakly interconnected._
 - **Should `Community 2` be split into smaller, more focused modules?**
-  _Cohesion score 0.06 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.07 - nodes in this community are weakly interconnected._
