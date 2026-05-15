@@ -483,14 +483,20 @@ router.post('/tickets/:ticketId/comments', ...auth, upload.single('file'), async
       });
 
       // Cria alertas in-app para usuários mencionados com @Nome
-      const mentions = [...(content || '').matchAll(/@([^\s@,]+(?:\s[^\s@,]+)*)/g)].map(m => m[1]);
+      // Normaliza para lowercase para comparação case-insensitive
+      const mentions = [...(content || '').matchAll(/@([^\s@,]+(?:\s[^\s@,]+)*)/g)]
+        .map(m => m[1].trim().toLowerCase())
+        .filter(Boolean);
       if (mentions.length) {
         const placeholders = mentions.map((_, i) => `$${i + 2}`).join(', ');
         const mentionedRes = await query(
           `SELECT DISTINCT u.id FROM users u
            JOIN workspace_memberships wm ON wm.user_id = u.id
            WHERE wm.workspace_id = $1
-             AND u.name = ANY(ARRAY[${placeholders}])
+             AND (
+               LOWER(u.name) = ANY(ARRAY[${placeholders}])
+               OR LOWER(SPLIT_PART(u.email, '@', 1)) = ANY(ARRAY[${placeholders}])
+             )
              AND u.id != $${mentions.length + 2}`,
           [workspaceId, ...mentions, req.user.sub]
         );

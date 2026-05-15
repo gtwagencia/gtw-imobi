@@ -1050,11 +1050,26 @@ export default function BoardPage() {
   }
 
   async function onDragEnd(result: DropResult) {
-    if (!board || !canEdit) return;
-    const { destination, source, draggableId } = result;
+    const { destination, source, draggableId, type } = result;
     if (!destination) return;
     if (destination.droppableId === source.droppableId && destination.index === source.index) return;
 
+    // ── Reordenar colunas (só managers) ──────────────────────────────────────
+    if (type === 'COLUMN') {
+      if (!board || !isManager) return;
+      const newCols = [...board.columns];
+      const [moved] = newCols.splice(source.index, 1);
+      newCols.splice(destination.index, 0, moved);
+      setBoard({ ...board, columns: newCols });
+      await api.put(
+        `/workspaces/${currentWorkspace!.id}/tickets/boards/${boardId}/columns/reorder`,
+        { orderedIds: newCols.map(c => c.id) }
+      ).catch(() => loadBoard());
+      return;
+    }
+
+    // ── Mover ticket entre colunas ────────────────────────────────────────────
+    if (!board || !canEdit) return;
     const newBoard = { ...board, columns: board.columns.map(c => ({ ...c, tickets: [...c.tickets] })) };
     const srcCol = newBoard.columns.find(c => c.id === source.droppableId)!;
     const dstCol = newBoard.columns.find(c => c.id === destination.droppableId)!;
@@ -1065,7 +1080,7 @@ export default function BoardPage() {
     await api.put(`/workspaces/${currentWorkspace!.id}/tickets/tickets/${draggableId}`, {
       columnId: destination.droppableId,
       position: destination.index,
-    }).catch(() => loadBoard()); // revert on error
+    }).catch(() => loadBoard());
   }
 
   function handleTicketUpdated(updated: Ticket) {
@@ -1158,11 +1173,25 @@ export default function BoardPage() {
 
       <div className="flex-1 overflow-x-auto p-6 bg-gray-50">
         <DragDropContext onDragEnd={onDragEnd}>
-          <div className="flex gap-4 items-start pb-4">
-            {board.columns.map((col) => (
-              <div key={col.id} className="w-72 flex-shrink-0 flex flex-col">
+          <Droppable droppableId="board-columns" direction="horizontal" type="COLUMN">
+            {(colsProvided) => (
+          <div className="flex gap-4 items-start pb-4"
+               ref={colsProvided.innerRef} {...colsProvided.droppableProps}>
+            {board.columns.map((col, colIndex) => (
+              <Draggable key={col.id} draggableId={`col-${col.id}`} index={colIndex} isDragDisabled={!isManager}>
+                {(colProv, colSnap) => (
+              <div ref={colProv.innerRef} {...colProv.draggableProps}
+                   className={clsx('w-72 flex-shrink-0 flex flex-col', colSnap.isDragging && 'opacity-90 rotate-1')}>
                 {/* Column header */}
                 <div className="flex items-center gap-2 mb-2 px-1 group">
+                  {/* Drag handle — só aparece ao hover para managers */}
+                  {isManager && (
+                    <span {...colProv.dragHandleProps}
+                          className="opacity-0 group-hover:opacity-40 hover:!opacity-100 cursor-grab active:cursor-grabbing flex-shrink-0 text-gray-400"
+                          title="Arrastar coluna">
+                      <GripVertical className="w-3.5 h-3.5" />
+                    </span>
+                  )}
                   <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: col.color }} />
 
                   {/* Inline rename */}
@@ -1294,7 +1323,10 @@ export default function BoardPage() {
                   </button>
                 )}
               </div>
+                )}
+              </Draggable>
             ))}
+            {colsProvided.placeholder}
 
             {/* Add column button / inline form (managers only) */}
             {isManager && (
@@ -1342,6 +1374,8 @@ export default function BoardPage() {
               </div>
             )}
           </div>
+            )}
+          </Droppable>
         </DragDropContext>
       </div>
 

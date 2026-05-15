@@ -243,7 +243,12 @@ export default function TicketDetailPage() {
   // ── @mention helpers ──────────────────────────────────────────────────────
 
   const mentionFiltered = mentionOpen
-    ? members.filter(m => m.name.toLowerCase().includes(mentionQuery.toLowerCase())).slice(0, 6)
+    ? members.filter(m => {
+        const q = mentionQuery.toLowerCase();
+        // busca por nome OU pela parte do email antes do @
+        const emailUser = (m.email || '').split('@')[0].toLowerCase();
+        return m.name.toLowerCase().includes(q) || emailUser.includes(q);
+      }).slice(0, 6)
     : [];
 
   function handleCommentChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
@@ -269,12 +274,14 @@ export default function TicketDetailPage() {
     const before = commentText.slice(0, mentionPos);
     const cursor = textareaRef.current?.selectionStart ?? commentText.length;
     const after  = commentText.slice(cursor);
-    const newText = `${before}@${member.name} ${after}`;
+    // Usa o nome configurado; se não tiver, usa a parte local do email
+    const displayName = member.name || (member.email || '').split('@')[0];
+    const newText = `${before}@${displayName} ${after}`;
     setCommentText(newText);
     setMentionOpen(false);
     setTimeout(() => {
       if (!textareaRef.current) return;
-      const pos = mentionPos + member.name.length + 2;
+      const pos = mentionPos + displayName.length + 2;
       textareaRef.current.focus();
       textareaRef.current.setSelectionRange(pos, pos);
     }, 0);
@@ -523,26 +530,28 @@ export default function TicketDetailPage() {
                           </button>
                         )}
                       </div>
-                      {comment.content && (
-                        <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed bg-gray-50 rounded-xl px-3 py-2">
-                          {renderContent(comment.content)}
-                        </p>
-                      )}
-                      {comment.attachments?.length > 0 && (
-                        <div className="flex flex-wrap gap-2 mt-2">
-                          {comment.attachments.map(att => (
-                            isImage(att.mime_type) ? (
-                              <a key={att.id} href={att.file_url} target="_blank" rel="noopener noreferrer"
-                                 className="rounded-xl overflow-hidden border border-gray-200 block">
-                                {/* eslint-disable-next-line @next/next/no-img-element */}
-                                <img src={att.file_url} alt={att.file_name} className="w-32 h-32 object-cover hover:opacity-90 transition-opacity" />
-                              </a>
-                            ) : (
-                              <AttachmentChip key={att.id} att={att} />
-                            )
-                          ))}
-                        </div>
-                      )}
+                      <div className="bg-gray-50 rounded-xl px-3 py-2">
+                        {comment.content && (
+                          <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">
+                            {renderContent(comment.content)}
+                          </p>
+                        )}
+                        {comment.attachments?.length > 0 && (
+                          <div className={clsx('flex flex-wrap gap-2', comment.content && 'mt-2 pt-2 border-t border-gray-200')}>
+                            {comment.attachments.map(att => (
+                              isImage(att.mime_type) ? (
+                                <a key={att.id} href={att.file_url} target="_blank" rel="noopener noreferrer"
+                                   className="rounded-lg overflow-hidden border border-gray-200 block">
+                                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                                  <img src={att.file_url} alt={att.file_name} className="w-28 h-28 object-cover hover:opacity-90 transition-opacity" />
+                                </a>
+                              ) : (
+                                <AttachmentChip key={att.id} att={att} />
+                              )
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                 ))}

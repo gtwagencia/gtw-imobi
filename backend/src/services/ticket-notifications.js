@@ -189,7 +189,10 @@ async function notifyDueDateChanged(ticketId, actorId, dueDate) {
 async function notifyMentions(ticketId, workspaceId, commenterId, content) {
   if (!content) return;
   try {
-    const mentions = [...content.matchAll(/@([^\s@]+(?:\s[^\s@]+)*)/g)].map(m => m[1]);
+    // Normaliza para lowercase — comparação case-insensitive
+    const mentions = [...content.matchAll(/@([^\s@]+(?:\s[^\s@]+)*)/g)]
+      .map(m => m[1].trim().toLowerCase())
+      .filter(Boolean);
     if (!mentions.length) return;
 
     const [ticket, actor] = await Promise.all([
@@ -198,14 +201,18 @@ async function notifyMentions(ticketId, workspaceId, commenterId, content) {
     ]);
     if (!ticket) return;
 
-    // Busca usuários pelo nome no workspace (exclui o próprio comentarista)
+    // Busca por nome (case-insensitive) OU pela parte do email antes do @
+    // para cobrir usuários que nunca editaram o perfil
     const placeholders = mentions.map((_, i) => `$${i + 2}`).join(', ');
     const r = await query(
       `SELECT DISTINCT u.id, u.name, u.email
        FROM users u
        JOIN workspace_memberships wm ON wm.user_id = u.id
        WHERE wm.workspace_id = $1
-         AND u.name = ANY(ARRAY[${placeholders}])
+         AND (
+           LOWER(u.name) = ANY(ARRAY[${placeholders}])
+           OR LOWER(SPLIT_PART(u.email, '@', 1)) = ANY(ARRAY[${placeholders}])
+         )
          AND u.id != $${mentions.length + 2}
          AND u.email IS NOT NULL`,
       [workspaceId, ...mentions, commenterId]
