@@ -261,7 +261,7 @@
       "source_file": "backend/src/modules/organizations/organizations.service.js",
       "source_location": "L1",
       "id": "backend_src_modules_organizations_organizations_service_js",
-      "community": 21,
+      "community": 20,
       "norm_label": "organizations.service.js"
     },
     {
@@ -270,7 +270,7 @@
       "source_file": "backend/src/modules/organizations/organizations.service.js",
       "source_location": "L7",
       "id": "organizations_organizations_service_listforuser",
-      "community": 21,
+      "community": 20,
       "norm_label": "listforuser()"
     },
     {
@@ -279,7 +279,7 @@
       "source_file": "backend/src/modules/organizations/organizations.service.js",
       "source_location": "L34",
       "id": "organizations_organizations_service_getbyid",
-      "community": 21,
+      "community": 20,
       "norm_label": "getbyid()"
     },
     {
@@ -288,7 +288,7 @@
       "source_file": "backend/src/modules/organizations/organizations.service.js",
       "source_location": "L41",
       "id": "organizations_organizations_service_update",
-      "community": 21,
+      "community": 20,
       "norm_label": "update()"
     },
     {
@@ -297,7 +297,7 @@
       "source_file": "backend/src/modules/organizations/organizations.service.js",
       "source_location": "L63",
       "id": "organizations_organizations_service_listmembers",
-      "community": 21,
+      "community": 20,
       "norm_label": "listmembers()"
     },
     {
@@ -306,7 +306,7 @@
       "source_file": "backend/src/modules/organizations/organizations.service.js",
       "source_location": "L92",
       "id": "organizations_organizations_service_invitemember",
-      "community": 21,
+      "community": 20,
       "norm_label": "invitemember()"
     },
     {
@@ -315,7 +315,7 @@
       "source_file": "backend/src/modules/organizations/organizations.service.js",
       "source_location": "L107",
       "id": "organizations_organizations_service_removemember",
-      "community": 21,
+      "community": 20,
       "norm_label": "removemember()"
     },
     {
@@ -324,7 +324,7 @@
       "source_file": "backend/src/modules/organizations/organizations.service.js",
       "source_location": "L125",
       "id": "organizations_organizations_service_updatememberrole",
-      "community": 21,
+      "community": 20,
       "norm_label": "updatememberrole()"
     },
     {
@@ -1215,7 +1215,7 @@
       "source_file": "backend/src/modules/labels/labels.service.js",
       "source_location": "L1",
       "id": "backend_src_modules_labels_labels_service_js",
-      "community": 20,
+      "community": 21,
       "norm_label": "labels.service.js"
     },
     {
@@ -1224,7 +1224,7 @@
       "source_file": "backend/src/modules/labels/labels.service.js",
       "source_location": "L5",
       "id": "labels_labels_service_list",
-      "community": 20,
+      "community": 21,
       "norm_label": "list()"
     },
     {
@@ -1233,7 +1233,7 @@
       "source_file": "backend/src/modules/labels/labels.service.js",
       "source_location": "L13",
       "id": "labels_labels_service_create",
-      "community": 20,
+      "community": 21,
       "norm_label": "create()"
     },
     {
@@ -1242,7 +1242,7 @@
       "source_file": "backend/src/modules/labels/labels.service.js",
       "source_location": "L22",
       "id": "labels_labels_service_update",
-      "community": 20,
+      "community": 21,
       "norm_label": "update()"
     },
     {
@@ -1251,7 +1251,7 @@
       "source_file": "backend/src/modules/labels/labels.service.js",
       "source_location": "L41",
       "id": "labels_labels_service_remove",
-      "community": 20,
+      "community": 21,
       "norm_label": "remove()"
     },
     {
@@ -1260,7 +1260,7 @@
       "source_file": "backend/src/modules/labels/labels.service.js",
       "source_location": "L47",
       "id": "labels_labels_service_getforconversation",
-      "community": 20,
+      "community": 21,
       "norm_label": "getforconversation()"
     },
     {
@@ -1269,7 +1269,7 @@
       "source_file": "backend/src/modules/labels/labels.service.js",
       "source_location": "L58",
       "id": "labels_labels_service_addtoconversation",
-      "community": 20,
+      "community": 21,
       "norm_label": "addtoconversation()"
     },
     {
@@ -1278,7 +1278,7 @@
       "source_file": "backend/src/modules/labels/labels.service.js",
       "source_location": "L66",
       "id": "labels_labels_service_removefromconversation",
-      "community": 20,
+      "community": 21,
       "norm_label": "removefromconversation()"
     },
     {
@@ -2545,7 +2545,7 @@
       "label": "notifyDueSoon()",
       "file_type": "code",
       "source_file": "backend/src/services/ticket-notifications.js",
-      "source_location": "L237",
+      "source_location": "L244",
       "id": "services_ticket_notifications_notifyduesoon",
       "community": 3,
       "norm_label": "notifyduesoon()"
@@ -2554,7 +2554,7 @@
       "label": "sendDailyDigests()",
       "file_type": "code",
       "source_file": "backend/src/services/ticket-notifications.js",
-      "source_location": "L269",
+      "source_location": "L276",
       "id": "services_ticket_notifications_senddailydigests",
       "community": 3,
       "norm_label": "senddailydigests()"
@@ -3697,7 +3697,7 @@
       "label": "handleTicketUpdated()",
       "file_type": "code",
       "source_file": "frontend/src/app/dashboard/tickets/[boardId]/page.tsx",
-      "source_location": "L1071",
+      "source_location": "L1086",
       "id": "boardid_page_handleticketupdated",
       "community": 4,
       "norm_label": "handleticketupdated()"
@@ -3706,7 +3706,7 @@
       "label": "handleTicketDeleted()",
       "file_type": "code",
       "source_file": "frontend/src/app/dashboard/tickets/[boardId]/page.tsx",
-      "source_location": "L1092",
+      "source_location": "L1107",
       "id": "boardid_page_handleticketdeleted",
       "community": 4,
       "norm_label": "handleticketdeleted()"
@@ -3715,7 +3715,7 @@
       "label": "handleTicketCreated()",
       "file_type": "code",
       "source_file": "frontend/src/app/dashboard/tickets/[boardId]/page.tsx",
-      "source_location": "L1100",
+      "source_location": "L1115",
       "id": "boardid_page_handleticketcreated",
       "community": 4,
       "norm_label": "handleticketcreated()"
@@ -3814,7 +3814,7 @@
       "label": "handleCommentChange()",
       "file_type": "code",
       "source_file": "frontend/src/app/dashboard/tickets/[boardId]/[ticketId]/page.tsx",
-      "source_location": "L249",
+      "source_location": "L254",
       "id": "ticketid_page_handlecommentchange",
       "community": 2,
       "norm_label": "handlecommentchange()"
@@ -3823,7 +3823,7 @@
       "label": "selectMention()",
       "file_type": "code",
       "source_file": "frontend/src/app/dashboard/tickets/[boardId]/[ticketId]/page.tsx",
-      "source_location": "L268",
+      "source_location": "L273",
       "id": "ticketid_page_selectmention",
       "community": 2,
       "norm_label": "selectmention()"
@@ -3832,7 +3832,7 @@
       "label": "handleCommentKeyDown()",
       "file_type": "code",
       "source_file": "frontend/src/app/dashboard/tickets/[boardId]/[ticketId]/page.tsx",
-      "source_location": "L283",
+      "source_location": "L290",
       "id": "ticketid_page_handlecommentkeydown",
       "community": 2,
       "norm_label": "handlecommentkeydown()"
@@ -3841,7 +3841,7 @@
       "label": "renderContent()",
       "file_type": "code",
       "source_file": "frontend/src/app/dashboard/tickets/[boardId]/[ticketId]/page.tsx",
-      "source_location": "L297",
+      "source_location": "L304",
       "id": "ticketid_page_rendercontent",
       "community": 2,
       "norm_label": "rendercontent()"
@@ -3850,7 +3850,7 @@
       "label": "uploadAttachment()",
       "file_type": "code",
       "source_file": "frontend/src/app/dashboard/tickets/[boardId]/[ticketId]/page.tsx",
-      "source_location": "L315",
+      "source_location": "L322",
       "id": "ticketid_page_uploadattachment",
       "community": 2,
       "norm_label": "uploadattachment()"
@@ -3859,7 +3859,7 @@
       "label": "deleteAttachment()",
       "file_type": "code",
       "source_file": "frontend/src/app/dashboard/tickets/[boardId]/[ticketId]/page.tsx",
-      "source_location": "L332",
+      "source_location": "L339",
       "id": "ticketid_page_deleteattachment",
       "community": 2,
       "norm_label": "deleteattachment()"
@@ -3868,7 +3868,7 @@
       "label": "deleteTicket()",
       "file_type": "code",
       "source_file": "frontend/src/app/dashboard/tickets/[boardId]/[ticketId]/page.tsx",
-      "source_location": "L338",
+      "source_location": "L345",
       "id": "ticketid_page_deleteticket",
       "community": 2,
       "norm_label": "deleteticket()"
@@ -12481,9 +12481,9 @@
       "source_file": "frontend/src/store/alerts.ts",
       "source_location": "L2",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "frontend_src_store_alerts_ts",
-      "target": "lib_socket_getsocket",
-      "confidence_score": 1.0
+      "target": "lib_socket_getsocket"
     },
     {
       "relation": "imports",
@@ -12590,5 +12590,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "d8dc3433767d03366a809282effdc1deea72ce30"
+  "built_at_commit": "a3e9a36d9b717211c1408972cd28a269e014dfbd"
 }
