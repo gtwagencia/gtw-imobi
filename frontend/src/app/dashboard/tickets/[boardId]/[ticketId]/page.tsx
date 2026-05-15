@@ -319,21 +319,24 @@ export default function TicketDetailPage() {
     });
   }
 
-  async function uploadAttachment(file: File) {
+  async function uploadAttachment(files: FileList | File[]) {
     if (!currentWorkspace || !ticket) return;
-    const form = new FormData();
-    form.append('file', file);
-    try {
-      const { data } = await api.post<Attachment>(
-        `/workspaces/${currentWorkspace.id}/tickets/tickets/${ticket.id}/attachments`,
-        form, { headers: { 'Content-Type': 'multipart/form-data' } }
-      );
-      setAttachments(prev => [data, ...prev]);
-      const { data: s } = await api.get(`/workspaces/${currentWorkspace.id}/tickets/storage`);
-      setStorage(s);
-    } catch (err: any) {
-      alert(err.response?.data?.error || 'Erro ao enviar arquivo');
+    const arr = Array.from(files);
+    for (const file of arr) {
+      const form = new FormData();
+      form.append('file', file);
+      try {
+        const { data } = await api.post<Attachment>(
+          `/workspaces/${currentWorkspace.id}/tickets/tickets/${ticket.id}/attachments`,
+          form, { headers: { 'Content-Type': 'multipart/form-data' } }
+        );
+        setAttachments(prev => [data, ...prev]);
+      } catch (err: any) {
+        alert(`Erro ao enviar "${file.name}": ` + (err.response?.data?.error || 'Erro desconhecido'));
+      }
     }
+    const { data: s } = await api.get(`/workspaces/${currentWorkspace.id}/tickets/storage`).catch(() => ({ data: storage }));
+    setStorage(s);
   }
 
   async function deleteAttachment(attId: string) {
@@ -472,8 +475,8 @@ export default function TicketDetailPage() {
                       <Paperclip className="w-3.5 h-3.5" />
                       Anexar arquivo
                     </button>
-                    <input ref={fileRef} type="file" className="hidden"
-                           onChange={e => { const f = e.target.files?.[0]; if (f) uploadAttachment(f); e.target.value = ''; }} />
+                    <input ref={fileRef} type="file" multiple className="hidden"
+                           onChange={e => { if (e.target.files?.length) uploadAttachment(e.target.files); e.target.value = ''; }} />
                   </>
                 )}
               </div>
