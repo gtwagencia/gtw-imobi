@@ -704,7 +704,11 @@ export default function TicketDetailPage() {
                   <input
                     type="checkbox"
                     checked={!!ticket.is_recurring}
-                    onChange={e => patch({ isRecurring: e.target.checked } as any)}
+                    onChange={e => patch({
+                      isRecurring: e.target.checked,
+                      // garante que o tipo padrão é salvo junto com a ativação
+                      ...(e.target.checked && !ticket.recurrence_type ? { recurrenceType: 'weekly' } : {}),
+                    } as any)}
                     className="rounded"
                   />
                   Tarefa recorrente

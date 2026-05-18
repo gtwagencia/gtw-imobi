@@ -828,27 +828,35 @@ async function spawnDueRecurringTickets() {
   const now = new Date();
   const spawned = [];
 
+  // Calcula diferença em dias completos (meia-noite UTC vs meia-noite UTC)
+  // para evitar erro de ±1 dia quando o ticket foi criado depois da hora do cron.
+  function diffDaysUTC(from) {
+    const a = Date.UTC(new Date(from).getUTCFullYear(), new Date(from).getUTCMonth(), new Date(from).getUTCDate());
+    const b = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+    return Math.round((b - a) / 86400000);
+  }
+
   for (const tmpl of r.rows) {
     let shouldSpawn = false;
-    const type = tmpl.recurrence_type;
+    const type = tmpl.recurrence_type || 'weekly'; // fallback: tickets sem tipo = semanal
 
-    if (type === 'daily') shouldSpawn = true;
-    else if (type === 'weekly') {
-      // Check if created_at day-of-week matches today
-      const dayOfWeek = new Date(tmpl.created_at).getDay();
-      shouldSpawn = now.getDay() === dayOfWeek;
+    if (type === 'daily') {
+      shouldSpawn = true;
+    } else if (type === 'weekly') {
+      const dayOfWeek = new Date(tmpl.created_at).getUTCDay();
+      shouldSpawn = now.getUTCDay() === dayOfWeek;
     } else if (type === 'biweekly') {
-      const diffDays = Math.floor((now - new Date(tmpl.created_at)) / 86400000);
-      shouldSpawn = diffDays > 0 && diffDays % 14 === 0;
+      const d = diffDaysUTC(tmpl.created_at);
+      shouldSpawn = d > 0 && d % 14 === 0;
     } else if (type === 'monthly') {
-      const dayOfMonth = new Date(tmpl.created_at).getDate();
-      shouldSpawn = now.getDate() === dayOfMonth;
+      const dayOfMonth = new Date(tmpl.created_at).getUTCDate();
+      shouldSpawn = now.getUTCDate() === dayOfMonth;
     } else if (type === 'yearly') {
       const d = new Date(tmpl.created_at);
-      shouldSpawn = now.getDate() === d.getDate() && now.getMonth() === d.getMonth();
+      shouldSpawn = now.getUTCDate() === d.getUTCDate() && now.getUTCMonth() === d.getUTCMonth();
     } else if (type === 'custom' && tmpl.recurrence_interval) {
-      const diffDays = Math.floor((now - new Date(tmpl.created_at)) / 86400000);
-      shouldSpawn = diffDays > 0 && diffDays % tmpl.recurrence_interval === 0;
+      const d = diffDaysUTC(tmpl.created_at);
+      shouldSpawn = d > 0 && d % tmpl.recurrence_interval === 0;
     }
 
     if (shouldSpawn) {
@@ -856,23 +864,23 @@ async function spawnDueRecurringTickets() {
       // Soma o intervalo fixo da recorrência, não o tempo decorrido desde a criação
       let dueDate = null;
       if (tmpl.due_date) {
-        const original  = new Date(tmpl.due_date);
-        const diffDays  = Math.floor((now - new Date(tmpl.created_at)) / 86400000);
-        let   addMs     = 0;
+        const original = new Date(tmpl.due_date);
+        const d        = diffDaysUTC(tmpl.created_at);
+        let   addMs    = 0;
 
-        if (type === 'daily')    addMs = diffDays * 86400000;
-        else if (type === 'weekly')   addMs = Math.floor(diffDays / 7)  * 7  * 86400000;
-        else if (type === 'biweekly') addMs = Math.floor(diffDays / 14) * 14 * 86400000;
+        if (type === 'daily')    addMs = d * 86400000;
+        else if (type === 'weekly')   addMs = Math.round(d / 7)  * 7  * 86400000;
+        else if (type === 'biweekly') addMs = Math.round(d / 14) * 14 * 86400000;
         else if (type === 'monthly') {
           const next = new Date(original);
-          next.setMonth(next.getMonth() + Math.floor(diffDays / 30));
+          next.setUTCMonth(next.getUTCMonth() + Math.round(d / 30));
           dueDate = next;
         } else if (type === 'yearly') {
           const next = new Date(original);
-          next.setFullYear(next.getFullYear() + Math.floor(diffDays / 365));
+          next.setUTCFullYear(next.getUTCFullYear() + Math.round(d / 365));
           dueDate = next;
         } else if (type === 'custom' && tmpl.recurrence_interval) {
-          addMs = Math.floor(diffDays / tmpl.recurrence_interval) * tmpl.recurrence_interval * 86400000;
+          addMs = Math.round(d / tmpl.recurrence_interval) * tmpl.recurrence_interval * 86400000;
         }
 
         if (!dueDate) dueDate = new Date(original.getTime() + addMs);
