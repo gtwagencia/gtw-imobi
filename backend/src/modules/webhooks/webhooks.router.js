@@ -954,6 +954,13 @@ router.post('/waba', async (req, res) => {
         messageType = 'unsupported';
       }
 
+      // Click-to-WhatsApp attribution (referral no formato WABA)
+      const referral     = msg.referral || null;
+      const metaCtwaClid = referral?.ctwa_clid || null;
+      const metaAdId     = referral?.source_id || null;
+      const metaRef      = referral?.headline  || referral?.body || null;
+      const metaSource   = (metaCtwaClid || metaAdId) ? 'paid' : 'organic';
+
       let contact;
       try {
         contact = await contactSvc.create(inbox.workspace_id, { name: pushName, phone });
@@ -967,6 +974,14 @@ router.post('/waba', async (req, res) => {
       const { conversation, created } = await convSvc.findOrCreate(inbox.workspace_id, {
         inboxId: inbox.id, contactId: contact.id, remoteJid,
       });
+
+      // Salva atribuição Meta se veio referral e ainda não está atribuído
+      if (metaSource === 'paid' && conversation.meta_source !== 'paid') {
+        await query(
+          `UPDATE conversations SET meta_ref = $1, meta_ctwa_clid = $2, meta_source = 'paid', meta_ad_id = $3 WHERE id = $4`,
+          [metaRef, metaCtwaClid, metaAdId, conversation.id]
+        );
+      }
 
       const message = await msgSvc.insertInbound(conversation.id, {
         content, messageType, mediaUrl, mediaMimeType, evolutionMsgId: waMsgId,
@@ -988,8 +1003,21 @@ router.post('/waba', async (req, res) => {
         kanbanSvc.createDealFromConversation(inbox.workspace_id, {
           contactId: contact.id, contactName: contact.name,
           conversationId: conversation.id, assigneeId: conversation.assignee_id || null,
-          inboxId: inbox.id,
+          inboxId: inbox.id, metaRef, metaCtwaClid, metaSource,
         }).catch(err => logger.warn('Auto-deal creation failed (WABA)', { err: err.message }));
+
+        // Envia evento Lead para Meta CAPI (igual ao Evolution)
+        const metaSvc    = require('../meta/meta.service');
+        const wsCapiRes  = await query(
+          'SELECT id, meta_pixel_id, meta_conversions_token FROM workspaces WHERE id = $1',
+          [inbox.workspace_id]
+        );
+        const wsCapi = wsCapiRes.rows[0];
+        if (wsCapi?.meta_pixel_id && wsCapi?.meta_conversions_token) {
+          metaSvc.sendLeadEvent(wsCapi, { contact, metaCtwaClid }).catch(err =>
+            logger.warn('Meta Lead event failed (WABA)', { err: err.message })
+          );
+        }
 
         io?.to(`ws:${inbox.workspace_id}`).emit('conversation:new', {
           conversationId: conversation.id, contactName: contact.name, inboxId: inbox.id,
