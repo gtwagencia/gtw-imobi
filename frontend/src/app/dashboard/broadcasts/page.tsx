@@ -60,10 +60,17 @@ function extractVarNames(text: string): string[] {
 
 function buildTemplateContent(t: WabaTemplate, vars: string[]): string {
   const components: unknown[] = [];
+  const names = extractVarNames(getBodyText(t));
   if (vars.length > 0) {
     components.push({
       type: 'body',
-      parameters: vars.map(v => ({ type: 'text', text: v || ' ' })),
+      parameters: vars.map((v, i) => {
+        const name = names[i] || String(i + 1);
+        const isNamed = /\D/.test(name); // tem letra → variável nomeada
+        const param: Record<string, string> = { type: 'text', text: v || ' ' };
+        if (isNamed) param.parameter_name = name;
+        return param;
+      }),
     });
   }
   return JSON.stringify({

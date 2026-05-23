@@ -300,13 +300,30 @@ async function sendWaba(broadcast, phone) {
 
   let body;
   if (broadcast.message_type === 'template') {
+    const tmpl = typeof broadcast.content === 'string'
+      ? JSON.parse(broadcast.content)
+      : broadcast.content;
+
+    // Garante parameter_name em variáveis nomeadas (não numéricas)
+    if (Array.isArray(tmpl.components)) {
+      tmpl.components = tmpl.components.map(comp => {
+        if (comp.type === 'body' && Array.isArray(comp.parameters)) {
+          comp.parameters = comp.parameters.map(p => {
+            if (p.type === 'text' && p.parameter_name && /\D/.test(p.parameter_name)) {
+              return p; // já tem parameter_name
+            }
+            return p;
+          });
+        }
+        return comp;
+      });
+    }
+
     body = {
       messaging_product: 'whatsapp',
       to: phone,
       type: 'template',
-      template: typeof broadcast.content === 'string'
-        ? JSON.parse(broadcast.content)
-        : broadcast.content,
+      template: tmpl,
     };
   } else {
     body = {
