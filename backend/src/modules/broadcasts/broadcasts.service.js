@@ -70,6 +70,7 @@ async function create(workspaceId, userId, body) {
   const {
     name, inboxId, messageType = 'text', content, mediaUrl,
     templateId, templateVars, scheduledAt, sendIntervalMs = 1000,
+    maxRetries = 0, timezone = 'America/Sao_Paulo',
     contactIds, filterTags,
   } = body;
 
@@ -83,14 +84,17 @@ async function create(workspaceId, userId, body) {
   );
   if (!inboxRes.rows.length) throw Object.assign(new Error('Inbox não encontrada'), { status: 404 });
 
+  const status = scheduledAt ? 'scheduled' : 'draft';
+
   const bRes = await query(
     `INSERT INTO broadcasts
        (workspace_id, inbox_id, created_by, name, message_type, content, media_url,
-        template_id, template_vars, scheduled_at, send_interval_ms, status)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'draft') RETURNING *`,
+        template_id, template_vars, scheduled_at, send_interval_ms, max_retries, timezone, status)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING *`,
     [workspaceId, inboxId, userId, name, messageType, content || null, mediaUrl || null,
      templateId || null, templateVars ? JSON.stringify(templateVars) : '{}',
-     scheduledAt || null, Math.max(500, sendIntervalMs)]
+     scheduledAt || null, Math.max(500, sendIntervalMs),
+     Math.min(Math.max(0, maxRetries), 5), timezone, status]
   );
   const broadcast = bRes.rows[0];
 
@@ -225,12 +229,26 @@ async function processBroadcast(broadcastId, workspaceId) {
     );
 
     if (!pendingRes.rows.length) {
-      // Todos enviados — marca como done
-      await query(
-        `UPDATE broadcasts SET status = 'done', finished_at = NOW() WHERE id = $1`,
+      // Verifica se há retries pendentes ainda
+      const retryRes = await query(
+        `SELECT COUNT(*) FROM broadcast_contacts
+         WHERE broadcast_id = $1 AND status = 'failed' AND next_retry_at IS NOT NULL AND next_retry_at <= NOW()`,
         [broadcastId]
       );
-      break;
+      if (parseInt(retryRes.rows[0].count, 10) === 0) {
+        await query(
+          `UPDATE broadcasts SET status = 'done', finished_at = NOW() WHERE id = $1`,
+          [broadcastId]
+        );
+        break;
+      }
+      // Há retries prontos — reprocessa como pending
+      await query(
+        `UPDATE broadcast_contacts SET status = 'pending', next_retry_at = NULL
+         WHERE broadcast_id = $1 AND status = 'failed' AND next_retry_at <= NOW()`,
+        [broadcastId]
+      );
+      continue;
     }
 
     for (const bc of pendingRes.rows) {
@@ -248,16 +266,56 @@ async function processBroadcast(broadcastId, workspaceId) {
   }
 }
 
+// ── Helper: extrai texto do corpo de um template salvo no banco ───────────────
+
+async function getTemplateBodyText(templateName) {
+  const r = await query(
+    `SELECT components FROM waba_templates WHERE name = $1 LIMIT 1`,
+    [templateName]
+  );
+  if (!r.rows[0]) return null;
+  const comps = typeof r.rows[0].components === 'string'
+    ? JSON.parse(r.rows[0].components)
+    : r.rows[0].components;
+  return comps?.find(c => c.type?.toUpperCase() === 'BODY')?.text || null;
+}
+
+// Marcadores de campos dinâmicos do contato
+const CONTACT_NAME_MARKER  = '__CONTACT_NAME__';
+const CONTACT_PHONE_MARKER = '__CONTACT_PHONE__';
+const CONTACT_EMAIL_MARKER = '__CONTACT_EMAIL__';
+
+function applyContactVars(content, contact) {
+  if (!content || !contact) return content;
+  return content
+    .replaceAll(CONTACT_NAME_MARKER,  contact.name  || '')
+    .replaceAll(CONTACT_PHONE_MARKER, contact.phone || '')
+    .replaceAll(CONTACT_EMAIL_MARKER, contact.email || '');
+}
+
 async function sendToBroadcastContact(broadcast, bc) {
-  const { phone, id: bcId } = bc;
+  const { phone, contact_id, id: bcId } = bc;
+
+  // Busca dados do contato para variáveis dinâmicas
+  const contactRes = await query(
+    'SELECT id, name, phone, email FROM contacts WHERE id = $1',
+    [contact_id]
+  );
+  const contact = contactRes.rows[0] || { name: '', phone, email: '' };
+
+  // Substitui marcadores no content do broadcast
+  const broadcastWithVars = {
+    ...broadcast,
+    content: applyContactVars(broadcast.content, contact),
+  };
 
   try {
     let externalMsgId = null;
 
     if (broadcast.channel_type === 'whatsapp_official') {
-      externalMsgId = await sendWaba(broadcast, phone);
+      externalMsgId = await sendWaba(broadcastWithVars, phone);
     } else {
-      externalMsgId = await sendEvolution(broadcast, phone);
+      externalMsgId = await sendEvolution(broadcastWithVars, phone);
     }
 
     await query(
@@ -269,25 +327,85 @@ async function sendToBroadcastContact(broadcast, bc) {
       [broadcast.id]
     );
 
-    if (externalMsgId) {
-      await query(
-        `UPDATE broadcast_contacts SET message_id = (
-           SELECT id FROM messages WHERE evolution_msg_id = $1 LIMIT 1
-         ) WHERE id = $2`,
-        [externalMsgId, bcId]
+    // Salva a mensagem na conversa para exibição correta no chat
+    try {
+      const convRes = await query(
+        `SELECT id FROM conversations WHERE inbox_id = $1 AND contact_id = $2 ORDER BY created_at DESC LIMIT 1`,
+        [broadcast.inbox_id, contact_id]
       );
+      if (convRes.rows[0]) {
+        const convId = convRes.rows[0].id;
+
+        // Para templates WABA, extrai o texto do corpo com variáveis substituídas
+        let displayContent = broadcastWithVars.content;
+        if (broadcast.message_type === 'template') {
+          try {
+            const tmpl = JSON.parse(broadcastWithVars.content);
+            const bodyTemplate = await getTemplateBodyText(tmpl.name);
+            if (bodyTemplate) {
+              const params  = tmpl.components?.find(c => c.type === 'body')?.parameters || [];
+              const varNames = [...bodyTemplate.matchAll(/\{\{([^}]+)\}\}/g)].map(m => m[1]);
+              displayContent = varNames.reduce((text, name, i) =>
+                text.replaceAll(`{{${name}}}`, params[i]?.text || `{{${name}}}`), bodyTemplate);
+            } else {
+              displayContent = `[Template: ${tmpl.name}]`;
+            }
+          } catch { /* usa content bruto como fallback */ }
+        }
+
+        const msgRes = await query(
+          `INSERT INTO messages (conversation_id, direction, message_type, content, status, evolution_msg_id, is_private)
+           VALUES ($1, 'outbound', 'text', $2, 'sent', $3, false)
+           ON CONFLICT (evolution_msg_id) DO NOTHING
+           RETURNING id`,
+          [convId, displayContent, externalMsgId || null]
+        );
+
+        if (msgRes.rows[0]) {
+          await query(
+            `UPDATE broadcast_contacts SET message_id = $1 WHERE id = $2`,
+            [msgRes.rows[0].id, bcId]
+          );
+          await query(
+            `UPDATE conversations SET last_outbound_at = NOW(), updated_at = NOW() WHERE id = $1`,
+            [convId]
+          );
+        }
+      }
+    } catch (msgErr) {
+      logger.warn('Broadcast: erro ao salvar mensagem na conversa', { bcId, err: msgErr.message });
     }
   } catch (err) {
     const errMsg = err?.response?.data ? JSON.stringify(err.response.data) : err.message;
     logger.error('Broadcast contact send failed', { bcId, phone, err: errMsg });
-    await query(
-      `UPDATE broadcast_contacts SET status = 'failed', error_message = $1 WHERE id = $2`,
-      [errMsg?.slice(0, 500), bcId]
+
+    const maxRetries = broadcast.max_retries || 0;
+    const retryCountRes = await query(
+      'SELECT retry_count FROM broadcast_contacts WHERE id = $1', [bcId]
     );
-    await query(
-      `UPDATE broadcasts SET failed_count = failed_count + 1 WHERE id = $1`,
-      [broadcast.id]
-    );
+    const retryCount = retryCountRes.rows[0]?.retry_count || 0;
+
+    if (maxRetries > 0 && retryCount < maxRetries) {
+      // Agenda retry com backoff exponencial: 5min, 15min, 45min...
+      const delayMs    = Math.pow(3, retryCount) * 5 * 60 * 1000;
+      const nextRetry  = new Date(Date.now() + delayMs);
+      await query(
+        `UPDATE broadcast_contacts
+         SET status = 'failed', error_message = $1, retry_count = retry_count + 1, next_retry_at = $2
+         WHERE id = $3`,
+        [errMsg?.slice(0, 500), nextRetry, bcId]
+      );
+      logger.info('Broadcast contact scheduled for retry', { bcId, attempt: retryCount + 1, nextRetry });
+    } else {
+      await query(
+        `UPDATE broadcast_contacts SET status = 'failed', error_message = $1, retry_count = retry_count + 1 WHERE id = $2`,
+        [errMsg?.slice(0, 500), bcId]
+      );
+      await query(
+        `UPDATE broadcasts SET failed_count = failed_count + 1 WHERE id = $1`,
+        [broadcast.id]
+      );
+    }
   }
 }
 
@@ -423,9 +541,29 @@ async function syncTemplates(workspaceId, inboxId) {
   return synced;
 }
 
+// ── Job de agendamento (roda a cada minuto via cron) ──────────────────────────
+
+async function runScheduledBroadcasts() {
+  try {
+    const r = await query(
+      `SELECT id, workspace_id FROM broadcasts
+       WHERE status = 'scheduled' AND scheduled_at <= NOW()`,
+    );
+    for (const b of r.rows) {
+      logger.info('Starting scheduled broadcast', { id: b.id });
+      await start(b.id, b.workspace_id).catch(err =>
+        logger.error('Failed to start scheduled broadcast', { id: b.id, err: err.message })
+      );
+    }
+  } catch (err) {
+    logger.error('runScheduledBroadcasts error', { err: err.message });
+  }
+}
+
 module.exports = {
   list, getById, getContacts,
   create, addContacts,
   start, pause, cancel, remove,
   listTemplates, syncTemplates,
+  runScheduledBroadcasts,
 };

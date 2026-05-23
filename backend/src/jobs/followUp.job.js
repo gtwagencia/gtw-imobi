@@ -321,7 +321,13 @@ function startJobs() {
       .catch(err => logger.error('Daily digest error', { err: err.message }));
   });
 
-  logger.info('Background jobs started (follow-up + AI analysis + SLA check + ticket reminders)');
+  // Scheduled broadcasts — every minute
+  const broadcastSvc = require('../modules/broadcasts/broadcasts.service');
+  cron.schedule('* * * * *', () => {
+    broadcastSvc.runScheduledBroadcasts().catch(err => logger.error('Scheduled broadcasts error', { err: err.message }));
+  });
+
+  logger.info('Background jobs started (follow-up + AI analysis + SLA check + ticket reminders + scheduled broadcasts)');
 }
 
 module.exports = { startJobs, backfillAttending };

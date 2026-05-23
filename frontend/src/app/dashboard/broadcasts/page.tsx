@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/store/auth';
 import Header from '@/components/layout/Header';
 import api from '@/lib/api';
-import { Plus, Play, Pause, X, Send, Users, CheckCircle, AlertCircle, Clock, ChevronRight, Trash2, RefreshCw, LayoutTemplate, Info } from 'lucide-react';
+import { Plus, Play, Pause, X, Send, Users, CheckCircle, AlertCircle, Clock, ChevronRight, Trash2, RefreshCw, LayoutTemplate, Info, Calendar } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -58,6 +58,23 @@ function extractVarNames(text: string): string[] {
   return matches.map(m => m[1]);
 }
 
+// Detecta se o nome da variável corresponde a um campo do contato
+const CONTACT_NAME_MARKER  = '__CONTACT_NAME__';
+const CONTACT_PHONE_MARKER = '__CONTACT_PHONE__';
+const CONTACT_EMAIL_MARKER = '__CONTACT_EMAIL__';
+
+const NAME_PATTERNS  = ['nome', 'name', 'cliente_nome', 'nome_cliente', 'customer_name', 'client_name', 'primeiro_nome', 'first_name'];
+const PHONE_PATTERNS = ['telefone', 'phone', 'fone', 'celular', 'whatsapp'];
+const EMAIL_PATTERNS = ['email', 'e-mail', 'mail'];
+
+function contactFieldFor(varName: string): { marker: string; label: string } | null {
+  const v = varName.toLowerCase();
+  if (NAME_PATTERNS.some(p => v.includes(p)))  return { marker: CONTACT_NAME_MARKER,  label: 'Nome do contato (automático)' };
+  if (PHONE_PATTERNS.some(p => v.includes(p))) return { marker: CONTACT_PHONE_MARKER, label: 'Telefone do contato (automático)' };
+  if (EMAIL_PATTERNS.some(p => v.includes(p))) return { marker: CONTACT_EMAIL_MARKER, label: 'E-mail do contato (automático)' };
+  return null;
+}
+
 function buildTemplateContent(t: WabaTemplate, vars: string[]): string {
   const components: unknown[] = [];
   const names = extractVarNames(getBodyText(t));
@@ -85,6 +102,7 @@ function buildTemplateContent(t: WabaTemplate, vars: string[]): string {
 interface CreateForm {
   name: string; inboxId: string; messageType: string; content: string;
   sendIntervalMs: number; filterTags: string;
+  scheduledAt: string; maxRetries: number; timezone: string;
 }
 
 function CreateBroadcastModal({ workspaceId, inboxes, onClose, onCreated }: {
@@ -96,6 +114,7 @@ function CreateBroadcastModal({ workspaceId, inboxes, onClose, onCreated }: {
   const [form, setForm] = useState<CreateForm>({
     name: '', inboxId: inboxes[0]?.id || '', messageType: 'text',
     content: '', sendIntervalMs: 1500, filterTags: '',
+    scheduledAt: '', maxRetries: 0, timezone: 'America/Sao_Paulo',
   });
   const [contacts, setContacts]         = useState<Contact[]>([]);
   const [selectedIds, setSelectedIds]   = useState<Set<string>>(new Set());
@@ -167,7 +186,8 @@ function CreateBroadcastModal({ workspaceId, inboxes, onClose, onCreated }: {
   function handleSelectTemplate(t: WabaTemplate) {
     setSelectedTemplate(t);
     const names = extractVarNames(getBodyText(t));
-    setTemplateVars(Array(names.length).fill(''));
+    // Pré-preenche com marcador se o nome da variável corresponde a campo do contato
+    setTemplateVars(names.map(name => contactFieldFor(name)?.marker || ''));
     setForm(p => ({ ...p, content: '' }));
   }
 
@@ -208,6 +228,15 @@ function CreateBroadcastModal({ workspaceId, inboxes, onClose, onCreated }: {
         ? buildTemplateContent(selectedTemplate, templateVars)
         : form.content;
 
+      // Converte o datetime-local para UTC com offset do fuso selecionado
+      const TZ_OFFSETS: Record<string, string> = {
+        'America/Sao_Paulo': '-03:00', 'America/Manaus': '-04:00',
+        'America/Belem': '-03:00', 'America/Fortaleza': '-03:00',
+        'America/Recife': '-03:00', 'UTC': '+00:00',
+      };
+      const tzOffset    = TZ_OFFSETS[form.timezone] || '-03:00';
+      const scheduledAt = form.scheduledAt ? `${form.scheduledAt}:00${tzOffset}` : undefined;
+
       const { data } = await api.post(`/workspaces/${workspaceId}/broadcasts`, {
         name:           form.name,
         inboxId:        form.inboxId,
@@ -216,6 +245,9 @@ function CreateBroadcastModal({ workspaceId, inboxes, onClose, onCreated }: {
         sendIntervalMs: form.sendIntervalMs,
         contactIds:     [...selectedIds],
         filterTags:     tags,
+        scheduledAt,
+        maxRetries:     form.maxRetries,
+        timezone:       form.timezone,
       });
       onCreated(data);
     } catch (err: unknown) {
@@ -225,10 +257,12 @@ function CreateBroadcastModal({ workspaceId, inboxes, onClose, onCreated }: {
 
   const bodyText   = selectedTemplate ? getBodyText(selectedTemplate) : '';
   const varNames   = extractVarNames(bodyText);
-  const previewText = varNames.reduce(
-    (t, name, i) => t.replaceAll(`{{${name}}}`, templateVars[i] || `{{${name}}}`),
-    bodyText
-  );
+  const previewText = varNames.reduce((t, name, i) => {
+    const val = templateVars[i];
+    const cf  = contactFieldFor(name);
+    const display = (cf && val === cf.marker) ? `[${cf.label}]` : (val || `{{${name}}}`);
+    return t.replaceAll(`{{${name}}}`, display);
+  }, bodyText);
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
@@ -318,21 +352,68 @@ function CreateBroadcastModal({ workspaceId, inboxes, onClose, onCreated }: {
                 <div className="space-y-2">
                   <label className="text-xs font-medium text-gray-600">Variáveis do template</label>
                   <div className="grid grid-cols-2 gap-2">
-                    {varNames.map((name, i) => (
-                      <div key={i}>
-                        <label className="text-xs text-gray-500 mb-1 block font-mono">{`{{${name}}}`}</label>
-                        <input
-                          className="input text-sm"
-                          placeholder={`Valor para ${name}`}
-                          value={templateVars[i] || ''}
-                          onChange={e => {
-                            const next = [...templateVars];
-                            next[i] = e.target.value;
-                            setTemplateVars(next);
-                          }}
-                        />
-                      </div>
-                    ))}
+                    {varNames.map((name, i) => {
+                      const cf = contactFieldFor(name);
+                      const isAuto = cf && templateVars[i] === cf.marker;
+                      return (
+                        <div key={i}>
+                          <label className="text-xs text-gray-500 mb-1 flex items-center gap-1.5 font-mono">
+                            {`{{${name}}}`}
+                            {isAuto && (
+                              <span className="text-green-600 bg-green-50 border border-green-200 rounded-full px-1.5 py-0.5 text-[10px] font-sans font-medium normal-case">
+                                automático
+                              </span>
+                            )}
+                          </label>
+                          {isAuto ? (
+                            <div className="flex gap-1.5">
+                              <div className="input text-sm flex-1 bg-green-50 text-green-700 cursor-default select-none">
+                                {cf.label}
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const next = [...templateVars];
+                                  next[i] = '';
+                                  setTemplateVars(next);
+                                }}
+                                className="text-xs text-gray-400 hover:text-gray-600 px-2"
+                                title="Digitar valor fixo"
+                              >
+                                Editar
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="flex gap-1.5">
+                              <input
+                                className="input text-sm flex-1"
+                                placeholder={cf ? `${cf.label.split(' ')[0]} fixo...` : `Valor para ${name}`}
+                                value={templateVars[i] || ''}
+                                onChange={e => {
+                                  const next = [...templateVars];
+                                  next[i] = e.target.value;
+                                  setTemplateVars(next);
+                                }}
+                              />
+                              {cf && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const next = [...templateVars];
+                                    next[i] = cf.marker;
+                                    setTemplateVars(next);
+                                  }}
+                                  className="text-xs text-green-600 hover:text-green-700 px-2 whitespace-nowrap"
+                                  title="Usar campo do contato"
+                                >
+                                  Auto
+                                </button>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -382,6 +463,47 @@ function CreateBroadcastModal({ workspaceId, inboxes, onClose, onCreated }: {
                 placeholder="lead, premium"
               />
               <p className="text-xs text-gray-400 mt-1">Separe por vírgula — lista de contatos filtra em tempo real</p>
+            </div>
+          </div>
+
+          {/* ── Agendamento e configurações avançadas ── */}
+          <div className="rounded-xl border border-gray-200 p-4 space-y-3 bg-gray-50">
+            <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide flex items-center gap-1.5">
+              <Clock className="w-3.5 h-3.5" />
+              Agendamento e configurações avançadas
+            </p>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Agendamento (opcional)</label>
+                <input
+                  type="datetime-local"
+                  className="input text-sm"
+                  value={form.scheduledAt}
+                  onChange={e => setForm(p => ({ ...p, scheduledAt: e.target.value }))}
+                />
+                <p className="text-xs text-gray-400 mt-1">Deixe em branco para iniciar manualmente</p>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Fuso horário</label>
+                <select className="input text-sm" value={form.timezone} onChange={e => setForm(p => ({ ...p, timezone: e.target.value }))}>
+                  <option value="America/Sao_Paulo">Brasília (UTC-3)</option>
+                  <option value="America/Manaus">Manaus (UTC-4)</option>
+                  <option value="America/Belem">Belém (UTC-3)</option>
+                  <option value="America/Fortaleza">Fortaleza (UTC-3)</option>
+                  <option value="America/Recife">Recife (UTC-3)</option>
+                  <option value="UTC">UTC</option>
+                </select>
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Máximo de tentativas por contato</label>
+              <select className="input text-sm" value={form.maxRetries} onChange={e => setForm(p => ({ ...p, maxRetries: +e.target.value }))}>
+                <option value={0}>0 — Sem retry (padrão)</option>
+                <option value={1}>1 tentativa extra (backoff: +5min)</option>
+                <option value={2}>2 tentativas extras (+5min, +15min)</option>
+                <option value={3}>3 tentativas extras (+5min, +15min, +45min)</option>
+                <option value={5}>5 tentativas extras (até ~3h35min)</option>
+              </select>
             </div>
           </div>
 
@@ -704,6 +826,12 @@ export default function BroadcastsPage() {
 
                       <div className="flex items-center gap-3 mt-2 text-xs text-gray-400">
                         {b.created_at && <span>Criado {format(new Date(b.created_at), "d MMM yyyy", { locale: ptBR })}</span>}
+                        {b.scheduled_at && b.status === 'scheduled' && (
+                          <span className="flex items-center gap-1 text-blue-600 font-medium">
+                            <Clock className="w-3 h-3" />
+                            Agendado para {format(new Date(b.scheduled_at), "d MMM HH:mm", { locale: ptBR })}
+                          </span>
+                        )}
                         {b.started_at && <span className="flex items-center gap-1"><Clock className="w-3 h-3" />Iniciado {format(new Date(b.started_at), "d MMM HH:mm", { locale: ptBR })}</span>}
                         {b.finished_at && <span>Concluído {format(new Date(b.finished_at), "d MMM HH:mm", { locale: ptBR })}</span>}
                       </div>
@@ -714,6 +842,12 @@ export default function BroadcastsPage() {
                         <button onClick={() => handleStart(b.id)} className="btn-primary text-xs py-1.5" title="Iniciar">
                           <Play className="w-3.5 h-3.5" /> Iniciar
                         </button>
+                      )}
+                      {b.status === 'scheduled' && (
+                        <span className="flex items-center gap-1 text-xs text-blue-600 bg-blue-50 border border-blue-200 px-2 py-1.5 rounded-lg">
+                          <Calendar className="w-3.5 h-3.5" />
+                          Agendado
+                        </span>
                       )}
                       {b.status === 'running' && (
                         <button onClick={() => handlePause(b.id)} className="btn-secondary text-xs py-1.5" title="Pausar">
