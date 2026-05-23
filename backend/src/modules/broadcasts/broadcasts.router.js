@@ -19,6 +19,22 @@ router.get('/', authenticate, workspaceContext, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// GET /broadcasts/templates/:inboxId — ANTES de /:broadcastId para não colidir
+router.get('/templates/:inboxId', authenticate, workspaceContext, async (req, res, next) => {
+  try {
+    const templates = await svc.listTemplates(req.params.workspaceId, req.params.inboxId);
+    res.json(templates);
+  } catch (err) { next(err); }
+});
+
+// POST /broadcasts/templates/:inboxId/sync
+router.post('/templates/:inboxId/sync', authenticate, workspaceContext, async (req, res, next) => {
+  try {
+    const templates = await svc.syncTemplates(req.params.workspaceId, req.params.inboxId);
+    res.json(templates);
+  } catch (err) { next(err); }
+});
+
 // GET /broadcasts/:id
 router.get('/:broadcastId', authenticate, workspaceContext, async (req, res, next) => {
   try {
@@ -89,22 +105,6 @@ router.delete('/:broadcastId', authenticate, workspaceContext, async (req, res, 
   try {
     await svc.remove(req.params.broadcastId, req.params.workspaceId);
     res.json({ ok: true });
-  } catch (err) { next(err); }
-});
-
-// GET /broadcasts/templates/:inboxId — lista templates WABA sincronizados
-router.get('/templates/:inboxId', authenticate, workspaceContext, async (req, res, next) => {
-  try {
-    const templates = await svc.listTemplates(req.params.workspaceId, req.params.inboxId);
-    res.json(templates);
-  } catch (err) { next(err); }
-});
-
-// POST /broadcasts/templates/:inboxId/sync — sincroniza templates do Meta
-router.post('/templates/:inboxId/sync', authenticate, workspaceContext, async (req, res, next) => {
-  try {
-    const templates = await svc.syncTemplates(req.params.workspaceId, req.params.inboxId);
-    res.json(templates);
   } catch (err) { next(err); }
 });
 

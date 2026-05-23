@@ -4,12 +4,20 @@ import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/store/auth';
 import Header from '@/components/layout/Header';
 import api from '@/lib/api';
-import { Plus, Play, Pause, X, Send, Users, CheckCircle, AlertCircle, Clock, ChevronRight, Trash2, RefreshCw } from 'lucide-react';
+import { Plus, Play, Pause, X, Send, Users, CheckCircle, AlertCircle, Clock, ChevronRight, Trash2, RefreshCw, LayoutTemplate } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 interface Inbox { id: string; name: string; channel_type: string; }
 interface Contact { id: string; name: string; phone: string; tags: string[]; }
+interface WabaTemplate {
+  id: string;
+  name: string;
+  category: string;
+  language: string;
+  status: string;
+  components: Array<{ type: string; format?: string; text?: string }>;
+}
 interface Broadcast {
   id: string; name: string; status: string;
   inbox_id: string; inbox_name: string; channel_type: string;
@@ -21,13 +29,41 @@ interface Broadcast {
 }
 
 const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
-  draft:      { label: 'Rascunho',   color: 'bg-gray-100 text-gray-600' },
-  scheduled:  { label: 'Agendado',   color: 'bg-blue-100 text-blue-700' },
-  running:    { label: 'Enviando',   color: 'bg-yellow-100 text-yellow-700' },
-  paused:     { label: 'Pausado',    color: 'bg-orange-100 text-orange-700' },
-  done:       { label: 'Concluído',  color: 'bg-green-100 text-green-700' },
-  cancelled:  { label: 'Cancelado',  color: 'bg-red-100 text-red-600' },
+  draft:      { label: 'Rascunho',  color: 'bg-gray-100 text-gray-600' },
+  scheduled:  { label: 'Agendado',  color: 'bg-blue-100 text-blue-700' },
+  running:    { label: 'Enviando',  color: 'bg-yellow-100 text-yellow-700' },
+  paused:     { label: 'Pausado',   color: 'bg-orange-100 text-orange-700' },
+  done:       { label: 'Concluído', color: 'bg-green-100 text-green-700' },
+  cancelled:  { label: 'Cancelado', color: 'bg-red-100 text-red-600' },
 };
+
+// ── Helpers para templates WABA ───────────────────────────────────────────────
+
+function getBodyText(t: WabaTemplate): string {
+  return t.components.find(c => c.type === 'BODY')?.text || '';
+}
+
+function countVars(text: string): number {
+  const nums = [...text.matchAll(/\{\{(\d+)\}\}/g)].map(m => parseInt(m[1], 10));
+  return nums.length ? Math.max(...nums) : 0;
+}
+
+function buildTemplateContent(t: WabaTemplate, vars: string[]): string {
+  const components: unknown[] = [];
+  if (vars.length > 0) {
+    components.push({
+      type: 'body',
+      parameters: vars.map(v => ({ type: 'text', text: v })),
+    });
+  }
+  return JSON.stringify({
+    name: t.name,
+    language: { code: t.language },
+    components,
+  });
+}
+
+// ── Modal de criação ──────────────────────────────────────────────────────────
 
 interface CreateForm {
   name: string; inboxId: string; messageType: string; content: string;
@@ -44,15 +80,25 @@ function CreateBroadcastModal({ workspaceId, inboxes, onClose, onCreated }: {
     name: '', inboxId: inboxes[0]?.id || '', messageType: 'text',
     content: '', sendIntervalMs: 1500, filterTags: '',
   });
-  const [contacts, setContacts]       = useState<Contact[]>([]);
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [loadingC, setLoadingC]       = useState(false);
-  const [search, setSearch]           = useState('');
-  const [saving, setSaving]           = useState(false);
-  const [error, setError]             = useState('');
-  const [page, setPage]               = useState(1);
-  const [total, setTotal]             = useState(0);
+  const [contacts, setContacts]         = useState<Contact[]>([]);
+  const [selectedIds, setSelectedIds]   = useState<Set<string>>(new Set());
+  const [loadingC, setLoadingC]         = useState(false);
+  const [search, setSearch]             = useState('');
+  const [saving, setSaving]             = useState(false);
+  const [error, setError]               = useState('');
+  const [page, setPage]                 = useState(1);
+  const [total, setTotal]               = useState(0);
+  // template state
+  const [templates, setTemplates]       = useState<WabaTemplate[]>([]);
+  const [loadingT, setLoadingT]         = useState(false);
+  const [syncingT, setSyncingT]         = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState<WabaTemplate | null>(null);
+  const [templateVars, setTemplateVars] = useState<string[]>([]);
 
+  const selectedInbox = inboxes.find(i => i.id === form.inboxId);
+  const isWaba        = selectedInbox?.channel_type === 'whatsapp_official';
+
+  // Carrega contatos
   const loadContacts = useCallback(async () => {
     setLoadingC(true);
     try {
@@ -65,6 +111,46 @@ function CreateBroadcastModal({ workspaceId, inboxes, onClose, onCreated }: {
   }, [workspaceId, search, page]);
 
   useEffect(() => { loadContacts(); }, [loadContacts]);
+
+  // Carrega templates quando inbox WABA for selecionada
+  const loadTemplates = useCallback(async (inboxId: string) => {
+    setLoadingT(true);
+    try {
+      const { data } = await api.get(`/workspaces/${workspaceId}/broadcasts/templates/${inboxId}`);
+      setTemplates(data);
+    } catch { setTemplates([]); }
+    finally { setLoadingT(false); }
+  }, [workspaceId]);
+
+  useEffect(() => {
+    if (isWaba) {
+      loadTemplates(form.inboxId);
+      setForm(p => ({ ...p, messageType: 'template' }));
+    } else {
+      setTemplates([]);
+      setSelectedTemplate(null);
+      setTemplateVars([]);
+      setForm(p => ({ ...p, messageType: 'text' }));
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.inboxId]);
+
+  async function handleSyncTemplates() {
+    setSyncingT(true);
+    try {
+      await api.post(`/workspaces/${workspaceId}/broadcasts/templates/${form.inboxId}/sync`);
+      await loadTemplates(form.inboxId);
+    } catch {
+      setError('Erro ao sincronizar templates. Verifique as credenciais da inbox WABA.');
+    } finally { setSyncingT(false); }
+  }
+
+  function handleSelectTemplate(t: WabaTemplate) {
+    setSelectedTemplate(t);
+    const n = countVars(getBodyText(t));
+    setTemplateVars(Array(n).fill(''));
+    setForm(p => ({ ...p, content: '' }));
+  }
 
   function toggleContact(id: string) {
     setSelectedIds(prev => {
@@ -80,9 +166,15 @@ function CreateBroadcastModal({ workspaceId, inboxes, onClose, onCreated }: {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!form.name.trim())    { setError('Nome é obrigatório'); return; }
-    if (!form.inboxId)        { setError('Selecione uma inbox'); return; }
-    if (!form.content.trim()) { setError('Mensagem é obrigatória'); return; }
+    if (!form.name.trim())  { setError('Nome é obrigatório'); return; }
+    if (!form.inboxId)      { setError('Selecione uma inbox'); return; }
+
+    if (isWaba) {
+      if (!selectedTemplate) { setError('Selecione um template aprovado'); return; }
+    } else {
+      if (!form.content.trim()) { setError('Mensagem é obrigatória'); return; }
+    }
+
     if (selectedIds.size === 0 && !form.filterTags.trim()) {
       setError('Selecione ao menos um contato ou defina filtro por tags'); return;
     }
@@ -93,11 +185,15 @@ function CreateBroadcastModal({ workspaceId, inboxes, onClose, onCreated }: {
         ? form.filterTags.split(',').map(t => t.trim()).filter(Boolean)
         : undefined;
 
+      const content = isWaba && selectedTemplate
+        ? buildTemplateContent(selectedTemplate, templateVars)
+        : form.content;
+
       const { data } = await api.post(`/workspaces/${workspaceId}/broadcasts`, {
         name:           form.name,
         inboxId:        form.inboxId,
-        messageType:    form.messageType,
-        content:        form.content,
+        messageType:    isWaba ? 'template' : form.messageType,
+        content,
         sendIntervalMs: form.sendIntervalMs,
         contactIds:     [...selectedIds],
         filterTags:     tags,
@@ -108,7 +204,9 @@ function CreateBroadcastModal({ workspaceId, inboxes, onClose, onCreated }: {
     } finally { setSaving(false); }
   }
 
-  const selectedInbox = inboxes.find(i => i.id === form.inboxId);
+  const bodyText         = selectedTemplate ? getBodyText(selectedTemplate) : '';
+  const varCount         = countVars(bodyText);
+  const previewText      = templateVars.reduce((t, v, i) => t.replaceAll(`{{${i + 1}}}`, v || `{{${i + 1}}}`), bodyText);
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
@@ -134,27 +232,117 @@ function CreateBroadcastModal({ workspaceId, inboxes, onClose, onCreated }: {
             </div>
           </div>
 
-          {selectedInbox?.channel_type === 'whatsapp_official' && (
-            <div className="rounded-lg bg-amber-50 border border-amber-200 p-3 text-xs text-amber-800">
-              <strong>API Oficial:</strong> Envio fora da janela de 24h requer template aprovado. Dentro da janela pode enviar texto livre.
+          {/* ── Seleção de template (WABA) ── */}
+          {isWaba && (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-medium text-gray-600 flex items-center gap-1.5">
+                  <LayoutTemplate className="w-3.5 h-3.5" />
+                  Template aprovado *
+                </label>
+                <button
+                  type="button"
+                  onClick={handleSyncTemplates}
+                  disabled={syncingT}
+                  className="text-xs text-brand-600 hover:underline flex items-center gap-1"
+                >
+                  <RefreshCw className={`w-3 h-3 ${syncingT ? 'animate-spin' : ''}`} />
+                  {syncingT ? 'Sincronizando...' : 'Sincronizar da Meta'}
+                </button>
+              </div>
+
+              {loadingT ? (
+                <div className="text-xs text-gray-400 py-2">Carregando templates...</div>
+              ) : templates.length === 0 ? (
+                <div className="rounded-lg border border-dashed border-amber-300 bg-amber-50 p-3 text-xs text-amber-700">
+                  Nenhum template encontrado. Clique em <strong>Sincronizar da Meta</strong> para buscar os templates aprovados.
+                </div>
+              ) : (
+                <div className="grid gap-2 max-h-44 overflow-y-auto pr-1">
+                  {templates.filter(t => t.status === 'APPROVED').map(t => (
+                    <button
+                      key={t.id}
+                      type="button"
+                      onClick={() => handleSelectTemplate(t)}
+                      className={`text-left rounded-xl border px-3 py-2.5 transition-colors ${
+                        selectedTemplate?.id === t.id
+                          ? 'border-brand-500 bg-brand-50'
+                          : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-sm font-medium text-gray-800">{t.name}</span>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <span className="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full">Aprovado</span>
+                          <span className="text-xs text-gray-400">{t.language}</span>
+                        </div>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{getBodyText(t)}</p>
+                    </button>
+                  ))}
+                  {templates.filter(t => t.status !== 'APPROVED').map(t => (
+                    <div key={t.id} className="text-left rounded-xl border border-gray-100 bg-gray-50 px-3 py-2.5 opacity-50 cursor-not-allowed">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium text-gray-600">{t.name}</span>
+                        <span className="text-xs bg-gray-200 text-gray-500 px-1.5 py-0.5 rounded-full">{t.status}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Variáveis do template */}
+              {selectedTemplate && varCount > 0 && (
+                <div className="space-y-2">
+                  <label className="text-xs font-medium text-gray-600">Variáveis do template</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {Array.from({ length: varCount }, (_, i) => (
+                      <div key={i}>
+                        <label className="text-xs text-gray-500 mb-1 block">{`{{${i + 1}}}`}</label>
+                        <input
+                          className="input text-sm"
+                          placeholder={`Valor para {{${i + 1}}}`}
+                          value={templateVars[i] || ''}
+                          onChange={e => {
+                            const next = [...templateVars];
+                            next[i] = e.target.value;
+                            setTemplateVars(next);
+                          }}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Preview */}
+              {selectedTemplate && (
+                <div className="rounded-xl bg-gray-50 border border-gray-200 p-3">
+                  <p className="text-xs font-medium text-gray-500 mb-1">Preview</p>
+                  <p className="text-sm text-gray-800 whitespace-pre-wrap">{previewText}</p>
+                </div>
+              )}
             </div>
           )}
 
-          <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Mensagem *</label>
-            <textarea
-              className="input resize-none"
-              rows={4}
-              value={form.content}
-              onChange={e => setForm(p => ({ ...p, content: e.target.value }))}
-              placeholder="Olá! Temos uma novidade especial para você..."
-            />
-            <p className="text-xs text-gray-400 mt-1">{form.content.length} caracteres</p>
-          </div>
+          {/* ── Mensagem livre (Evolution) ── */}
+          {!isWaba && (
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Mensagem *</label>
+              <textarea
+                className="input resize-none"
+                rows={4}
+                value={form.content}
+                onChange={e => setForm(p => ({ ...p, content: e.target.value }))}
+                placeholder="Olá! Temos uma novidade especial para você..."
+              />
+              <p className="text-xs text-gray-400 mt-1">{form.content.length} caracteres</p>
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Intervalo entre envios (ms)</label>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Intervalo entre envios</label>
               <select className="input" value={form.sendIntervalMs} onChange={e => setForm(p => ({ ...p, sendIntervalMs: +e.target.value }))}>
                 <option value={500}>500ms (rápido — só Evolution)</option>
                 <option value={1000}>1s</option>
@@ -164,7 +352,7 @@ function CreateBroadcastModal({ workspaceId, inboxes, onClose, onCreated }: {
               </select>
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Filtrar por tags (adicional)</label>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Filtrar por tags</label>
               <input
                 className="input"
                 value={form.filterTags}
@@ -252,13 +440,15 @@ function ProgressBar({ value, total, color = 'bg-brand-500' }: { value: number; 
   );
 }
 
+// ── Página principal ──────────────────────────────────────────────────────────
+
 export default function BroadcastsPage() {
   const { currentWorkspace } = useAuth();
-  const [broadcasts,  setBroadcasts]  = useState<Broadcast[]>([]);
-  const [total,       setTotal]       = useState(0);
-  const [loading,     setLoading]     = useState(true);
-  const [inboxes,     setInboxes]     = useState<Inbox[]>([]);
-  const [creating,    setCreating]    = useState(false);
+  const [broadcasts, setBroadcasts] = useState<Broadcast[]>([]);
+  const [total, setTotal]           = useState(0);
+  const [loading, setLoading]       = useState(true);
+  const [inboxes, setInboxes]       = useState<Inbox[]>([]);
+  const [creating, setCreating]     = useState(false);
 
   const load = useCallback(async () => {
     if (!currentWorkspace) return;
@@ -276,7 +466,6 @@ export default function BroadcastsPage() {
 
   useEffect(() => { load(); }, [load]);
 
-  // Auto-refresh a cada 5s se houver broadcast rodando
   useEffect(() => {
     const hasRunning = broadcasts.some(b => b.status === 'running');
     if (!hasRunning) return;
@@ -347,9 +536,9 @@ export default function BroadcastsPage() {
         ) : (
           <div className="space-y-3">
             {broadcasts.map(b => {
-              const cfg     = STATUS_CONFIG[b.status] || STATUS_CONFIG.draft;
-              const isDone  = b.status === 'done';
-              const isRun   = b.status === 'running';
+              const cfg    = STATUS_CONFIG[b.status] || STATUS_CONFIG.draft;
+              const isDone = b.status === 'done';
+              const isRun  = b.status === 'running';
 
               return (
                 <div key={b.id} className="card p-5">
@@ -359,31 +548,23 @@ export default function BroadcastsPage() {
                         <h3 className="font-semibold text-gray-900 truncate">{b.name}</h3>
                         <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${cfg.color}`}>{cfg.label}</span>
                         <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">{b.inbox_name}</span>
+                        {b.message_type === 'template' && (
+                          <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full flex items-center gap-1">
+                            <LayoutTemplate className="w-3 h-3" /> Template
+                          </span>
+                        )}
                       </div>
 
-                      {b.content && (
-                        <p className="text-sm text-gray-600 truncate mb-3">{b.content}</p>
-                      )}
-
-                      {/* Progresso */}
                       {b.total_contacts > 0 && (
                         <div className="space-y-1.5">
                           <div className="flex items-center gap-4 text-xs text-gray-500">
-                            <span className="flex items-center gap-1">
-                              <Users className="w-3 h-3" />{b.total_contacts} contatos
-                            </span>
-                            <span className="flex items-center gap-1 text-green-600">
-                              <CheckCircle className="w-3 h-3" />{b.sent_count} enviados
-                            </span>
+                            <span className="flex items-center gap-1"><Users className="w-3 h-3" />{b.total_contacts} contatos</span>
+                            <span className="flex items-center gap-1 text-green-600"><CheckCircle className="w-3 h-3" />{b.sent_count} enviados</span>
                             {b.failed_count > 0 && (
-                              <span className="flex items-center gap-1 text-red-500">
-                                <AlertCircle className="w-3 h-3" />{b.failed_count} falhas
-                              </span>
+                              <span className="flex items-center gap-1 text-red-500"><AlertCircle className="w-3 h-3" />{b.failed_count} falhas</span>
                             )}
                             {b.read_count > 0 && (
-                              <span className="flex items-center gap-1 text-blue-600">
-                                <ChevronRight className="w-3 h-3" />{b.read_count} lidos
-                              </span>
+                              <span className="flex items-center gap-1 text-blue-600"><ChevronRight className="w-3 h-3" />{b.read_count} lidos</span>
                             )}
                           </div>
                           <ProgressBar value={b.sent_count} total={b.total_contacts} color={isDone ? 'bg-green-500' : isRun ? 'bg-brand-500' : 'bg-gray-400'} />
@@ -403,7 +584,6 @@ export default function BroadcastsPage() {
                       </div>
                     </div>
 
-                    {/* Ações */}
                     <div className="flex items-center gap-1.5 flex-shrink-0">
                       {(b.status === 'draft' || b.status === 'paused') && (
                         <button onClick={() => handleStart(b.id)} className="btn-primary text-xs py-1.5" title="Iniciar">
