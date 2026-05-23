@@ -43,9 +43,54 @@ async function list(conversationId, { page = 1, limit = 50 } = {}) {
   return { data: r.rows, total, page, limit };
 }
 
+async function sendViaWaba(conv, message, content, messageType, mediaUrl) {
+  const { waba_phone_number_id: phoneNumberId, waba_access_token: token } = conv;
+  if (!phoneNumberId || !token) return;
+
+  const to = conv.remote_jid?.replace(/@.+$/, '') || conv.remote_jid;
+  const url = `https://graph.facebook.com/v19.0/${phoneNumberId}/messages`;
+  const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
+
+  let body;
+  if (messageType === 'template') {
+    body = {
+      messaging_product: 'whatsapp',
+      to,
+      type: 'template',
+      template: content, // deve ser objeto { name, language, components }
+    };
+  } else if (messageType !== 'text' && mediaUrl) {
+    const typeMap = { image: 'image', video: 'video', audio: 'audio', document: 'document' };
+    const waType  = typeMap[messageType] || 'document';
+    body = {
+      messaging_product: 'whatsapp',
+      to,
+      type: waType,
+      [waType]: { link: mediaUrl, caption: content || undefined },
+    };
+  } else {
+    body = {
+      messaging_product: 'whatsapp',
+      to,
+      type: 'text',
+      text: { body: content, preview_url: false },
+    };
+  }
+
+  const res = await axios.post(url, body, { headers, timeout: 15000 });
+  const waMsgId = res?.data?.messages?.[0]?.id;
+  if (waMsgId) {
+    await query('UPDATE messages SET evolution_msg_id = $1 WHERE id = $2', [waMsgId, message.id]);
+    message.evolution_msg_id = waMsgId;
+  }
+}
+
 async function send(conversationId, senderId, { content, messageType = 'text', mediaUrl, isPrivate = false }) {
   const convRes = await query(
-    `SELECT c.*, i.evolution_api_url, i.evolution_api_key, i.evolution_instance, c.remote_jid, c.workspace_id
+    `SELECT c.*, i.channel_type,
+            i.evolution_api_url, i.evolution_api_key, i.evolution_instance,
+            i.waba_phone_number_id, i.waba_access_token,
+            c.remote_jid, c.workspace_id
      FROM conversations c
      JOIN inboxes i ON i.id = c.inbox_id
      WHERE c.id = $1`,
@@ -87,8 +132,18 @@ async function send(conversationId, senderId, { content, messageType = 'text', m
         .catch(() => {});
     }
 
-    // Send via Evolution API
-    if (conv.evolution_api_url && conv.evolution_instance) {
+    // Route send based on channel type
+    if (conv.channel_type === 'whatsapp_official') {
+      try {
+        await sendViaWaba(conv, message, content, messageType, mediaUrl);
+      } catch (err) {
+        const errMsg = err?.response?.data || err?.message;
+        require('../../utils/logger').error('WABA send failed', { errMsg, conversationId });
+        await query('UPDATE messages SET status = $1 WHERE id = $2', ['failed', message.id]);
+        message.status = 'failed';
+      }
+    } else if (conv.evolution_api_url && conv.evolution_instance) {
+      // Send via Evolution API
       try {
         const number = conv.remote_jid?.replace(/@.+$/, '') || conv.remote_jid;
         const baseUrl = `${conv.evolution_api_url}`;
@@ -97,7 +152,6 @@ async function send(conversationId, senderId, { content, messageType = 'text', m
 
         let evoRes;
         if (messageType && messageType !== 'text' && mediaUrl) {
-          // Extract filename from URL and get file buffer from storage
           const filename = path.basename(new URL(mediaUrl).pathname);
           const ext      = path.extname(filename).toLowerCase();
           const mime     = EXT_MIME[ext] || 'application/octet-stream';
@@ -109,7 +163,7 @@ async function send(conversationId, senderId, { content, messageType = 'text', m
             `${baseUrl}/message/sendMedia/${instance}`,
             {
               number,
-              mediatype: messageType,           // image | video | audio | document
+              mediatype: messageType,
               media:     base64,
               mimetype:  mime,
               caption:   content || '',
@@ -125,7 +179,6 @@ async function send(conversationId, senderId, { content, messageType = 'text', m
           );
         }
 
-        // Store Evolution message ID to avoid duplication when webhook echoes back
         const evoMsgId = evoRes?.data?.key?.id;
         if (evoMsgId) {
           await query('UPDATE messages SET evolution_msg_id = $1 WHERE id = $2', [evoMsgId, message.id]);

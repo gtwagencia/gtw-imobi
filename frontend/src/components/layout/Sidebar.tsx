@@ -8,7 +8,7 @@ import clsx from 'clsx';
 import {
   MessageSquare, Users, Kanban, Inbox, Settings,
   LogOut, ChevronDown, Building2, Home, User,
-  Check, Plus, ArrowLeftRight, LayoutList, BarChart2, BookMarked, Tag, Ticket, X,
+  Check, Plus, ArrowLeftRight, LayoutList, BarChart2, BookMarked, Tag, Ticket, X, Send,
 } from 'lucide-react';
 import { useSidebar } from '@/store/sidebar';
 import { useEffect, useRef, useState } from 'react';
@@ -20,6 +20,7 @@ const ALL_NAV_ITEMS = [
   { href: '/dashboard',               icon: Home,          label: 'Início',            ticketsOnly: true,  adminOnly: false },
   { href: '/dashboard/conversations', icon: MessageSquare, label: 'Conversas',         ticketsOnly: false, adminOnly: false },
   { href: '/dashboard/contacts',      icon: Users,         label: 'Contatos',          ticketsOnly: false, adminOnly: false },
+  { href: '/dashboard/broadcasts',    icon: Send,          label: 'Broadcasts',        ticketsOnly: false, adminOnly: true  },
   { href: '/dashboard/kanban',        icon: Kanban,        label: 'Funil',             ticketsOnly: false, adminOnly: true  },
   { href: '/dashboard/tickets',       icon: Ticket,        label: 'Tickets',           ticketsOnly: true,  adminOnly: false },
   { href: '/dashboard/inboxes',       icon: Inbox,         label: 'Inboxes',           ticketsOnly: false, adminOnly: true  },

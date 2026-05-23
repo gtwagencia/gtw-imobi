@@ -1,11 +1,13 @@
 'use strict';
 
 const { Router } = require('express');
+const multer               = require('multer');
 const { authenticate }     = require('../../middleware/auth');
 const { workspaceContext } = require('../../middleware/workspaceContext');
 const svc = require('./contacts.service');
 
-const router = Router({ mergeParams: true });
+const router  = Router({ mergeParams: true });
+const upload  = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
 router.get('/', authenticate, workspaceContext, async (req, res, next) => {
   try {
@@ -54,6 +56,16 @@ router.get('/:contactId/conversations', authenticate, workspaceContext, async (r
   try {
     const convs = await svc.listConversations(req.params.contactId, req.params.workspaceId);
     res.json(convs);
+  } catch (err) { next(err); }
+});
+
+// POST /contacts/import — importação via CSV
+router.post('/import', authenticate, workspaceContext, upload.single('file'), async (req, res, next) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'Arquivo CSV obrigatório' });
+    const csv    = req.file.buffer.toString('utf-8');
+    const result = await svc.csvImport(req.params.workspaceId, csv);
+    res.json(result);
   } catch (err) { next(err); }
 });
 

@@ -6,7 +6,7 @@ import { useAuth } from '@/store/auth';
 import Header from '@/components/layout/Header';
 import api from '@/lib/api';
 import type { Contact } from '@/types';
-import { Search, Plus, Mail, X, MessageSquare, ExternalLink, ChevronLeft, ChevronRight, Pencil } from 'lucide-react';
+import { Search, Plus, Mail, X, MessageSquare, ExternalLink, ChevronLeft, ChevronRight, Pencil, Upload, CheckCircle, AlertCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import clsx from 'clsx';
@@ -252,16 +252,20 @@ function ContactPanel({ contact, workspaceId, onClose, onEdit }: {
   );
 }
 
+interface ImportResult { imported: number; updated: number; errors: { line: number; error: string }[]; }
+
 export default function ContactsPage() {
   const { currentWorkspace } = useAuth();
-  const [contacts,  setContacts]  = useState<Contact[]>([]);
-  const [total,     setTotal]     = useState(0);
-  const [search,    setSearch]    = useState('');
-  const [page,      setPage]      = useState(1);
-  const [loading,   setLoading]   = useState(true);
-  const [selected,  setSelected]  = useState<Contact | null>(null);
-  const [formOpen,  setFormOpen]  = useState(false);
-  const [editing,   setEditing]   = useState<Contact | undefined>(undefined);
+  const [contacts,     setContacts]     = useState<Contact[]>([]);
+  const [total,        setTotal]        = useState(0);
+  const [search,       setSearch]       = useState('');
+  const [page,         setPage]         = useState(1);
+  const [loading,      setLoading]      = useState(true);
+  const [selected,     setSelected]     = useState<Contact | null>(null);
+  const [formOpen,     setFormOpen]     = useState(false);
+  const [editing,      setEditing]      = useState<Contact | undefined>(undefined);
+  const [importing,    setImporting]    = useState(false);
+  const [importResult, setImportResult] = useState<ImportResult | null>(null);
 
   const load = useCallback(async () => {
     if (!currentWorkspace) return;
@@ -286,6 +290,30 @@ export default function ContactsPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search]);
 
+  async function handleCsvImport(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file || !currentWorkspace) return;
+    setImporting(true);
+    setImportResult(null);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const { data } = await api.post(
+        `/workspaces/${currentWorkspace.id}/contacts/import`,
+        formData,
+        { headers: { 'Content-Type': 'multipart/form-data' } }
+      );
+      setImportResult(data);
+      load();
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error || 'Erro ao importar';
+      setImportResult({ imported: 0, updated: 0, errors: [{ line: 0, error: msg }] });
+    } finally {
+      setImporting(false);
+      e.target.value = '';
+    }
+  }
+
   if (!currentWorkspace) {
     return (
       <>
@@ -302,19 +330,55 @@ export default function ContactsPage() {
       <Header
         title={`Contatos (${total})`}
         actions={
-          <button
-            className="btn-primary text-sm"
-            onClick={() => { setEditing(undefined); setFormOpen(true); }}
-          >
-            <Plus className="w-4 h-4" />
-            Novo contato
-          </button>
+          <div className="flex items-center gap-2">
+            <label className={`btn-secondary text-sm cursor-pointer flex items-center gap-1.5 ${importing ? 'opacity-60 pointer-events-none' : ''}`}>
+              <Upload className="w-4 h-4" />
+              {importing ? 'Importando...' : 'Importar CSV'}
+              <input type="file" accept=".csv,text/csv" className="hidden" onChange={handleCsvImport} disabled={importing} />
+            </label>
+            <button
+              className="btn-primary text-sm"
+              onClick={() => { setEditing(undefined); setFormOpen(true); }}
+            >
+              <Plus className="w-4 h-4" />
+              Novo contato
+            </button>
+          </div>
         }
       />
 
       <div className="flex flex-1 overflow-hidden">
         {/* Main content */}
         <div className="flex-1 overflow-y-auto p-6">
+          {/* Import result banner */}
+          {importResult && (
+            <div className={`mb-4 rounded-xl p-4 flex items-start gap-3 ${importResult.errors.length && !importResult.imported && !importResult.updated ? 'bg-red-50 border border-red-200' : 'bg-green-50 border border-green-200'}`}>
+              {importResult.imported > 0 || importResult.updated > 0
+                ? <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+                : <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />}
+              <div className="flex-1 text-sm">
+                {(importResult.imported > 0 || importResult.updated > 0) && (
+                  <p className="font-medium text-green-800">
+                    {importResult.imported} contato{importResult.imported !== 1 ? 's' : ''} importado{importResult.imported !== 1 ? 's' : ''},
+                    {' '}{importResult.updated} atualizado{importResult.updated !== 1 ? 's' : ''}
+                  </p>
+                )}
+                {importResult.errors.length > 0 && (
+                  <div className="mt-1 text-red-700">
+                    <span className="font-medium">{importResult.errors.length} erro{importResult.errors.length !== 1 ? 's' : ''}:</span>
+                    <ul className="mt-1 space-y-0.5 text-xs">
+                      {importResult.errors.slice(0, 5).map((e, i) => (
+                        <li key={i}>{e.line > 0 ? `Linha ${e.line}: ` : ''}{e.error}</li>
+                      ))}
+                      {importResult.errors.length > 5 && <li>...e mais {importResult.errors.length - 5} erro(s)</li>}
+                    </ul>
+                  </div>
+                )}
+              </div>
+              <button onClick={() => setImportResult(null)} className="text-gray-400 hover:text-gray-600"><X className="w-4 h-4" /></button>
+            </div>
+          )}
+
           {/* Search bar */}
           <div className="mb-4 relative max-w-sm">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />

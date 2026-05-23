@@ -1,7 +1,7 @@
-# Graph Report - gtw-platform  (2026-05-15)
+# Graph Report - gtw-platform  (2026-05-18)
 
 ## Corpus Check
-- 114 files · ~82,432 words
+- 114 files · ~82,515 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
@@ -10,7 +10,7 @@
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `a3e9a36d`
+- Built from commit: `dd332157`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -116,15 +116,15 @@ Nodes (11): createPipeline(), createStage(), getDefaultPipeline(), getPipeline()
 
 ### Community 11 - "Community 11"
 Cohesion: 0.2
-Nodes (9): assignAgent(), create(), getById(), list(), listAgents(), listUnassignedAgents(), remove(), removeAgent() (+1 more)
+Nodes (9): addMember(), create(), getById(), getUserInboxIds(), list(), listMembers(), remove(), removeMember() (+1 more)
 
 ### Community 12 - "Community 12"
 Cohesion: 0.2
-Nodes (9): addMember(), create(), getById(), getUserInboxIds(), list(), listMembers(), remove(), removeMember() (+1 more)
+Nodes (9): addMember(), create(), getById(), listForOrg(), listMembers(), removeMember(), resetMemberPassword(), update() (+1 more)
 
 ### Community 13 - "Community 13"
 Cohesion: 0.2
-Nodes (9): addMember(), create(), getById(), listForOrg(), listMembers(), removeMember(), resetMemberPassword(), update() (+1 more)
+Nodes (9): assignAgent(), create(), getById(), list(), listAgents(), listUnassignedAgents(), remove(), removeAgent() (+1 more)
 
 ### Community 14 - "Community 14"
 Cohesion: 0.31
@@ -180,11 +180,11 @@ Nodes (3): handleCreateWorkspace(), handleOrgSelect(), handleWorkspaceSelect()
 
 ### Community 33 - "Community 33"
 Cohesion: 0.5
-Nodes (3): getAgentPerformance(), getSummary(), getVolumeByDay()
+Nodes (3): insertInbound(), list(), send()
 
 ### Community 34 - "Community 34"
 Cohesion: 0.5
-Nodes (3): insertInbound(), list(), send()
+Nodes (3): getAgentPerformance(), getSummary(), getVolumeByDay()
 
 ## Knowledge Gaps
 - **4 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.

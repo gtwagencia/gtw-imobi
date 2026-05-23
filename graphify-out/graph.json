@@ -342,7 +342,7 @@
       "source_file": "backend/src/modules/workspaces/workspaces.service.js",
       "source_location": "L1",
       "id": "backend_src_modules_workspaces_workspaces_service_js",
-      "community": 13,
+      "community": 12,
       "norm_label": "workspaces.service.js"
     },
     {
@@ -351,7 +351,7 @@
       "source_file": "backend/src/modules/workspaces/workspaces.service.js",
       "source_location": "L12",
       "id": "workspaces_workspaces_service_listfororg",
-      "community": 13,
+      "community": 12,
       "norm_label": "listfororg()"
     },
     {
@@ -360,7 +360,7 @@
       "source_file": "backend/src/modules/workspaces/workspaces.service.js",
       "source_location": "L42",
       "id": "workspaces_workspaces_service_create",
-      "community": 13,
+      "community": 12,
       "norm_label": "create()"
     },
     {
@@ -369,7 +369,7 @@
       "source_file": "backend/src/modules/workspaces/workspaces.service.js",
       "source_location": "L65",
       "id": "workspaces_workspaces_service_getbyid",
-      "community": 13,
+      "community": 12,
       "norm_label": "getbyid()"
     },
     {
@@ -378,7 +378,7 @@
       "source_file": "backend/src/modules/workspaces/workspaces.service.js",
       "source_location": "L72",
       "id": "workspaces_workspaces_service_update",
-      "community": 13,
+      "community": 12,
       "norm_label": "update()"
     },
     {
@@ -387,7 +387,7 @@
       "source_file": "backend/src/modules/workspaces/workspaces.service.js",
       "source_location": "L118",
       "id": "workspaces_workspaces_service_listmembers",
-      "community": 13,
+      "community": 12,
       "norm_label": "listmembers()"
     },
     {
@@ -396,7 +396,7 @@
       "source_file": "backend/src/modules/workspaces/workspaces.service.js",
       "source_location": "L130",
       "id": "workspaces_workspaces_service_addmember",
-      "community": 13,
+      "community": 12,
       "norm_label": "addmember()"
     },
     {
@@ -405,7 +405,7 @@
       "source_file": "backend/src/modules/workspaces/workspaces.service.js",
       "source_location": "L172",
       "id": "workspaces_workspaces_service_removemember",
-      "community": 13,
+      "community": 12,
       "norm_label": "removemember()"
     },
     {
@@ -414,7 +414,7 @@
       "source_file": "backend/src/modules/workspaces/workspaces.service.js",
       "source_location": "L179",
       "id": "workspaces_workspaces_service_resetmemberpassword",
-      "community": 13,
+      "community": 12,
       "norm_label": "resetmemberpassword()"
     },
     {
@@ -423,7 +423,7 @@
       "source_file": "backend/src/modules/workspaces/workspaces.service.js",
       "source_location": "L205",
       "id": "workspaces_workspaces_service_updatememberrole",
-      "community": 13,
+      "community": 12,
       "norm_label": "updatememberrole()"
     },
     {
@@ -450,7 +450,7 @@
       "source_file": "backend/src/modules/inboxes/inboxes.service.js",
       "source_location": "L1",
       "id": "backend_src_modules_inboxes_inboxes_service_js",
-      "community": 12,
+      "community": 11,
       "norm_label": "inboxes.service.js"
     },
     {
@@ -459,7 +459,7 @@
       "source_file": "backend/src/modules/inboxes/inboxes.service.js",
       "source_location": "L5",
       "id": "inboxes_inboxes_service_list",
-      "community": 12,
+      "community": 11,
       "norm_label": "list()"
     },
     {
@@ -468,7 +468,7 @@
       "source_file": "backend/src/modules/inboxes/inboxes.service.js",
       "source_location": "L19",
       "id": "inboxes_inboxes_service_getbyid",
-      "community": 12,
+      "community": 11,
       "norm_label": "getbyid()"
     },
     {
@@ -477,7 +477,7 @@
       "source_file": "backend/src/modules/inboxes/inboxes.service.js",
       "source_location": "L27",
       "id": "inboxes_inboxes_service_create",
-      "community": 12,
+      "community": 11,
       "norm_label": "create()"
     },
     {
@@ -486,7 +486,7 @@
       "source_file": "backend/src/modules/inboxes/inboxes.service.js",
       "source_location": "L46",
       "id": "inboxes_inboxes_service_update",
-      "community": 12,
+      "community": 11,
       "norm_label": "update()"
     },
     {
@@ -495,7 +495,7 @@
       "source_file": "backend/src/modules/inboxes/inboxes.service.js",
       "source_location": "L82",
       "id": "inboxes_inboxes_service_remove",
-      "community": 12,
+      "community": 11,
       "norm_label": "remove()"
     },
     {
@@ -504,7 +504,7 @@
       "source_file": "backend/src/modules/inboxes/inboxes.service.js",
       "source_location": "L92",
       "id": "inboxes_inboxes_service_listmembers",
-      "community": 12,
+      "community": 11,
       "norm_label": "listmembers()"
     },
     {
@@ -513,7 +513,7 @@
       "source_file": "backend/src/modules/inboxes/inboxes.service.js",
       "source_location": "L107",
       "id": "inboxes_inboxes_service_addmember",
-      "community": 12,
+      "community": 11,
       "norm_label": "addmember()"
     },
     {
@@ -522,7 +522,7 @@
       "source_file": "backend/src/modules/inboxes/inboxes.service.js",
       "source_location": "L128",
       "id": "inboxes_inboxes_service_removemember",
-      "community": 12,
+      "community": 11,
       "norm_label": "removemember()"
     },
     {
@@ -531,7 +531,7 @@
       "source_file": "backend/src/modules/inboxes/inboxes.service.js",
       "source_location": "L136",
       "id": "inboxes_inboxes_service_getuserinboxids",
-      "community": 12,
+      "community": 11,
       "norm_label": "getuserinboxids()"
     },
     {
@@ -720,7 +720,7 @@
       "source_file": "backend/src/modules/messages/messages.service.js",
       "source_location": "L1",
       "id": "backend_src_modules_messages_messages_service_js",
-      "community": 34,
+      "community": 33,
       "norm_label": "messages.service.js"
     },
     {
@@ -729,7 +729,7 @@
       "source_file": "backend/src/modules/messages/messages.service.js",
       "source_location": "L20",
       "id": "messages_messages_service_list",
-      "community": 34,
+      "community": 33,
       "norm_label": "list()"
     },
     {
@@ -738,7 +738,7 @@
       "source_file": "backend/src/modules/messages/messages.service.js",
       "source_location": "L46",
       "id": "messages_messages_service_send",
-      "community": 34,
+      "community": 33,
       "norm_label": "send()"
     },
     {
@@ -747,7 +747,7 @@
       "source_file": "backend/src/modules/messages/messages.service.js",
       "source_location": "L146",
       "id": "messages_messages_service_insertinbound",
-      "community": 34,
+      "community": 33,
       "norm_label": "insertinbound()"
     },
     {
@@ -756,7 +756,7 @@
       "source_file": "backend/src/modules/messages/messages.router.js",
       "source_location": "L1",
       "id": "backend_src_modules_messages_messages_router_js",
-      "community": 43,
+      "community": 42,
       "norm_label": "messages.router.js"
     },
     {
@@ -765,7 +765,7 @@
       "source_file": "backend/src/modules/messages/messages.router.js",
       "source_location": "L15",
       "id": "messages_messages_router_assertconversationaccess",
-      "community": 43,
+      "community": 42,
       "norm_label": "assertconversationaccess()"
     },
     {
@@ -1062,7 +1062,7 @@
       "source_file": "backend/src/modules/departments/departments.service.js",
       "source_location": "L1",
       "id": "backend_src_modules_departments_departments_service_js",
-      "community": 11,
+      "community": 13,
       "norm_label": "departments.service.js"
     },
     {
@@ -1071,7 +1071,7 @@
       "source_file": "backend/src/modules/departments/departments.service.js",
       "source_location": "L7",
       "id": "departments_departments_service_list",
-      "community": 11,
+      "community": 13,
       "norm_label": "list()"
     },
     {
@@ -1080,7 +1080,7 @@
       "source_file": "backend/src/modules/departments/departments.service.js",
       "source_location": "L23",
       "id": "departments_departments_service_getbyid",
-      "community": 11,
+      "community": 13,
       "norm_label": "getbyid()"
     },
     {
@@ -1089,7 +1089,7 @@
       "source_file": "backend/src/modules/departments/departments.service.js",
       "source_location": "L31",
       "id": "departments_departments_service_create",
-      "community": 11,
+      "community": 13,
       "norm_label": "create()"
     },
     {
@@ -1098,7 +1098,7 @@
       "source_file": "backend/src/modules/departments/departments.service.js",
       "source_location": "L40",
       "id": "departments_departments_service_update",
-      "community": 11,
+      "community": 13,
       "norm_label": "update()"
     },
     {
@@ -1107,7 +1107,7 @@
       "source_file": "backend/src/modules/departments/departments.service.js",
       "source_location": "L59",
       "id": "departments_departments_service_remove",
-      "community": 11,
+      "community": 13,
       "norm_label": "remove()"
     },
     {
@@ -1116,7 +1116,7 @@
       "source_file": "backend/src/modules/departments/departments.service.js",
       "source_location": "L67",
       "id": "departments_departments_service_listagents",
-      "community": 11,
+      "community": 13,
       "norm_label": "listagents()"
     },
     {
@@ -1125,7 +1125,7 @@
       "source_file": "backend/src/modules/departments/departments.service.js",
       "source_location": "L84",
       "id": "departments_departments_service_assignagent",
-      "community": 11,
+      "community": 13,
       "norm_label": "assignagent()"
     },
     {
@@ -1134,7 +1134,7 @@
       "source_file": "backend/src/modules/departments/departments.service.js",
       "source_location": "L100",
       "id": "departments_departments_service_removeagent",
-      "community": 11,
+      "community": 13,
       "norm_label": "removeagent()"
     },
     {
@@ -1143,7 +1143,7 @@
       "source_file": "backend/src/modules/departments/departments.service.js",
       "source_location": "L110",
       "id": "departments_departments_service_listunassignedagents",
-      "community": 11,
+      "community": 13,
       "norm_label": "listunassignedagents()"
     },
     {
@@ -1296,7 +1296,7 @@
       "source_file": "backend/src/modules/reports/reports.service.js",
       "source_location": "L1",
       "id": "backend_src_modules_reports_reports_service_js",
-      "community": 33,
+      "community": 34,
       "norm_label": "reports.service.js"
     },
     {
@@ -1305,7 +1305,7 @@
       "source_file": "backend/src/modules/reports/reports.service.js",
       "source_location": "L8",
       "id": "reports_reports_service_getsummary",
-      "community": 33,
+      "community": 34,
       "norm_label": "getsummary()"
     },
     {
@@ -1314,7 +1314,7 @@
       "source_file": "backend/src/modules/reports/reports.service.js",
       "source_location": "L45",
       "id": "reports_reports_service_getagentperformance",
-      "community": 33,
+      "community": 34,
       "norm_label": "getagentperformance()"
     },
     {
@@ -1323,7 +1323,7 @@
       "source_file": "backend/src/modules/reports/reports.service.js",
       "source_location": "L77",
       "id": "reports_reports_service_getvolumebyday",
-      "community": 33,
+      "community": 34,
       "norm_label": "getvolumebyday()"
     },
     {
@@ -1861,7 +1861,7 @@
       "label": "createTicketFromConversation()",
       "file_type": "code",
       "source_file": "backend/src/modules/tickets/tickets.service.js",
-      "source_location": "L896",
+      "source_location": "L904",
       "id": "tickets_tickets_service_createticketfromconversation",
       "community": 0,
       "norm_label": "createticketfromconversation()"
@@ -1870,7 +1870,7 @@
       "label": "listComments()",
       "file_type": "code",
       "source_file": "backend/src/modules/tickets/tickets.service.js",
-      "source_location": "L931",
+      "source_location": "L939",
       "id": "tickets_tickets_service_listcomments",
       "community": 0,
       "norm_label": "listcomments()"
@@ -1879,7 +1879,7 @@
       "label": "createComment()",
       "file_type": "code",
       "source_file": "backend/src/modules/tickets/tickets.service.js",
-      "source_location": "L953",
+      "source_location": "L961",
       "id": "tickets_tickets_service_createcomment",
       "community": 0,
       "norm_label": "createcomment()"
@@ -1888,7 +1888,7 @@
       "label": "deleteComment()",
       "file_type": "code",
       "source_file": "backend/src/modules/tickets/tickets.service.js",
-      "source_location": "L969",
+      "source_location": "L977",
       "id": "tickets_tickets_service_deletecomment",
       "community": 0,
       "norm_label": "deletecomment()"
@@ -1897,7 +1897,7 @@
       "label": "listAttachments()",
       "file_type": "code",
       "source_file": "backend/src/modules/tickets/tickets.service.js",
-      "source_location": "L981",
+      "source_location": "L989",
       "id": "tickets_tickets_service_listattachments",
       "community": 0,
       "norm_label": "listattachments()"
@@ -1906,7 +1906,7 @@
       "label": "addAttachment()",
       "file_type": "code",
       "source_file": "backend/src/modules/tickets/tickets.service.js",
-      "source_location": "L992",
+      "source_location": "L1000",
       "id": "tickets_tickets_service_addattachment",
       "community": 0,
       "norm_label": "addattachment()"
@@ -1915,7 +1915,7 @@
       "label": "deleteAttachment()",
       "file_type": "code",
       "source_file": "backend/src/modules/tickets/tickets.service.js",
-      "source_location": "L1001",
+      "source_location": "L1009",
       "id": "tickets_tickets_service_deleteattachment",
       "community": 0,
       "norm_label": "deleteattachment()"
@@ -1924,7 +1924,7 @@
       "label": "createAlert()",
       "file_type": "code",
       "source_file": "backend/src/modules/tickets/tickets.service.js",
-      "source_location": "L1007",
+      "source_location": "L1015",
       "id": "tickets_tickets_service_createalert",
       "community": 0,
       "norm_label": "createalert()"
@@ -1933,7 +1933,7 @@
       "label": "listMyAlerts()",
       "file_type": "code",
       "source_file": "backend/src/modules/tickets/tickets.service.js",
-      "source_location": "L1016",
+      "source_location": "L1024",
       "id": "tickets_tickets_service_listmyalerts",
       "community": 0,
       "norm_label": "listmyalerts()"
@@ -1942,7 +1942,7 @@
       "label": "markAlertRead()",
       "file_type": "code",
       "source_file": "backend/src/modules/tickets/tickets.service.js",
-      "source_location": "L1030",
+      "source_location": "L1038",
       "id": "tickets_tickets_service_markalertread",
       "community": 0,
       "norm_label": "markalertread()"
@@ -1951,7 +1951,7 @@
       "label": "markAllAlertsRead()",
       "file_type": "code",
       "source_file": "backend/src/modules/tickets/tickets.service.js",
-      "source_location": "L1037",
+      "source_location": "L1045",
       "id": "tickets_tickets_service_markallalertsread",
       "community": 0,
       "norm_label": "markallalertsread()"
@@ -1960,7 +1960,7 @@
       "label": "getStorageUsage()",
       "file_type": "code",
       "source_file": "backend/src/modules/tickets/tickets.service.js",
-      "source_location": "L1043",
+      "source_location": "L1051",
       "id": "tickets_tickets_service_getstorageusage",
       "community": 0,
       "norm_label": "getstorageusage()"
@@ -2277,7 +2277,7 @@
       "source_file": "backend/src/services/pdf.service.js",
       "source_location": "L1",
       "id": "backend_src_services_pdf_service_js",
-      "community": 42,
+      "community": 43,
       "norm_label": "pdf.service.js"
     },
     {
@@ -2286,7 +2286,7 @@
       "source_file": "backend/src/services/pdf.service.js",
       "source_location": "L12",
       "id": "services_pdf_service_extractpdftext",
-      "community": 42,
+      "community": 43,
       "norm_label": "extractpdftext()"
     },
     {
@@ -3859,7 +3859,7 @@
       "label": "deleteAttachment()",
       "file_type": "code",
       "source_file": "frontend/src/app/dashboard/tickets/[boardId]/[ticketId]/page.tsx",
-      "source_location": "L339",
+      "source_location": "L342",
       "id": "ticketid_page_deleteattachment",
       "community": 2,
       "norm_label": "deleteattachment()"
@@ -3868,7 +3868,7 @@
       "label": "deleteTicket()",
       "file_type": "code",
       "source_file": "frontend/src/app/dashboard/tickets/[boardId]/[ticketId]/page.tsx",
-      "source_location": "L345",
+      "source_location": "L348",
       "id": "ticketid_page_deleteticket",
       "community": 2,
       "norm_label": "deleteticket()"
@@ -12590,5 +12590,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "a3e9a36d9b717211c1408972cd28a269e014dfbd"
+  "built_at_commit": "dd332157383ca9d1cac79d502b332dd20014f22c"
 }

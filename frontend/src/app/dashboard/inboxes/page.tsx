@@ -30,8 +30,10 @@ export default function InboxesPage() {
   const [inboxMembers,   setInboxMembers]   = useState<InboxMember[]>([]);
   const [wsMembers,      setWsMembers]      = useState<WsMember[]>([]);
   const [addingMember,   setAddingMember]   = useState(false);
-  const [form,       setForm]       = useState({
-    name: '', evolutionApiUrl: '', evolutionApiKey: '', evolutionInstance: '',
+  const [form, setForm] = useState({
+    name: '', channelType: 'whatsapp_evolution',
+    evolutionApiUrl: '', evolutionApiKey: '', evolutionInstance: '',
+    wabaPhoneNumberId: '', wabaAccessToken: '', wabaBusinessId: '', phoneNumber: '',
   });
 
   const load = useCallback(async () => {
@@ -48,7 +50,11 @@ export default function InboxesPage() {
     if (!currentWorkspace) return;
     await api.post(`/workspaces/${currentWorkspace.id}/inboxes`, form);
     setCreating(false);
-    setForm({ name: '', evolutionApiUrl: '', evolutionApiKey: '', evolutionInstance: '' });
+    setForm({
+      name: '', channelType: 'whatsapp_evolution',
+      evolutionApiUrl: '', evolutionApiKey: '', evolutionInstance: '',
+      wabaPhoneNumberId: '', wabaAccessToken: '', wabaBusinessId: '', phoneNumber: '',
+    });
     load();
   }
 
@@ -144,24 +150,79 @@ export default function InboxesPage() {
         {/* Create form */}
         {creating && (
           <div className="card p-6 mb-6 max-w-lg">
-            <h2 className="font-semibold text-gray-900 mb-4">Criar inbox WhatsApp</h2>
+            <h2 className="font-semibold text-gray-900 mb-4">Criar novo inbox</h2>
             <form onSubmit={handleCreate} className="space-y-3">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Nome</label>
                 <input className="input" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required placeholder="Ex: WhatsApp Vendas" />
               </div>
+
+              {/* Tipo de canal */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Evolution API URL</label>
-                <input className="input" value={form.evolutionApiUrl} onChange={(e) => setForm({ ...form, evolutionApiUrl: e.target.value })} placeholder="https://evolution.meuserver.com" />
+                <label className="block text-sm font-medium text-gray-700 mb-1">Tipo de canal</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setForm({ ...form, channelType: 'whatsapp_evolution' })}
+                    className={`p-3 rounded-lg border-2 text-left transition-colors ${form.channelType === 'whatsapp_evolution' ? 'border-brand-500 bg-brand-50' : 'border-gray-200 hover:border-gray-300'}`}
+                  >
+                    <div className="text-sm font-medium text-gray-900">Evolution API</div>
+                    <div className="text-xs text-gray-500 mt-0.5">WhatsApp Web (não oficial)</div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setForm({ ...form, channelType: 'whatsapp_official' })}
+                    className={`p-3 rounded-lg border-2 text-left transition-colors ${form.channelType === 'whatsapp_official' ? 'border-green-500 bg-green-50' : 'border-gray-200 hover:border-gray-300'}`}
+                  >
+                    <div className="text-sm font-medium text-gray-900">API Oficial Meta</div>
+                    <div className="text-xs text-gray-500 mt-0.5">WhatsApp Business Cloud</div>
+                  </button>
+                </div>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">API Key</label>
-                <input className="input" value={form.evolutionApiKey} onChange={(e) => setForm({ ...form, evolutionApiKey: e.target.value })} placeholder="sua-api-key" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Instance name</label>
-                <input className="input" value={form.evolutionInstance} onChange={(e) => setForm({ ...form, evolutionInstance: e.target.value })} placeholder="minha-instancia" />
-              </div>
+
+              {/* Campos Evolution */}
+              {form.channelType === 'whatsapp_evolution' && (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Evolution API URL</label>
+                    <input className="input" value={form.evolutionApiUrl} onChange={(e) => setForm({ ...form, evolutionApiUrl: e.target.value })} placeholder="https://evolution.meuserver.com" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">API Key</label>
+                    <input className="input" value={form.evolutionApiKey} onChange={(e) => setForm({ ...form, evolutionApiKey: e.target.value })} placeholder="sua-api-key" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Instance name</label>
+                    <input className="input" value={form.evolutionInstance} onChange={(e) => setForm({ ...form, evolutionInstance: e.target.value })} placeholder="minha-instancia" />
+                  </div>
+                </>
+              )}
+
+              {/* Campos WABA */}
+              {form.channelType === 'whatsapp_official' && (
+                <>
+                  <div className="rounded-lg bg-green-50 border border-green-200 p-3 text-xs text-green-800">
+                    Precisa de uma conta aprovada no <strong>WhatsApp Business Platform</strong> (Meta Business Suite). O número não pode estar ativo no WhatsApp comum.
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number ID</label>
+                    <input className="input" value={form.wabaPhoneNumberId} onChange={(e) => setForm({ ...form, wabaPhoneNumberId: e.target.value })} placeholder="123456789012345" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Access Token (System User)</label>
+                    <input className="input" type="password" value={form.wabaAccessToken} onChange={(e) => setForm({ ...form, wabaAccessToken: e.target.value })} placeholder="EAAxxxxxxx..." />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">WhatsApp Business Account ID</label>
+                    <input className="input" value={form.wabaBusinessId} onChange={(e) => setForm({ ...form, wabaBusinessId: e.target.value })} placeholder="123456789012345" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Número de telefone</label>
+                    <input className="input" value={form.phoneNumber} onChange={(e) => setForm({ ...form, phoneNumber: e.target.value })} placeholder="+5511999999999" />
+                  </div>
+                </>
+              )}
+
               <div className="flex gap-2 pt-2">
                 <button type="submit" className="btn-primary">Criar</button>
                 <button type="button" className="btn-secondary" onClick={() => setCreating(false)}>Cancelar</button>

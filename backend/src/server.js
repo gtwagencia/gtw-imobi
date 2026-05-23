@@ -37,6 +37,7 @@ const uploadsRouter       = require('./modules/uploads/uploads.router');
 const ticketsRouter       = require('./modules/tickets/tickets.router');
 const googleCalendarRouter = require('./modules/integrations/google-calendar.router');
 const mailIntegrationRouter = require('./modules/integrations/mail.router');
+const broadcastsRouter     = require('./modules/broadcasts/broadcasts.router');
 
 const app    = express();
 const server = http.createServer(app);
@@ -99,6 +100,7 @@ app.use('/api/v1/integrations/mail',                       mailIntegrationRouter
 app.use('/api/v1/conversations/:conversationId/messages',  messagesRouter);
 app.use('/api/v1/webhooks',                                webhooksRouter);
 app.use('/api/v1/workspaces/:workspaceId/meta',            metaRouter);
+app.use('/api/v1/workspaces/:workspaceId/broadcasts',      requireNotTicketsOnly, broadcastsRouter);
 
 // ── Health ─────────────────────────────────────────────────────────────────
 app.get('/health', (_req, res) => res.json({ ok: true, ts: new Date() }));
