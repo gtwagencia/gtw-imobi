@@ -849,6 +849,8 @@ router.get('/waba', (req, res) => {
   const token     = req.query['hub.verify_token'];
   const challenge = req.query['hub.challenge'];
 
+  logger.info('[WABA] webhook verify', { mode, tokenMatch: token === process.env.WABA_VERIFY_TOKEN, envSet: !!process.env.WABA_VERIFY_TOKEN });
+
   if (mode !== 'subscribe') return res.sendStatus(400);
   if (!process.env.WABA_VERIFY_TOKEN || token !== process.env.WABA_VERIFY_TOKEN) return res.sendStatus(403);
 
