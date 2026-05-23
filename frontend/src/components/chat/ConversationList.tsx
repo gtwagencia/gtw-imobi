@@ -7,12 +7,13 @@ import clsx from 'clsx';
 import api from '@/lib/api';
 import { getSocket } from '@/lib/socket';
 import type { Conversation, Message } from '@/types';
-import { Search, Filter, X, ChevronDown, AlertTriangle, Users, Megaphone } from 'lucide-react';
+import { Search, Filter, X, ChevronDown, AlertTriangle, Users, Megaphone, Plus } from 'lucide-react';
 
 interface Props {
-  workspaceId: string;
-  selected:    string | null;
-  onSelect:    (conv: Conversation) => void;
+  workspaceId:        string;
+  selected:           string | null;
+  onSelect:           (conv: Conversation) => void;
+  onNewConversation?: () => void;
 }
 
 interface FilterState {
@@ -33,7 +34,7 @@ const STATUS_TABS = [
   { key: 'groups',   label: 'Grupos'     },
 ];
 
-export default function ConversationList({ workspaceId, selected, onSelect }: Props) {
+export default function ConversationList({ workspaceId, selected, onSelect, onNewConversation }: Props) {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [status,       setStatus]       = useState('open');
   const [search,       setSearch]       = useState('');
@@ -208,6 +209,16 @@ export default function ConversationList({ workspaceId, selected, onSelect }: Pr
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
+
+          {onNewConversation && (
+            <button
+              onClick={onNewConversation}
+              title="Nova conversa"
+              className="flex items-center justify-center w-9 h-9 rounded-xl border border-gray-200 bg-white hover:bg-brand-50 hover:border-brand-300 text-gray-500 hover:text-brand-600 transition-colors shrink-0"
+            >
+              <Plus className="w-4 h-4" />
+            </button>
+          )}
 
           <div className="relative" ref={filterRef}>
             <button

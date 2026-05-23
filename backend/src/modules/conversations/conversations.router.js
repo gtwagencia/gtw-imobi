@@ -39,6 +39,42 @@ router.get('/meta/campaigns', authenticate, workspaceContext, async (req, res, n
   } catch (err) { next(err); }
 });
 
+// POST / — cria conversa outbound para um contato existente
+router.post('/', authenticate, workspaceContext, async (req, res, next) => {
+  try {
+    const { inboxId, contactId, firstMessage } = req.body;
+    if (!inboxId || !contactId) {
+      return res.status(400).json({ error: 'inboxId e contactId são obrigatórios' });
+    }
+
+    const { query } = require('../../config/database');
+    const contactRes = await query(
+      'SELECT id, phone FROM contacts WHERE id = $1 AND workspace_id = $2',
+      [contactId, req.params.workspaceId]
+    );
+    if (!contactRes.rows.length) return res.status(404).json({ error: 'Contato não encontrado' });
+    const contact = contactRes.rows[0];
+    if (!contact.phone) return res.status(400).json({ error: 'Contato sem número de telefone' });
+
+    const { conversation } = await svc.findOrCreate(req.params.workspaceId, {
+      inboxId,
+      contactId,
+      remoteJid: contact.phone,
+    });
+
+    if (firstMessage?.trim()) {
+      const msgSvc = require('../messages/messages.service');
+      await msgSvc.send(conversation.id, req.user.sub, {
+        content: firstMessage.trim(),
+        messageType: 'text',
+      });
+    }
+
+    const full = await svc.getById(conversation.id, req.params.workspaceId, getCaller(req));
+    res.status(201).json(full);
+  } catch (err) { next(err); }
+});
+
 router.get('/:conversationId', authenticate, workspaceContext, async (req, res, next) => {
   try {
     const conv = await svc.getById(

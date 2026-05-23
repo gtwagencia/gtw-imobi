@@ -2,7 +2,7 @@
 
 const { query } = require('../../config/database');
 
-async function list(workspaceId, { search, page = 1, limit = 50 } = {}) {
+async function list(workspaceId, { search, tags, page = 1, limit = 50 } = {}) {
   const offset = (page - 1) * limit;
   const params = [workspaceId];
   let where = 'WHERE c.workspace_id = $1';
@@ -10,6 +10,11 @@ async function list(workspaceId, { search, page = 1, limit = 50 } = {}) {
   if (search) {
     params.push(`%${search}%`);
     where += ` AND (c.name ILIKE $${params.length} OR c.phone ILIKE $${params.length} OR c.email ILIKE $${params.length})`;
+  }
+
+  if (tags?.length) {
+    params.push(tags);
+    where += ` AND c.tags && $${params.length}::text[]`;
   }
 
   const countRes = await query(`SELECT COUNT(*) FROM contacts c ${where}`, params);

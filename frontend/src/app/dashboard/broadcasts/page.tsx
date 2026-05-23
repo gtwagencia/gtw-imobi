@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/store/auth';
 import Header from '@/components/layout/Header';
 import api from '@/lib/api';
-import { Plus, Play, Pause, X, Send, Users, CheckCircle, AlertCircle, Clock, ChevronRight, Trash2, RefreshCw, LayoutTemplate } from 'lucide-react';
+import { Plus, Play, Pause, X, Send, Users, CheckCircle, AlertCircle, Clock, ChevronRight, Trash2, RefreshCw, LayoutTemplate, Info } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -98,17 +98,19 @@ function CreateBroadcastModal({ workspaceId, inboxes, onClose, onCreated }: {
   const selectedInbox = inboxes.find(i => i.id === form.inboxId);
   const isWaba        = selectedInbox?.channel_type === 'whatsapp_official';
 
-  // Carrega contatos
+  // Carrega contatos — filtra por search e por tags em tempo real
   const loadContacts = useCallback(async () => {
     setLoadingC(true);
     try {
       const params: Record<string, unknown> = { page, limit: 50 };
       if (search) params.search = search;
+      const activeTags = form.filterTags.trim();
+      if (activeTags) params.tags = activeTags;
       const { data } = await api.get(`/workspaces/${workspaceId}/contacts`, { params });
       setContacts(data.data);
       setTotal(data.total);
     } finally { setLoadingC(false); }
-  }, [workspaceId, search, page]);
+  }, [workspaceId, search, page, form.filterTags]);
 
   useEffect(() => { loadContacts(); }, [loadContacts]);
 
@@ -356,10 +358,10 @@ function CreateBroadcastModal({ workspaceId, inboxes, onClose, onCreated }: {
               <input
                 className="input"
                 value={form.filterTags}
-                onChange={e => setForm(p => ({ ...p, filterTags: e.target.value }))}
+                onChange={e => { setForm(p => ({ ...p, filterTags: e.target.value })); setPage(1); }}
                 placeholder="lead, premium"
               />
-              <p className="text-xs text-gray-400 mt-1">Separe por vírgula</p>
+              <p className="text-xs text-gray-400 mt-1">Separe por vírgula — lista de contatos filtra em tempo real</p>
             </div>
           </div>
 
@@ -440,15 +442,113 @@ function ProgressBar({ value, total, color = 'bg-brand-500' }: { value: number; 
   );
 }
 
+// ── Modal de detalhes / falhas ────────────────────────────────────────────────
+
+interface BroadcastContact {
+  id: string; contact_name: string; phone: string;
+  status: string; error_message: string | null; sent_at: string | null;
+}
+
+function BroadcastDetailsModal({ workspaceId, broadcastId, broadcastName, onClose }: {
+  workspaceId: string;
+  broadcastId: string;
+  broadcastName: string;
+  onClose: () => void;
+}) {
+  const [contacts, setContacts] = useState<BroadcastContact[]>([]);
+  const [loading, setLoading]   = useState(true);
+  const [filter, setFilter]     = useState<'all' | 'failed'>('failed');
+
+  useEffect(() => {
+    api.get(`/workspaces/${workspaceId}/broadcasts/${broadcastId}/contacts`, { params: { limit: 200 } })
+      .then(({ data }) => setContacts(data.data))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [workspaceId, broadcastId]);
+
+  const shown = filter === 'failed' ? contacts.filter(c => c.status === 'failed') : contacts;
+
+  const STATUS_LABEL: Record<string, { label: string; color: string }> = {
+    pending:   { label: 'Pendente',  color: 'text-gray-500' },
+    sent:      { label: 'Enviado',   color: 'text-green-600' },
+    delivered: { label: 'Entregue',  color: 'text-blue-600' },
+    read:      { label: 'Lido',      color: 'text-blue-700' },
+    failed:    { label: 'Falhou',    color: 'text-red-600' },
+    skipped:   { label: 'Ignorado',  color: 'text-orange-500' },
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-6 py-4 border-b">
+          <div>
+            <h2 className="font-semibold text-gray-900">Detalhes do broadcast</h2>
+            <p className="text-xs text-gray-400 mt-0.5">{broadcastName}</p>
+          </div>
+          <button onClick={onClose}><X className="w-5 h-5 text-gray-400" /></button>
+        </div>
+
+        <div className="px-6 pt-4 flex gap-2">
+          <button
+            onClick={() => setFilter('failed')}
+            className={`text-xs px-3 py-1.5 rounded-full font-medium transition-colors ${filter === 'failed' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+          >
+            Só falhas ({contacts.filter(c => c.status === 'failed').length})
+          </button>
+          <button
+            onClick={() => setFilter('all')}
+            className={`text-xs px-3 py-1.5 rounded-full font-medium transition-colors ${filter === 'all' ? 'bg-brand-100 text-brand-700' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+          >
+            Todos ({contacts.length})
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-6 pt-3">
+          {loading ? (
+            <div className="py-8 text-center text-sm text-gray-400">Carregando...</div>
+          ) : shown.length === 0 ? (
+            <div className="py-8 text-center text-sm text-gray-400">
+              {filter === 'failed' ? 'Nenhuma falha registrada' : 'Nenhum contato'}
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {shown.map(c => {
+                const st = STATUS_LABEL[c.status] || { label: c.status, color: 'text-gray-500' };
+                return (
+                  <div key={c.id} className={`rounded-xl border p-3 ${c.status === 'failed' ? 'border-red-200 bg-red-50' : 'border-gray-100'}`}>
+                    <div className="flex items-center justify-between gap-2">
+                      <div>
+                        <span className="text-sm font-medium text-gray-900">{c.contact_name}</span>
+                        <span className="text-xs text-gray-400 ml-2">{c.phone}</span>
+                      </div>
+                      <span className={`text-xs font-medium shrink-0 ${st.color}`}>{st.label}</span>
+                    </div>
+                    {c.error_message && (
+                      <p className="text-xs text-red-600 mt-1.5 font-mono bg-red-100 rounded px-2 py-1 break-all">
+                        {c.error_message}
+                      </p>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Página principal ──────────────────────────────────────────────────────────
 
 export default function BroadcastsPage() {
   const { currentWorkspace } = useAuth();
-  const [broadcasts, setBroadcasts] = useState<Broadcast[]>([]);
-  const [total, setTotal]           = useState(0);
-  const [loading, setLoading]       = useState(true);
-  const [inboxes, setInboxes]       = useState<Inbox[]>([]);
-  const [creating, setCreating]     = useState(false);
+  const [broadcasts, setBroadcasts]   = useState<Broadcast[]>([]);
+  const [total, setTotal]             = useState(0);
+  const [loading, setLoading]         = useState(true);
+  const [inboxes, setInboxes]         = useState<Inbox[]>([]);
+  const [creating, setCreating]       = useState(false);
+  const [detailsFor, setDetailsFor]   = useState<Broadcast | null>(null);
 
   const load = useCallback(async () => {
     if (!currentWorkspace) return;
@@ -561,7 +661,12 @@ export default function BroadcastsPage() {
                             <span className="flex items-center gap-1"><Users className="w-3 h-3" />{b.total_contacts} contatos</span>
                             <span className="flex items-center gap-1 text-green-600"><CheckCircle className="w-3 h-3" />{b.sent_count} enviados</span>
                             {b.failed_count > 0 && (
-                              <span className="flex items-center gap-1 text-red-500"><AlertCircle className="w-3 h-3" />{b.failed_count} falhas</span>
+                              <button
+                                onClick={() => setDetailsFor(b)}
+                                className="flex items-center gap-1 text-red-500 hover:underline"
+                              >
+                                <AlertCircle className="w-3 h-3" />{b.failed_count} falhas
+                              </button>
                             )}
                             {b.read_count > 0 && (
                               <span className="flex items-center gap-1 text-blue-600"><ChevronRight className="w-3 h-3" />{b.read_count} lidos</span>
@@ -605,6 +710,9 @@ export default function BroadcastsPage() {
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       )}
+                      <button onClick={() => setDetailsFor(b)} className="btn-ghost text-xs py-1.5 text-gray-400 hover:text-gray-600" title="Ver detalhes">
+                        <Info className="w-3.5 h-3.5" />
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -624,6 +732,15 @@ export default function BroadcastsPage() {
             setTotal(t => t + 1);
             setCreating(false);
           }}
+        />
+      )}
+
+      {detailsFor && currentWorkspace && (
+        <BroadcastDetailsModal
+          workspaceId={currentWorkspace.id}
+          broadcastId={detailsFor.id}
+          broadcastName={detailsFor.name}
+          onClose={() => setDetailsFor(null)}
         />
       )}
     </>

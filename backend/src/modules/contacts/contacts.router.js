@@ -11,9 +11,11 @@ const upload  = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10
 
 router.get('/', authenticate, workspaceContext, async (req, res, next) => {
   try {
-    const { search, page, limit } = req.query;
+    const { search, tags, page, limit } = req.query;
+    const tagsArr = tags ? tags.split(',').map(t => t.trim()).filter(Boolean) : undefined;
     const result = await svc.list(req.params.workspaceId, {
       search: search?.slice(0, 200),
+      tags:   tagsArr,
       page:   parseInt(page,  10) || 1,
       limit:  Math.min(parseInt(limit, 10) || 50, 200),
     });
