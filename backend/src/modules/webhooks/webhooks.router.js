@@ -833,4 +833,200 @@ router.post('/evolution/:inboxId', async (req, res) => {
   }
 });
 
+// ── WABA (WhatsApp Official Cloud API) webhook ─────────────────────────────
+//
+// Um único app Meta serve múltiplos números/WABAs.
+// O Meta aceita apenas UMA URL de webhook por app — roteamos pelo phone_number_id.
+//
+// Configurar no Meta App:
+//   URL:          https://seudominio.com/api/v1/webhooks/waba
+//   Verify token: valor da env WABA_VERIFY_TOKEN
+//   Campos:       messages
+
+// GET /waba — verificação de challenge
+router.get('/waba', (req, res) => {
+  const mode      = req.query['hub.mode'];
+  const token     = req.query['hub.verify_token'];
+  const challenge = req.query['hub.challenge'];
+
+  if (mode !== 'subscribe') return res.sendStatus(400);
+  if (!process.env.WABA_VERIFY_TOKEN || token !== process.env.WABA_VERIFY_TOKEN) return res.sendStatus(403);
+
+  res.status(200).send(challenge);
+});
+
+// POST /waba — eventos de todas as inboxes oficiais
+router.post('/waba', async (req, res) => {
+  res.json({ ok: true }); // responde imediatamente — o Meta exige resposta rápida
+
+  try {
+    const entry   = req.body?.entry?.[0];
+    const changes = entry?.changes?.[0]?.value;
+    if (!changes) return;
+
+    // Roteia para a inbox correta pelo phone_number_id presente no payload
+    const phoneNumberId = changes.metadata?.phone_number_id;
+    if (!phoneNumberId) return;
+
+    const inboxRes = await query(
+      `SELECT * FROM inboxes WHERE waba_phone_number_id = $1 AND channel_type = 'whatsapp_official'`,
+      [phoneNumberId]
+    );
+    if (!inboxRes.rows.length) {
+      logger.warn('WABA webhook: nenhuma inbox para phone_number_id', { phoneNumberId });
+      return;
+    }
+    const inbox   = inboxRes.rows[0];
+    const inboxId = inbox.id;
+    const io      = req.app.get('io');
+
+    // ── Status updates (delivered, read, failed) ─────────────────────
+    if (changes.statuses?.length) {
+      for (const st of changes.statuses) {
+        const statusMap = { delivered: 'delivered', read: 'read', failed: 'failed' };
+        const newStatus = statusMap[st.status];
+        if (newStatus) {
+          await query('UPDATE messages SET status = $1 WHERE evolution_msg_id = $2', [newStatus, st.id]);
+          io?.emit('message:status', { evolutionMsgId: st.id, status: newStatus });
+        }
+      }
+    }
+
+    if (!changes.messages?.length) return;
+
+    // Marca inbox como conectado na primeira mensagem recebida
+    if (inbox.connection_status !== 'connected') {
+      await query(
+        `UPDATE inboxes SET connection_status = 'connected', updated_at = NOW() WHERE id = $1`,
+        [inboxId]
+      );
+      io?.to(`ws:${inbox.workspace_id}`).emit('inbox:status', { inboxId, connectionStatus: 'connected' });
+    }
+
+    for (const msg of changes.messages) {
+      const phone    = msg.from;
+      const waMsgId  = msg.id;
+      const pushName = changes.contacts?.find(c => c.wa_id === phone)?.profile?.name || phone;
+
+      let content = '', messageType = 'text', mediaUrl = null, mediaMimeType = null;
+
+      if (msg.type === 'text') {
+        content     = msg.text?.body || '';
+        messageType = 'text';
+      } else if (['image','video','audio','document','sticker'].includes(msg.type)) {
+        const mediaObj = msg[msg.type];
+        content       = mediaObj?.caption || mediaObj?.filename || '';
+        messageType   = msg.type === 'sticker' ? 'sticker' : msg.type;
+        mediaMimeType = mediaObj?.mime_type || null;
+
+        if (mediaObj?.id && inbox.waba_access_token) {
+          try {
+            const metaRes = await axios.get(
+              `https://graph.facebook.com/v19.0/${mediaObj.id}`,
+              { headers: { Authorization: `Bearer ${inbox.waba_access_token}` }, timeout: 10000 }
+            );
+            const dlUrl = metaRes.data?.url;
+            if (dlUrl) {
+              const dlRes = await axios.get(dlUrl, {
+                headers: { Authorization: `Bearer ${inbox.waba_access_token}` },
+                responseType: 'arraybuffer', timeout: 30000,
+              });
+              const mime     = cleanMime(mediaMimeType || 'application/octet-stream');
+              const filename = `${uuidv4()}${MIME_EXT[mime] || '.bin'}`;
+              mediaUrl = await storageSvc.uploadFile(Buffer.from(dlRes.data), filename, mime);
+            }
+          } catch (err) {
+            logger.warn('WABA media download failed', { err: err.message, mediaId: mediaObj.id });
+          }
+        }
+      } else if (msg.type === 'location') {
+        const loc = msg.location;
+        content     = `📍 Localização\nhttps://www.google.com/maps?q=${loc?.latitude},${loc?.longitude}`;
+        messageType = 'location';
+      } else if (msg.type === 'reaction') {
+        content     = msg.reaction?.emoji || '👍';
+        messageType = 'reaction';
+      } else if (msg.type === 'interactive') {
+        content     = msg.interactive?.button_reply?.title || msg.interactive?.list_reply?.title || '[Interação]';
+        messageType = 'text';
+      } else {
+        content     = `[${msg.type}]`;
+        messageType = 'unsupported';
+      }
+
+      let contact;
+      try {
+        contact = await contactSvc.create(inbox.workspace_id, { name: pushName, phone });
+      } catch {
+        const r = await query('SELECT * FROM contacts WHERE workspace_id = $1 AND phone = $2', [inbox.workspace_id, phone]);
+        contact = r.rows[0];
+      }
+      if (!contact) continue;
+
+      const remoteJid = `${phone}@s.whatsapp.net`;
+      const { conversation, created } = await convSvc.findOrCreate(inbox.workspace_id, {
+        inboxId: inbox.id, contactId: contact.id, remoteJid,
+      });
+
+      const message = await msgSvc.insertInbound(conversation.id, {
+        content, messageType, mediaUrl, mediaMimeType, evolutionMsgId: waMsgId,
+      });
+      if (!message) continue;
+
+      await convSvc.refreshLastMessage(conversation.id);
+      await query(`UPDATE conversations SET last_inbound_at = NOW() WHERE id = $1`, [conversation.id]);
+
+      if (created && inbox.auto_assign && !conversation.assignee_id) {
+        const agentId = await autoAssignAgent(inbox.workspace_id, inbox.id, conversation.department_id);
+        if (agentId) {
+          await query('UPDATE conversations SET assignee_id = $1 WHERE id = $2', [agentId, conversation.id]);
+          conversation.assignee_id = agentId;
+        }
+      }
+
+      if (created) {
+        kanbanSvc.createDealFromConversation(inbox.workspace_id, {
+          contactId: contact.id, contactName: contact.name,
+          conversationId: conversation.id, assigneeId: conversation.assignee_id || null,
+          inboxId: inbox.id,
+        }).catch(err => logger.warn('Auto-deal creation failed (WABA)', { err: err.message }));
+
+        io?.to(`ws:${inbox.workspace_id}`).emit('conversation:new', {
+          conversationId: conversation.id, contactName: contact.name, inboxId: inbox.id,
+        });
+      }
+
+      if (inbox.chatbot_enabled && !conversation.assignee_id && (created || conversation.bot_active)) {
+        const wsRes = await query(
+          'SELECT anthropic_api_key, openai_api_key, ai_provider, ai_model FROM workspaces WHERE id = $1',
+          [inbox.workspace_id]
+        );
+        const ws       = wsRes.rows[0] || {};
+        const provider = ws.ai_provider || 'anthropic';
+        const apiKey   = provider === 'openai' ? ws.openai_api_key : ws.anthropic_api_key;
+        if (apiKey) {
+          await query('UPDATE conversations SET bot_active = true WHERE id = $1', [conversation.id]);
+          aiSvc.generateChatbotResponse(conversation.id, inbox.chatbot_prompt, apiKey, provider, ws.ai_model || null)
+            .then(async (botReply) => {
+              if (!botReply) return;
+              const botMsg = await msgSvc.send(conversation.id, null, { content: botReply, messageType: 'text' });
+              io?.to(`conv:${conversation.id}`).emit('message:new', botMsg);
+              io?.to(`ws:${inbox.workspace_id}`).emit('message:new', botMsg);
+            })
+            .catch(err => logger.warn('Chatbot send failed (WABA)', { err: err.message }));
+        }
+      }
+
+      io?.to(`conv:${conversation.id}`).emit('message:new', { ...message, contact_name: contact.name });
+      io?.to(`ws:${inbox.workspace_id}`).emit('message:new', { ...message, contact_name: contact.name });
+      io?.to(`ws:${inbox.workspace_id}`).emit('conversation:updated', {
+        conversationId: conversation.id, lastMessageAt: new Date(),
+        lastMessageText: content, unreadCount: (conversation.unread_count || 0) + 1,
+      });
+    }
+  } catch (err) {
+    logger.error('WABA webhook processing error', { err: err.message });
+  }
+});
+
 module.exports = router;

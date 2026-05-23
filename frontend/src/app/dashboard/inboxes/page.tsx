@@ -119,9 +119,14 @@ export default function InboxesPage() {
     }
   }
 
-  const statusBadge = (status: string) => {
-    if (status === 'connected')  return <span className="badge-green flex items-center gap-1"><Wifi className="w-3 h-3" />Conectado</span>;
-    if (status === 'connecting') return <span className="badge-yellow flex items-center gap-1"><Loader className="w-3 h-3 animate-spin" />Conectando</span>;
+  const statusBadge = (inbox: Inbox) => {
+    if (inbox.channel_type === 'whatsapp_official') {
+      if (inbox.connection_status === 'connected')
+        return <span className="badge-green flex items-center gap-1"><Wifi className="w-3 h-3" />Ativo</span>;
+      return <span className="badge-blue flex items-center gap-1"><Wifi className="w-3 h-3" />API Oficial</span>;
+    }
+    if (inbox.connection_status === 'connected')  return <span className="badge-green flex items-center gap-1"><Wifi className="w-3 h-3" />Conectado</span>;
+    if (inbox.connection_status === 'connecting') return <span className="badge-yellow flex items-center gap-1"><Loader className="w-3 h-3 animate-spin" />Conectando</span>;
     return <span className="badge-red flex items-center gap-1"><WifiOff className="w-3 h-3" />Desconectado</span>;
   };
 
@@ -262,7 +267,7 @@ export default function InboxesPage() {
                       <h3 className="font-semibold text-gray-900">{inbox.name}</h3>
                       <p className="text-xs text-gray-400 mt-0.5">{inbox.channel_type}</p>
                     </div>
-                    {statusBadge(inbox.connection_status)}
+                    {statusBadge(inbox)}
                   </div>
 
                   {inbox.phone_number && <p className="text-sm text-gray-600 mb-3">{inbox.phone_number}</p>}
@@ -304,12 +309,32 @@ export default function InboxesPage() {
                     </button>
                   </div>
 
-                  <div className="mt-3 text-xs text-gray-400">
-                    <span>Webhook URL: </span>
-                    <code className="text-brand-600 select-all break-all">
-                      {typeof window !== 'undefined' ? `${window.location.origin}/api/v1/webhooks/evolution/${inbox.id}` : `/api/v1/webhooks/evolution/${inbox.id}`}
-                    </code>
-                  </div>
+                  {inbox.channel_type === 'whatsapp_official' ? (
+                    <div className="mt-3 space-y-1 text-xs text-gray-400">
+                      <div>
+                        <span>Webhook URL </span><span className="text-gray-300">(único para todos os números):</span>
+                        <br />
+                        <code className="text-green-400 select-all break-all">
+                          {typeof window !== 'undefined' ? `${window.location.origin}/api/v1/webhooks/waba` : '/api/v1/webhooks/waba'}
+                        </code>
+                      </div>
+                      <div>
+                        <span>Verify Token </span><span className="text-gray-300">(env <code>WABA_VERIFY_TOKEN</code>):</span>
+                        <span className="ml-1 text-amber-400">defina no .env do servidor</span>
+                      </div>
+                      <div>
+                        <span>Phone Number ID desta inbox: </span>
+                        <code className="text-green-400 select-all">{(inbox as any).waba_phone_number_id || '—'}</code>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="mt-3 text-xs text-gray-400">
+                      <span>Webhook URL: </span>
+                      <code className="text-brand-600 select-all break-all">
+                        {typeof window !== 'undefined' ? `${window.location.origin}/api/v1/webhooks/evolution/${inbox.id}` : `/api/v1/webhooks/evolution/${inbox.id}`}
+                      </code>
+                    </div>
+                  )}
                 </div>
 
                 {/* Expanded settings panel */}
@@ -366,22 +391,24 @@ export default function InboxesPage() {
                       )}
                     </div>
 
-                    {/* Groups toggle */}
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex-1">
-                        <div className="text-sm font-medium text-gray-700 flex items-center gap-1.5">
-                          <MessagesSquare className="w-4 h-4 text-green-500" />
-                          Receber mensagens de grupos
+                    {/* Groups toggle — apenas Evolution */}
+                    {inboxes.find(i => i.id === expandedId)?.channel_type !== 'whatsapp_official' && (
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1">
+                          <div className="text-sm font-medium text-gray-700 flex items-center gap-1.5">
+                            <MessagesSquare className="w-4 h-4 text-green-500" />
+                            Receber mensagens de grupos
+                          </div>
+                          <p className="text-xs text-gray-400 mt-0.5">Captura todas as mensagens enviadas e recebidas em grupos do WhatsApp</p>
                         </div>
-                        <p className="text-xs text-gray-400 mt-0.5">Captura todas as mensagens enviadas e recebidas em grupos do WhatsApp</p>
+                        <button
+                          onClick={() => setEditForm(prev => ({ ...prev, groupsEnabled: !prev.groupsEnabled }))}
+                          className={`relative inline-flex h-5 w-9 flex-shrink-0 items-center rounded-full transition-colors ${editForm.groupsEnabled ? 'bg-green-500' : 'bg-gray-200'}`}
+                        >
+                          <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform shadow ${editForm.groupsEnabled ? 'translate-x-4' : 'translate-x-0.5'}`} />
+                        </button>
                       </div>
-                      <button
-                        onClick={() => setEditForm(prev => ({ ...prev, groupsEnabled: !prev.groupsEnabled }))}
-                        className={`relative inline-flex h-5 w-9 flex-shrink-0 items-center rounded-full transition-colors ${editForm.groupsEnabled ? 'bg-green-500' : 'bg-gray-200'}`}
-                      >
-                        <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform shadow ${editForm.groupsEnabled ? 'translate-x-4' : 'translate-x-0.5'}`} />
-                      </button>
-                    </div>
+                    )}
 
                     <div className="flex gap-2 flex-wrap">
                       <button className="btn-primary text-sm" onClick={() => handleSaveSettings(inbox.id)}>Salvar configurações</button>
