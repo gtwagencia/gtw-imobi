@@ -532,6 +532,17 @@ router.post('/evolution/:inboxId', async (req, res) => {
         const phone    = normalizePhone(remoteJid);
         const pushName = msg.pushName || phone;
 
+        // Para inboxes WABA oficiais, ecos de template/botão chegam com conteúdo errado
+        // ("Mensagem com botões"). O broadcast service já salva a mensagem correta;
+        // por isso ignoramos apenas esses tipos para evitar a duplicata errada.
+        if (isFromMe && inbox.channel_type === 'whatsapp_official') {
+          const msgKeys = Object.keys(msg.message || {});
+          const isTemplateEcho = msgKeys.some(k =>
+            k === 'buttonsMessage' || k === 'templateMessage' || k === 'interactiveResponseMessage'
+          );
+          if (isTemplateEcho) continue;
+        }
+
         // ── Message sent FROM the connected phone ─────────────────────
         if (isFromMe) {
           const { content, messageType, mediaUrl, mediaMimeType } = await extractMessageContent(msg, inbox);
