@@ -39,13 +39,23 @@ const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
 
 // ── Helpers para templates WABA ───────────────────────────────────────────────
 
-function getBodyText(t: WabaTemplate): string {
-  return t.components.find(c => c.type === 'BODY')?.text || '';
+function parseComponents(t: WabaTemplate): WabaTemplate['components'] {
+  // JSONB pode chegar como string se o driver não parsear
+  if (typeof t.components === 'string') {
+    try { return JSON.parse(t.components as unknown as string); } catch { return []; }
+  }
+  return t.components || [];
 }
 
-function countVars(text: string): number {
-  const nums = [...text.matchAll(/\{\{(\d+)\}\}/g)].map(m => parseInt(m[1], 10));
-  return nums.length ? Math.max(...nums) : 0;
+function getBodyText(t: WabaTemplate): string {
+  const comps = parseComponents(t);
+  return comps.find(c => c.type?.toUpperCase() === 'BODY')?.text || '';
+}
+
+// Extrai lista de nomes das variáveis — suporta {{1}} e {{nome_variavel}}
+function extractVarNames(text: string): string[] {
+  const matches = [...text.matchAll(/\{\{([^}]+)\}\}/g)];
+  return matches.map(m => m[1]);
 }
 
 function buildTemplateContent(t: WabaTemplate, vars: string[]): string {
@@ -53,7 +63,7 @@ function buildTemplateContent(t: WabaTemplate, vars: string[]): string {
   if (vars.length > 0) {
     components.push({
       type: 'body',
-      parameters: vars.map(v => ({ type: 'text', text: v })),
+      parameters: vars.map(v => ({ type: 'text', text: v || ' ' })),
     });
   }
   return JSON.stringify({
@@ -149,8 +159,8 @@ function CreateBroadcastModal({ workspaceId, inboxes, onClose, onCreated }: {
 
   function handleSelectTemplate(t: WabaTemplate) {
     setSelectedTemplate(t);
-    const n = countVars(getBodyText(t));
-    setTemplateVars(Array(n).fill(''));
+    const names = extractVarNames(getBodyText(t));
+    setTemplateVars(Array(names.length).fill(''));
     setForm(p => ({ ...p, content: '' }));
   }
 
@@ -206,9 +216,12 @@ function CreateBroadcastModal({ workspaceId, inboxes, onClose, onCreated }: {
     } finally { setSaving(false); }
   }
 
-  const bodyText         = selectedTemplate ? getBodyText(selectedTemplate) : '';
-  const varCount         = countVars(bodyText);
-  const previewText      = templateVars.reduce((t, v, i) => t.replaceAll(`{{${i + 1}}}`, v || `{{${i + 1}}}`), bodyText);
+  const bodyText   = selectedTemplate ? getBodyText(selectedTemplate) : '';
+  const varNames   = extractVarNames(bodyText);
+  const previewText = varNames.reduce(
+    (t, name, i) => t.replaceAll(`{{${name}}}`, templateVars[i] || `{{${name}}}`),
+    bodyText
+  );
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
@@ -294,16 +307,16 @@ function CreateBroadcastModal({ workspaceId, inboxes, onClose, onCreated }: {
               )}
 
               {/* Variáveis do template */}
-              {selectedTemplate && varCount > 0 && (
+              {selectedTemplate && varNames.length > 0 && (
                 <div className="space-y-2">
                   <label className="text-xs font-medium text-gray-600">Variáveis do template</label>
                   <div className="grid grid-cols-2 gap-2">
-                    {Array.from({ length: varCount }, (_, i) => (
+                    {varNames.map((name, i) => (
                       <div key={i}>
-                        <label className="text-xs text-gray-500 mb-1 block">{`{{${i + 1}}}`}</label>
+                        <label className="text-xs text-gray-500 mb-1 block font-mono">{`{{${name}}}`}</label>
                         <input
                           className="input text-sm"
-                          placeholder={`Valor para {{${i + 1}}}`}
+                          placeholder={`Valor para ${name}`}
                           value={templateVars[i] || ''}
                           onChange={e => {
                             const next = [...templateVars];

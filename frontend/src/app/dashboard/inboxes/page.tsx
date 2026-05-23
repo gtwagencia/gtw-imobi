@@ -102,9 +102,14 @@ export default function InboxesPage() {
   }
 
   async function handleDelete(inboxId: string) {
-    if (!currentWorkspace || !confirm('Remover este inbox?')) return;
-    await api.delete(`/workspaces/${currentWorkspace.id}/inboxes/${inboxId}`);
-    load();
+    if (!currentWorkspace) return;
+    if (!confirm('Excluir este inbox?\n\nATENÇÃO: Todas as conversas e mensagens vinculadas serão removidas permanentemente.')) return;
+    try {
+      await api.delete(`/workspaces/${currentWorkspace.id}/inboxes/${inboxId}`);
+      load();
+    } catch (err: unknown) {
+      alert((err as { response?: { data?: { error?: string } } })?.response?.data?.error || 'Erro ao excluir inbox');
+    }
   }
 
   function toggleExpand(inbox: Inbox) {

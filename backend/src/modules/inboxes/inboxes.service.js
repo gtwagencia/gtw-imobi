@@ -86,11 +86,22 @@ async function update(inboxId, workspaceId, body) {
 }
 
 async function remove(inboxId, workspaceId) {
-  const r = await query(
-    'DELETE FROM inboxes WHERE id = $1 AND workspace_id = $2 RETURNING id',
+  // Verifica que a inbox pertence ao workspace
+  const check = await query(
+    'SELECT id FROM inboxes WHERE id = $1 AND workspace_id = $2',
     [inboxId, workspaceId]
   );
-  if (!r.rows.length) throw Object.assign(new Error('Inbox não encontrado'), { status: 404 });
+  if (!check.rows.length) throw Object.assign(new Error('Inbox não encontrado'), { status: 404 });
+
+  // Cascata manual: messages → conversations → demais (broadcasts/templates têm ON DELETE CASCADE)
+  await query(
+    `DELETE FROM messages WHERE conversation_id IN (
+       SELECT id FROM conversations WHERE inbox_id = $1
+     )`,
+    [inboxId]
+  );
+  await query('DELETE FROM conversations WHERE inbox_id = $1', [inboxId]);
+  await query('DELETE FROM inboxes WHERE id = $1', [inboxId]);
 }
 
 // ── Inbox Memberships ──────────────────────────────────────────────────────
