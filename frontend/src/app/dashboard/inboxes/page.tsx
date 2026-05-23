@@ -12,6 +12,9 @@ interface InboxEditForm {
   chatbotEnabled?: boolean;
   chatbotPrompt?: string;
   groupsEnabled?: boolean;
+  wabaPhoneNumberId?: string;
+  wabaAccessToken?: string;
+  wabaBusinessId?: string;
 }
 
 interface InboxMember { user_id: string; name: string; email: string; avatar_url: string | null; }
@@ -60,10 +63,10 @@ export default function InboxesPage() {
 
   async function handleSaveSettings(inboxId: string) {
     if (!currentWorkspace) return;
-    await api.put(`/workspaces/${currentWorkspace.id}/inboxes/${inboxId}`, {
-      ...editForm,
-      groupsEnabled: editForm.groupsEnabled,
-    });
+    const payload: Record<string, unknown> = { ...editForm };
+    // Não envia token vazio (manter o atual no backend)
+    if (!payload.wabaAccessToken) delete payload.wabaAccessToken;
+    await api.put(`/workspaces/${currentWorkspace.id}/inboxes/${inboxId}`, payload);
     setExpandedId(null);
     setEditForm({});
     load();
@@ -111,10 +114,13 @@ export default function InboxesPage() {
     } else {
       setExpandedId(inbox.id);
       setEditForm({
-        autoAssign:     inbox.auto_assign,
-        chatbotEnabled: inbox.chatbot_enabled,
-        chatbotPrompt:  inbox.chatbot_prompt || '',
-        groupsEnabled:  (inbox as any).groups_enabled ?? false,
+        autoAssign:        inbox.auto_assign,
+        chatbotEnabled:    inbox.chatbot_enabled,
+        chatbotPrompt:     inbox.chatbot_prompt || '',
+        groupsEnabled:     (inbox as any).groups_enabled ?? false,
+        wabaPhoneNumberId: (inbox as any).waba_phone_number_id || '',
+        wabaAccessToken:   '',
+        wabaBusinessId:    (inbox as any).waba_business_id || '',
       });
     }
   }
@@ -407,6 +413,43 @@ export default function InboxesPage() {
                         >
                           <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform shadow ${editForm.groupsEnabled ? 'translate-x-4' : 'translate-x-0.5'}`} />
                         </button>
+                      </div>
+                    )}
+
+                    {/* Credenciais WABA — só para API Oficial */}
+                    {inbox.channel_type === 'whatsapp_official' && (
+                      <div className="space-y-3 border-t border-gray-200 pt-4">
+                        <h5 className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Credenciais API Oficial (WABA)</h5>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">Phone Number ID</label>
+                          <input
+                            className="input text-sm font-mono"
+                            value={editForm.wabaPhoneNumberId || ''}
+                            onChange={e => setEditForm(prev => ({ ...prev, wabaPhoneNumberId: e.target.value }))}
+                            placeholder="189333882860427"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">WABA Business Account ID</label>
+                          <input
+                            className="input text-sm font-mono"
+                            value={editForm.wabaBusinessId || ''}
+                            onChange={e => setEditForm(prev => ({ ...prev, wabaBusinessId: e.target.value }))}
+                            placeholder="430991275702132"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">
+                            Access Token <span className="text-gray-400 font-normal">(deixe em branco para manter o atual)</span>
+                          </label>
+                          <input
+                            type="password"
+                            className="input text-sm font-mono"
+                            value={editForm.wabaAccessToken || ''}
+                            onChange={e => setEditForm(prev => ({ ...prev, wabaAccessToken: e.target.value }))}
+                            placeholder="Novo token de usuário do sistema..."
+                          />
+                        </div>
                       </div>
                     )}
 

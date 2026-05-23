@@ -48,7 +48,7 @@ async function sendViaWaba(conv, message, content, messageType, mediaUrl) {
   if (!phoneNumberId || !token) return;
 
   const to = conv.remote_jid?.replace(/@.+$/, '') || conv.remote_jid;
-  const url = `https://graph.facebook.com/v19.0/${phoneNumberId}/messages`;
+  const url = `https://graph.facebook.com/v25.0/${phoneNumberId}/messages`;
   const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
 
   let body;

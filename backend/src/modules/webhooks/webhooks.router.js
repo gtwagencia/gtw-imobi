@@ -924,7 +924,7 @@ router.post('/waba', async (req, res) => {
         if (mediaObj?.id && inbox.waba_access_token) {
           try {
             const metaRes = await axios.get(
-              `https://graph.facebook.com/v19.0/${mediaObj.id}`,
+              `https://graph.facebook.com/v25.0/${mediaObj.id}`,
               { headers: { Authorization: `Bearer ${inbox.waba_access_token}` }, timeout: 10000 }
             );
             const dlUrl = metaRes.data?.url;

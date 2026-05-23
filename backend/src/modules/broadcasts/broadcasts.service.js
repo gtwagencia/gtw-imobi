@@ -295,7 +295,7 @@ async function sendWaba(broadcast, phone) {
   const { waba_phone_number_id: phoneNumberId, waba_access_token: token } = broadcast;
   if (!phoneNumberId || !token) throw new Error('Inbox sem credenciais WABA');
 
-  const url     = `https://graph.facebook.com/v19.0/${phoneNumberId}/messages`;
+  const url     = `https://graph.facebook.com/v25.0/${phoneNumberId}/messages`;
   const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
 
   let body;
@@ -379,7 +379,7 @@ async function syncTemplates(workspaceId, inboxId) {
   if (!token || !businessId) throw Object.assign(new Error('Inbox sem credenciais WABA completas'), { status: 400 });
 
   const res = await axios.get(
-    `https://graph.facebook.com/v19.0/${businessId}/message_templates?limit=100`,
+    `https://graph.facebook.com/v25.0/${businessId}/message_templates?limit=100`,
     { headers: { Authorization: `Bearer ${token}` }, timeout: 15000 }
   );
 
