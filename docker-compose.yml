@@ -111,6 +111,8 @@ services:
       GOOGLE_CLIENT_ID:     ${GOOGLE_CLIENT_ID:-}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
       GOOGLE_REDIRECT_URI:  ${GOOGLE_REDIRECT_URI:-}
+      # WhatsApp Business API (WABA)
+      WABA_VERIFY_TOKEN:    ${WABA_VERIFY_TOKEN:-}
     volumes:
       - gtw_uploads:/app/uploads
     networks:
