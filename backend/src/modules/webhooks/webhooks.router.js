@@ -181,10 +181,53 @@ async function extractMessageContent(msg, inbox) {
     return { content: m.description || m.title || '📋 Mensagem de lista', messageType: 'text' };
   }
 
-  // Mensagem com botões
-  if (msg.message?.buttonsMessage || msg.message?.templateMessage) {
-    const m = msg.message.buttonsMessage || msg.message.templateMessage?.hydratedTemplate;
-    return { content: m?.contentText || m?.hydratedContentText || '🔘 Mensagem com botões', messageType: 'text' };
+  // Mensagem com botões (buttonsMessage)
+  if (msg.message?.buttonsMessage) {
+    const m = msg.message.buttonsMessage;
+    const parts = [];
+    if (m.contentText)  parts.push(m.contentText);
+    if (m.footerText)   parts.push(`_${m.footerText}_`);
+    const btns = (m.buttons || [])
+      .map(b => b.buttonText?.displayText).filter(Boolean);
+    if (btns.length) parts.push(`[${btns.join('] [')}]`);
+    return { content: parts.join('\n') || '🔘 Mensagem com botões', messageType: 'text' };
+  }
+
+  // Template message (eco de template enviado / resposta a template)
+  if (msg.message?.templateMessage) {
+    const h = msg.message.templateMessage?.hydratedTemplate;
+    const parts = [];
+    if (h?.hydratedTitleText)   parts.push(h.hydratedTitleText);
+    if (h?.hydratedContentText) parts.push(h.hydratedContentText);
+    if (h?.hydratedFooterText)  parts.push(`_${h.hydratedFooterText}_`);
+    const btns = (h?.hydratedButtons || []).map(b => {
+      if (b.quickReplyButton) return b.quickReplyButton.displayText;
+      if (b.urlButton)        return `${b.urlButton.displayText} 🔗`;
+      if (b.callButton)       return `${b.callButton.displayText} 📞`;
+      return null;
+    }).filter(Boolean);
+    if (btns.length) parts.push(`[${btns.join('] [')}]`);
+    // fallback: nome do template se nada for extraído
+    const templateName = msg.message.templateMessage?.name;
+    return {
+      content: parts.join('\n') || (templateName ? `[Template: ${templateName}]` : '🔘 Mensagem de template'),
+      messageType: 'text',
+    };
+  }
+
+  // Interactive message (API oficial — botões e listas interativas)
+  if (msg.message?.interactiveMessage) {
+    const m = msg.message.interactiveMessage;
+    const parts = [];
+    const headerText = m.header?.text || m.header?.imageMessage?.caption;
+    if (headerText)   parts.push(headerText);
+    if (m.body?.text) parts.push(m.body.text);
+    if (m.footer?.text) parts.push(`_${m.footer.text}_`);
+    // botões inline
+    const btns = (m.nativeFlowMessage?.buttons || m.buttonsMessage?.buttons || [])
+      .map(b => b.buttonText?.displayText || b.name).filter(Boolean);
+    if (btns.length) parts.push(`[${btns.join('] [')}]`);
+    return { content: parts.join('\n') || '🔘 Mensagem interativa', messageType: 'text' };
   }
 
   // Mensagem revogada / apagada
