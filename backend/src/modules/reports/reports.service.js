@@ -94,4 +94,47 @@ async function getVolumeByDay(workspaceId, { startDate, endDate } = {}) {
   return r.rows;
 }
 
-module.exports = { getSummary, getAgentPerformance, getVolumeByDay };
+/**
+ * Leads por campanha Meta Ads no período.
+ */
+async function getCampaignBreakdown(workspaceId, { startDate, endDate } = {}) {
+  const start = startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+  const end   = endDate   || new Date().toISOString();
+
+  const r = await query(
+    `SELECT
+       COALESCE(meta_campaign_name, meta_ad_name, meta_ref, 'Sem nome') AS campaign,
+       meta_ad_name,
+       meta_adset_name,
+       COUNT(*)::int                                                     AS total_leads,
+       COUNT(*) FILTER (WHERE status = 'resolved')::int                 AS resolved,
+       COUNT(*) FILTER (WHERE status = 'open')::int                     AS open,
+       MIN(created_at)                                                   AS first_lead_at,
+       MAX(created_at)                                                   AS last_lead_at
+     FROM conversations
+     WHERE workspace_id = $1
+       AND meta_source = 'paid'
+       AND created_at BETWEEN $2 AND $3
+     GROUP BY meta_campaign_name, meta_ad_name, meta_adset_name, meta_ref
+     ORDER BY total_leads DESC`,
+    [workspaceId, start, end]
+  );
+
+  const totals = await query(
+    `SELECT
+       COUNT(*) FILTER (WHERE meta_source = 'paid')::int    AS total_paid,
+       COUNT(*) FILTER (WHERE meta_source = 'organic')::int AS total_organic,
+       COUNT(*)::int                                         AS total
+     FROM conversations
+     WHERE workspace_id = $1
+       AND created_at BETWEEN $2 AND $3`,
+    [workspaceId, start, end]
+  );
+
+  return {
+    campaigns: r.rows,
+    totals: totals.rows[0],
+  };
+}
+
+module.exports = { getSummary, getAgentPerformance, getVolumeByDay, getCampaignBreakdown };

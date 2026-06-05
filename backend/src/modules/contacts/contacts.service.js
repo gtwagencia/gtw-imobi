@@ -148,6 +148,12 @@ function parseCsvLine(line) {
   return fields;
 }
 
+function cleanPhone(raw) {
+  if (!raw) return null;
+  // Remove @s.whatsapp.net e sufixo de dispositivo :XX
+  return raw.replace(/@s\.whatsapp\.net$/i, '').replace(/:\d+$/, '').replace(/\D/g, '') || null;
+}
+
 // Mapeamento flexível de nomes de colunas
 const COL_MAP = {
   name:  ['nome', 'name', 'contato', 'contact'],
@@ -163,7 +169,7 @@ function detectColumn(headers, aliases) {
   );
 }
 
-async function csvImport(workspaceId, csvText) {
+async function csvImport(workspaceId, csvText, { defaultTag } = {}) {
   const lines = csvText.split(/\r?\n/).filter(l => l.trim());
   if (lines.length < 2) throw Object.assign(new Error('CSV deve ter ao menos um cabeçalho e uma linha de dados'), { status: 400 });
 
@@ -180,16 +186,19 @@ async function csvImport(workspaceId, csvText) {
   const results = { imported: 0, updated: 0, errors: [] };
 
   for (let i = 1; i < lines.length; i++) {
-    const fields = parseCsvLine(lines[i]);
-    const name   = colIdx.name  >= 0 ? fields[colIdx.name]  : null;
-    const phone  = colIdx.phone >= 0 ? fields[colIdx.phone] : null;
-    const email  = colIdx.email >= 0 ? fields[colIdx.email] : null;
-    const tags   = colIdx.tags  >= 0 && fields[colIdx.tags]
+    const fields     = parseCsvLine(lines[i]);
+    const rawPhone   = colIdx.phone >= 0 ? fields[colIdx.phone] : null;
+    const cleanedPhone = cleanPhone(rawPhone);
+    const rawName    = colIdx.name  >= 0 ? fields[colIdx.name]  : null;
+    const name       = rawName?.trim() || cleanedPhone;
+    const email      = colIdx.email >= 0 ? fields[colIdx.email] : null;
+    const csvTags    = colIdx.tags  >= 0 && fields[colIdx.tags]
       ? fields[colIdx.tags].split(';').map(t => t.trim()).filter(Boolean)
       : [];
-    const notes  = colIdx.notes >= 0 ? fields[colIdx.notes] : null;
+    const tags       = defaultTag && !csvTags.includes(defaultTag) ? [...csvTags, defaultTag] : csvTags;
+    const notes      = colIdx.notes >= 0 ? fields[colIdx.notes] : null;
 
-    if (!name?.trim()) { results.errors.push({ line: i + 1, error: 'Nome ausente' }); continue; }
+    if (!name?.trim()) { results.errors.push({ line: i + 1, error: 'Nome e telefone ausentes' }); continue; }
 
     try {
       const r = await query(
@@ -202,7 +211,7 @@ async function csvImport(workspaceId, csvText) {
                notes = COALESCE(EXCLUDED.notes, contacts.notes),
                updated_at = NOW()
          RETURNING (xmax = 0) AS inserted`,
-        [workspaceId, name.trim(), phone?.trim() || null, email?.trim() || null, tags, notes?.trim() || null]
+        [workspaceId, name.trim(), cleanedPhone || null, email?.trim() || null, tags, notes?.trim() || null]
       );
       if (r.rows[0]?.inserted) results.imported++;
       else results.updated++;

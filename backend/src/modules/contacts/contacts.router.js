@@ -65,8 +65,9 @@ router.get('/:contactId/conversations', authenticate, workspaceContext, async (r
 router.post('/import', authenticate, workspaceContext, upload.single('file'), async (req, res, next) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'Arquivo CSV obrigatório' });
-    const csv    = req.file.buffer.toString('utf-8');
-    const result = await svc.csvImport(req.params.workspaceId, csv);
+    const csv        = req.file.buffer.toString('utf-8');
+    const defaultTag = req.body?.defaultTag?.trim() || undefined;
+    const result     = await svc.csvImport(req.params.workspaceId, csv, { defaultTag });
     res.json(result);
   } catch (err) { next(err); }
 });

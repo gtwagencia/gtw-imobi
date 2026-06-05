@@ -28,4 +28,11 @@ router.get('/volume', authenticate, workspaceContext, async (req, res, next) => 
   } catch (err) { next(err); }
 });
 
+router.get('/campaigns', authenticate, workspaceContext, async (req, res, next) => {
+  try {
+    const { startDate, endDate } = req.query;
+    res.json(await svc.getCampaignBreakdown(req.params.workspaceId, { startDate, endDate }));
+  } catch (err) { next(err); }
+});
+
 module.exports = router;

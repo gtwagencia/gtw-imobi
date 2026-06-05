@@ -715,9 +715,9 @@ router.post('/evolution/:inboxId', async (req, res) => {
 
           await query(
             `UPDATE conversations
-             SET meta_ref = $1, meta_ctwa_clid = $2, meta_source = $3, meta_ad_id = $4
-             WHERE id = $5`,
-            [metaRef, metaCtwaClid, 'paid', metaAdId, conversation.id]
+             SET meta_ref = $1, meta_ctwa_clid = $2, meta_source = $3, meta_ad_id = $4, meta_source_url = $5
+             WHERE id = $6`,
+            [metaRef, metaCtwaClid, 'paid', metaAdId, metaSourceUrl, conversation.id]
           );
           conversation.meta_source = 'paid';
 

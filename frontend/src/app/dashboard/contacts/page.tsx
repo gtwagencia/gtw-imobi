@@ -266,6 +266,7 @@ export default function ContactsPage() {
   const [editing,      setEditing]      = useState<Contact | undefined>(undefined);
   const [importing,    setImporting]    = useState(false);
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
+  const [importTag,    setImportTag]    = useState('');
 
   const load = useCallback(async () => {
     if (!currentWorkspace) return;
@@ -298,6 +299,7 @@ export default function ContactsPage() {
     try {
       const formData = new FormData();
       formData.append('file', file);
+      if (importTag.trim()) formData.append('defaultTag', importTag.trim());
       const { data } = await api.post(
         `/workspaces/${currentWorkspace.id}/contacts/import`,
         formData,
@@ -331,6 +333,13 @@ export default function ContactsPage() {
         title={`Contatos (${total})`}
         actions={
           <div className="flex items-center gap-2">
+            <input
+              className="input text-sm py-1.5 w-36"
+              placeholder="Tag (ex: lead-out25)"
+              value={importTag}
+              onChange={e => setImportTag(e.target.value)}
+              title="Tag aplicada a todos os contatos importados"
+            />
             <label className={`btn-secondary text-sm cursor-pointer flex items-center gap-1.5 ${importing ? 'opacity-60 pointer-events-none' : ''}`}>
               <Upload className="w-4 h-4" />
               {importing ? 'Importando...' : 'Importar CSV'}

@@ -5,7 +5,7 @@ import { useAuth } from '@/store/auth';
 import Header from '@/components/layout/Header';
 import api from '@/lib/api';
 import type { AgentReport, VolumeByDay } from '@/types';
-import { MessageSquare, CheckCircle, Clock, Star, AlertTriangle, Download } from 'lucide-react';
+import { MessageSquare, CheckCircle, Clock, Star, AlertTriangle, Download, Megaphone, TrendingUp } from 'lucide-react';
 
 function formatSeconds(secs: number | null) {
   if (!secs) return '—';
@@ -30,13 +30,32 @@ interface Summary {
   total_messages: string;
 }
 
+interface CampaignRow {
+  campaign: string;
+  meta_ad_name: string | null;
+  meta_adset_name: string | null;
+  total_leads: number;
+  resolved: number;
+  open: number;
+  first_lead_at: string;
+  last_lead_at: string;
+}
+
+interface CampaignTotals {
+  total_paid: number;
+  total_organic: number;
+  total: number;
+}
+
 export default function ReportsPage() {
   const { currentWorkspace } = useAuth();
-  const [summary,  setSummary]  = useState<Summary | null>(null);
-  const [agents,   setAgents]   = useState<AgentReport[]>([]);
-  const [volume,   setVolume]   = useState<VolumeByDay[]>([]);
-  const [loading,  setLoading]  = useState(true);
-  const [days,     setDays]     = useState(30);
+  const [summary,          setSummary]          = useState<Summary | null>(null);
+  const [agents,           setAgents]           = useState<AgentReport[]>([]);
+  const [volume,           setVolume]           = useState<VolumeByDay[]>([]);
+  const [campaigns,        setCampaigns]        = useState<CampaignRow[]>([]);
+  const [campaignTotals,   setCampaignTotals]   = useState<CampaignTotals | null>(null);
+  const [loading,          setLoading]          = useState(true);
+  const [days,             setDays]             = useState(30);
 
   const load = useCallback(async () => {
     if (!currentWorkspace) return;
@@ -46,14 +65,17 @@ export default function ReportsPage() {
     const params    = { startDate, endDate };
 
     try {
-      const [s, a, v] = await Promise.all([
-        api.get(`/workspaces/${currentWorkspace.id}/reports/summary`, { params }),
-        api.get(`/workspaces/${currentWorkspace.id}/reports/agents`,  { params }),
-        api.get(`/workspaces/${currentWorkspace.id}/reports/volume`,  { params }),
+      const [s, a, v, c] = await Promise.all([
+        api.get(`/workspaces/${currentWorkspace.id}/reports/summary`,   { params }),
+        api.get(`/workspaces/${currentWorkspace.id}/reports/agents`,    { params }),
+        api.get(`/workspaces/${currentWorkspace.id}/reports/volume`,    { params }),
+        api.get(`/workspaces/${currentWorkspace.id}/reports/campaigns`, { params }),
       ]);
       setSummary(s.data);
       setAgents(a.data);
       setVolume(v.data);
+      setCampaigns(c.data.campaigns || []);
+      setCampaignTotals(c.data.totals || null);
     } finally {
       setLoading(false);
     }
@@ -229,6 +251,94 @@ export default function ReportsPage() {
                   <span>{volume.length > 0 ? formatDate(volume[0].date) : ''}</span>
                   <span>{volume.length > 0 ? formatDate(volume[volume.length - 1].date) : ''}</span>
                 </div>
+              </div>
+            )}
+
+            {/* Campaign breakdown */}
+            {campaignTotals && parseInt(String(campaignTotals.total)) > 0 && (
+              <div className="card p-5">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="font-semibold text-gray-900 flex items-center gap-2">
+                    <Megaphone className="w-4 h-4 text-blue-500" />
+                    Leads por campanha
+                  </h2>
+                  <div className="flex items-center gap-3 text-xs text-gray-500">
+                    <span className="flex items-center gap-1">
+                      <span className="w-2 h-2 rounded-full bg-blue-500 inline-block" />
+                      {campaignTotals.total_paid} pagos
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <span className="w-2 h-2 rounded-full bg-gray-300 inline-block" />
+                      {campaignTotals.total_organic} orgânicos
+                    </span>
+                    <span className="font-medium text-gray-700">
+                      {campaignTotals.total_paid > 0
+                        ? Math.round((campaignTotals.total_paid / campaignTotals.total) * 100)
+                        : 0}% via anúncio
+                    </span>
+                  </div>
+                </div>
+
+                {campaigns.length === 0 ? (
+                  <p className="text-sm text-gray-400 text-center py-6">Nenhum lead pago no período</p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="text-xs text-gray-500 border-b border-gray-100">
+                          <th className="text-left pb-2 font-medium">Campanha</th>
+                          <th className="text-left pb-2 font-medium hidden md:table-cell">Conjunto / Anúncio</th>
+                          <th className="text-right pb-2 font-medium">Leads</th>
+                          <th className="text-right pb-2 font-medium hidden sm:table-cell">Resolvidos</th>
+                          <th className="text-right pb-2 font-medium hidden md:table-cell">Último lead</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-50">
+                        {campaigns.map((row, i) => {
+                          const pct = campaignTotals.total_paid > 0
+                            ? Math.round((row.total_leads / campaignTotals.total_paid) * 100)
+                            : 0;
+                          return (
+                            <tr key={i} className="hover:bg-gray-50">
+                              <td className="py-2.5">
+                                <div className="flex items-center gap-2">
+                                  <TrendingUp className="w-3.5 h-3.5 text-blue-400 flex-shrink-0" />
+                                  <div>
+                                    <div className="font-medium text-gray-900 truncate max-w-[160px]">{row.campaign}</div>
+                                    <div className="w-24 h-1 bg-gray-100 rounded-full mt-1">
+                                      <div className="h-1 bg-blue-400 rounded-full" style={{ width: `${pct}%` }} />
+                                    </div>
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="py-2.5 hidden md:table-cell text-gray-500 text-xs">
+                                {row.meta_adset_name && <div className="truncate max-w-[140px]">{row.meta_adset_name}</div>}
+                                {row.meta_ad_name && row.meta_ad_name !== row.campaign && (
+                                  <div className="truncate max-w-[140px] text-gray-400">{row.meta_ad_name}</div>
+                                )}
+                              </td>
+                              <td className="py-2.5 text-right">
+                                <span className="font-semibold text-gray-900">{row.total_leads}</span>
+                                <span className="text-xs text-gray-400 ml-1">({pct}%)</span>
+                              </td>
+                              <td className="py-2.5 text-right hidden sm:table-cell">
+                                <span className="text-green-600 font-medium">{row.resolved}</span>
+                                {row.total_leads > 0 && (
+                                  <span className="text-xs text-gray-400 ml-1">
+                                    ({Math.round((row.resolved / row.total_leads) * 100)}%)
+                                  </span>
+                                )}
+                              </td>
+                              <td className="py-2.5 text-right hidden md:table-cell text-xs text-gray-500">
+                                {new Date(row.last_lead_at).toLocaleDateString('pt-BR')}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
             )}
 

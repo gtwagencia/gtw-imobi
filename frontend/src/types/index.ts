@@ -154,6 +154,7 @@ export interface Conversation {
   meta_ad_name: string | null;
   meta_adset_name: string | null;
   meta_campaign_name: string | null;
+  meta_source_url: string | null;
 }
 
 export interface Message {

@@ -603,12 +603,22 @@ export default function ChatWindow({ conversation, onStatusChange, onBack }: Pro
             {!conversation.meta_ad_name && !conversation.meta_campaign_name && (conversation.meta_ref || conversation.meta_ad_id) && (
               <span>Ref: <span className="font-semibold">{conversation.meta_ref || conversation.meta_ad_id}</span></span>
             )}
+            {conversation.meta_source_url && (
+              <a
+                href={conversation.meta_source_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline opacity-80 hover:opacity-100"
+              >
+                Ver anúncio
+              </a>
+            )}
           </div>
         </div>
       )}
 
       {/* ── Messages ─────────────────────────────────────────── */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-2">
+      <div className="flex-1 overflow-y-auto p-4 space-y-2" style={{ backgroundColor: '#efeae2' }}>
         {loading ? (
           <div className="flex items-center justify-center h-full">
             <div className="w-6 h-6 border-2 border-brand-600 border-t-transparent rounded-full animate-spin" />
@@ -650,10 +660,11 @@ export default function ChatWindow({ conversation, onStatusChange, onBack }: Pro
               return (
                 <div key={msg.id} className="flex flex-col items-center gap-1">
                   {showDateSep && (
-                    <div className="flex items-center gap-2 w-full my-2">
-                      <div className="flex-1 h-px bg-gray-100" />
-                      <span className="text-xs text-gray-400 font-medium px-2">{dateSepLabel}</span>
-                      <div className="flex-1 h-px bg-gray-100" />
+                    <div className="flex justify-center my-3">
+                      <span className="text-xs font-medium px-3 py-1 rounded-full whitespace-nowrap shadow-sm"
+                        style={{ backgroundColor: '#d1f4cc', color: '#54656f' }}>
+                        {dateSepLabel}
+                      </span>
                     </div>
                   )}
                   <div className="max-w-md w-full bg-amber-50 border border-amber-200 rounded-2xl px-4 py-2.5 text-sm shadow-sm">
@@ -674,15 +685,16 @@ export default function ChatWindow({ conversation, onStatusChange, onBack }: Pro
             return (
               <div key={msg.id} className="flex flex-col">
                 {showDateSep && (
-                  <div className="flex items-center gap-2 my-3">
-                    <div className="flex-1 h-px bg-gray-100" />
-                    <span className="text-xs text-gray-400 font-medium px-2 whitespace-nowrap">{dateSepLabel}</span>
-                    <div className="flex-1 h-px bg-gray-100" />
+                  <div className="flex justify-center my-3">
+                    <span className="text-xs font-medium px-3 py-1 rounded-full whitespace-nowrap shadow-sm"
+                      style={{ backgroundColor: '#d1f4cc', color: '#54656f' }}>
+                      {dateSepLabel}
+                    </span>
                   </div>
                 )}
               <div
                 className={clsx(
-                  'flex gap-2 items-start',
+                  'flex gap-1.5 items-end',
                   isOut ? 'flex-row-reverse' : 'flex-row',
                   selectionMode && 'cursor-pointer'
                 )}
@@ -749,13 +761,15 @@ export default function ChatWindow({ conversation, onStatusChange, onBack }: Pro
                 )}
 
                 <div className={clsx(
-                  'max-w-xs lg:max-w-md xl:max-w-lg rounded-2xl px-4 py-2.5 text-sm shadow-sm',
+                  'max-w-xs lg:max-w-md xl:max-w-lg rounded-2xl px-3.5 py-2 text-sm shadow-sm',
                   isOut
                     ? isMe
-                      ? 'bg-brand-600 text-white rounded-br-sm'
-                      : 'bg-purple-600 text-white rounded-br-sm'
-                    : 'bg-white text-gray-900 rounded-bl-sm border border-gray-100'
-                )}>
+                      ? 'rounded-tr-sm'
+                      : 'rounded-tr-sm'
+                    : 'bg-white text-gray-900 rounded-tl-sm shadow-sm'
+                )}
+                style={isOut ? { backgroundColor: isMe ? '#d9fdd3' : '#e9d5f7', color: '#111b21' } : undefined}
+                >
                   {msg.message_type === 'image' && msg.media_url ? (
                     <a href={msg.media_url} target="_blank" rel="noopener noreferrer">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -817,7 +831,7 @@ export default function ChatWindow({ conversation, onStatusChange, onBack }: Pro
                   ) : msg.content ? (
                     <p className="whitespace-pre-wrap break-words">{msg.content}</p>
                   ) : null}
-                  <div className={clsx('flex items-center justify-end gap-1 mt-1 text-xs', isOut ? 'text-white/60' : 'text-gray-400')}>
+                  <div className={clsx('flex items-center justify-end gap-1 mt-1 text-xs', isOut ? 'text-gray-500/70' : 'text-gray-400')}>
                     <span>{timeLabel}</span>
                     {isOut && statusIcon(msg.status)}
                   </div>
