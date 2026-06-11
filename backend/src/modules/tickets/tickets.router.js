@@ -441,15 +441,17 @@ router.get('/tickets/:ticketId/comments', ...auth, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-router.post('/tickets/:ticketId/comments', ...auth, upload.single('file'), async (req, res, next) => {
+router.post('/tickets/:ticketId/comments', ...auth, upload.array('files', 10), async (req, res, next) => {
   try {
     const { content } = req.body;
     const workspaceId = req.params.workspaceId;
+    const files = req.files || [];
 
     // Verifica quota antes de fazer upload
-    if (req.file) {
+    if (files.length > 0) {
       const usage = await svc.getStorageUsage(workspaceId);
-      if (usage.used_bytes + req.file.size > usage.quota_bytes) {
+      const totalSize = files.reduce((sum, f) => sum + f.size, 0);
+      if (usage.used_bytes + totalSize > usage.quota_bytes) {
         return res.status(413).json({ error: `Quota de armazenamento excedida (${usage.quota_mb} MB)` });
       }
     }
@@ -510,15 +512,17 @@ router.post('/tickets/:ticketId/comments', ...auth, upload.single('file'), async
       }
     }
 
-    if (req.file) {
-      const url = await storageSvc.uploadFile(req.file.buffer, req.file.originalname, req.file.mimetype);
-      await svc.addAttachment(req.params.ticketId, comment.id, workspaceId, req.user.sub, {
-        fileName: req.file.originalname,
-        fileUrl:  url,
-        fileSize: req.file.size,
-        mimeType: req.file.mimetype,
-      });
-      // Recarrega o comentário com o anexo
+    if (files.length > 0) {
+      for (const file of files) {
+        const url = await storageSvc.uploadFile(file.buffer, file.originalname, file.mimetype);
+        await svc.addAttachment(req.params.ticketId, comment.id, workspaceId, req.user.sub, {
+          fileName: file.originalname,
+          fileUrl:  url,
+          fileSize: file.size,
+          mimeType: file.mimetype,
+        });
+      }
+      // Recarrega o comentário com os anexos
       const comments = await svc.listComments(req.params.ticketId);
       return res.status(201).json(comments.find(c => c.id === comment.id) || comment);
     }

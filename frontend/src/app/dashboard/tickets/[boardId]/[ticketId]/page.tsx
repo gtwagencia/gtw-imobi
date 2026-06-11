@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/store/auth';
 import api from '@/lib/api';
 import Header from '@/components/layout/Header';
+import MediaLightbox, { type LightboxItem } from '@/components/ui/MediaLightbox';
 import type { Ticket, TicketColumn, TicketBoardMember, TicketLabel, TicketTimeLog, TicketPriority } from '@/types';
 import {
   ArrowLeft, RefreshCw, Trash2, Send, Paperclip, X, Download,
@@ -68,6 +69,14 @@ function isImage(mime: string | null) {
   return mime?.startsWith('image/') ?? false;
 }
 
+function isVideo(mime: string | null) {
+  return mime?.startsWith('video/') ?? false;
+}
+
+function isMedia(mime: string | null) {
+  return isImage(mime) || isVideo(mime);
+}
+
 // ── Attachment chip ───────────────────────────────────────────────────────────
 
 function AttachmentChip({ att, onDelete }: { att: Attachment; onDelete?: () => void }) {
@@ -115,12 +124,13 @@ export default function TicketDetailPage() {
   const [loading,      setLoading]      = useState(true);
   const [saving,       setSaving]       = useState(false);
   const [commentText,  setCommentText]  = useState('');
-  const [commentFile,  setCommentFile]  = useState<File | null>(null);
+  const [commentFiles, setCommentFiles] = useState<File[]>([]);
   const [submitting,   setSubmitting]   = useState(false);
   const [mentionOpen,  setMentionOpen]  = useState(false);
   const [mentionQuery, setMentionQuery] = useState('');
   const [mentionPos,   setMentionPos]   = useState(0);
   const [mentionIdx,   setMentionIdx]   = useState(0);
+  const [lightbox,     setLightbox]     = useState<{ items: LightboxItem[]; index: number } | null>(null);
   const timerRef       = useRef<ReturnType<typeof setInterval> | null>(null);
   const fileRef        = useRef<HTMLInputElement>(null);
   const textareaRef    = useRef<HTMLTextAreaElement>(null);
@@ -212,19 +222,19 @@ export default function TicketDetailPage() {
 
   async function submitComment(e: React.FormEvent) {
     e.preventDefault();
-    if ((!commentText.trim() && !commentFile) || !currentWorkspace || !ticket) return;
+    if ((!commentText.trim() && commentFiles.length === 0) || !currentWorkspace || !ticket) return;
     setSubmitting(true);
     try {
       const form = new FormData();
       form.append('content', commentText.trim());
-      if (commentFile) form.append('file', commentFile);
+      commentFiles.forEach(file => form.append('files', file));
       const { data } = await api.post<Comment>(
         `/workspaces/${currentWorkspace.id}/tickets/tickets/${ticket.id}/comments`,
         form, { headers: { 'Content-Type': 'multipart/form-data' } }
       );
       setComments(prev => [...prev, data]);
       setCommentText('');
-      setCommentFile(null);
+      setCommentFiles([]);
       if (storage) {
         const { data: s } = await api.get(`/workspaces/${currentWorkspace.id}/tickets/storage`);
         setStorage(s);
@@ -343,6 +353,17 @@ export default function TicketDetailPage() {
     if (!currentWorkspace || !ticket) return;
     await api.delete(`/workspaces/${currentWorkspace.id}/tickets/tickets/${ticket.id}/attachments/${attId}`);
     setAttachments(prev => prev.filter(a => a.id !== attId));
+  }
+
+  // Abre a galeria com todos os arquivos de mídia (imagens/vídeos) do mesmo grupo,
+  // posicionada no item clicado, para facilitar aprovações sem sair da página.
+  function openLightbox(group: Attachment[], clicked: Attachment) {
+    const media = group.filter(a => isMedia(a.mime_type));
+    const index = Math.max(media.findIndex(a => a.id === clicked.id), 0);
+    setLightbox({
+      items: media.map(a => ({ url: a.file_url, name: a.file_name, mimeType: a.mime_type })),
+      index,
+    });
   }
 
   async function deleteTicket() {
@@ -486,13 +507,24 @@ export default function TicketDetailPage() {
                 <div className="flex flex-wrap gap-2">
                   {attachments.map(att => (
                     <div key={att.id}>
-                      {isImage(att.mime_type) ? (
-                        <div className="group relative rounded-xl overflow-hidden border border-gray-200">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={att.file_url} alt={att.file_name} className="w-24 h-24 object-cover" />
+                      {isMedia(att.mime_type) ? (
+                        <div className="group relative rounded-xl overflow-hidden border border-gray-200 cursor-pointer"
+                             onClick={() => openLightbox(attachments, att)}>
+                          {isVideo(att.mime_type) ? (
+                            <>
+                              <video src={att.file_url} className="w-24 h-24 object-cover bg-gray-900" muted preload="metadata" />
+                              <div className="absolute inset-0 flex items-center justify-center bg-black/20 pointer-events-none">
+                                <Play className="w-6 h-6 text-white fill-white drop-shadow" />
+                              </div>
+                            </>
+                          ) : (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={att.file_url} alt={att.file_name} className="w-24 h-24 object-cover" />
+                          )}
                           <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                            <a href={att.file_url} target="_blank" rel="noopener noreferrer" className="text-white"><Download className="w-4 h-4" /></a>
-                            {canEdit && <button onClick={() => deleteAttachment(att.id)} className="text-white"><X className="w-4 h-4" /></button>}
+                            <a href={att.file_url} target="_blank" rel="noopener noreferrer" download
+                               onClick={e => e.stopPropagation()} className="text-white"><Download className="w-4 h-4" /></a>
+                            {canEdit && <button onClick={e => { e.stopPropagation(); deleteAttachment(att.id); }} className="text-white"><X className="w-4 h-4" /></button>}
                           </div>
                         </div>
                       ) : (
@@ -542,12 +574,22 @@ export default function TicketDetailPage() {
                         {comment.attachments?.length > 0 && (
                           <div className={clsx('flex flex-wrap gap-2', comment.content && 'mt-2 pt-2 border-t border-gray-200')}>
                             {comment.attachments.map(att => (
-                              isImage(att.mime_type) ? (
-                                <a key={att.id} href={att.file_url} target="_blank" rel="noopener noreferrer"
-                                   className="rounded-lg overflow-hidden border border-gray-200 block">
-                                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                                  <img src={att.file_url} alt={att.file_name} className="w-28 h-28 object-cover hover:opacity-90 transition-opacity" />
-                                </a>
+                              isMedia(att.mime_type) ? (
+                                <div key={att.id}
+                                     className="group relative w-28 h-28 rounded-lg overflow-hidden border border-gray-200 cursor-pointer"
+                                     onClick={() => openLightbox(comment.attachments, att)}>
+                                  {isVideo(att.mime_type) ? (
+                                    <>
+                                      <video src={att.file_url} className="w-28 h-28 object-cover bg-gray-900" muted preload="metadata" />
+                                      <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+                                        <Play className="w-6 h-6 text-white fill-white drop-shadow" />
+                                      </div>
+                                    </>
+                                  ) : (
+                                    // eslint-disable-next-line @next/next/no-img-element
+                                    <img src={att.file_url} alt={att.file_name} className="w-28 h-28 object-cover group-hover:opacity-90 transition-opacity" />
+                                  )}
+                                </div>
                               ) : (
                                 <AttachmentChip key={att.id} att={att} />
                               )
@@ -613,26 +655,35 @@ export default function TicketDetailPage() {
 
                 {/* Linha de ação separada (fora do flex principal) */}
                 <div className="mt-2 ml-11 flex-1">
-                    {commentFile && (
-                      <div className="flex items-center gap-2 mt-2 bg-indigo-50 border border-indigo-200 rounded-lg px-3 py-1.5 text-xs">
-                        {fileIcon(commentFile.type)}
-                        <span className="font-medium text-indigo-700 truncate max-w-[200px]">{commentFile.name}</span>
-                        <span className="text-indigo-400">{formatBytes(commentFile.size)}</span>
-                        <button type="button" onClick={() => setCommentFile(null)} className="ml-auto text-indigo-400 hover:text-indigo-600">
-                          <X className="w-3 h-3" />
-                        </button>
+                    {commentFiles.length > 0 && (
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        {commentFiles.map((file, i) => (
+                          <div key={i} className="flex items-center gap-2 bg-indigo-50 border border-indigo-200 rounded-lg px-3 py-1.5 text-xs">
+                            {fileIcon(file.type)}
+                            <span className="font-medium text-indigo-700 truncate max-w-[200px]">{file.name}</span>
+                            <span className="text-indigo-400">{formatBytes(file.size)}</span>
+                            <button type="button" onClick={() => setCommentFiles(prev => prev.filter((_, j) => j !== i))}
+                                    className="text-indigo-400 hover:text-indigo-600">
+                              <X className="w-3 h-3" />
+                            </button>
+                          </div>
+                        ))}
                       </div>
                     )}
                     <div className="flex items-center justify-between mt-2">
                       <label className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-600 cursor-pointer">
                         <Paperclip className="w-3.5 h-3.5" />
                         Anexar arquivo
-                        <input type="file" className="hidden"
-                               onChange={e => { const f = e.target.files?.[0]; if (f) setCommentFile(f); e.target.value = ''; }} />
+                        <input type="file" multiple className="hidden"
+                               onChange={e => {
+                                 const files = Array.from(e.target.files || []);
+                                 if (files.length) setCommentFiles(prev => [...prev, ...files]);
+                                 e.target.value = '';
+                               }} />
                       </label>
                       <button
                         type="submit"
-                        disabled={submitting || (!commentText.trim() && !commentFile)}
+                        disabled={submitting || (!commentText.trim() && commentFiles.length === 0)}
                         className="flex items-center gap-1.5 btn-primary text-xs py-1.5 px-3"
                       >
                         <Send className="w-3 h-3" />
@@ -837,6 +888,15 @@ export default function TicketDetailPage() {
           </div>
         </div>
       </div>
+
+      {lightbox && (
+        <MediaLightbox
+          items={lightbox.items}
+          index={lightbox.index}
+          onClose={() => setLightbox(null)}
+          onIndexChange={index => setLightbox(prev => prev ? { ...prev, index } : prev)}
+        />
+      )}
     </>
   );
 }
