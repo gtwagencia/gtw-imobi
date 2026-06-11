@@ -69,7 +69,12 @@ app.use(express.json({ limit: '10mb' }));
 // ── Rate limiting ──────────────────────────────────────────────────────────
 app.use('/api/', rateLimit({ windowMs: 15 * 60 * 1000, max: 500 }));
 const authLimiter    = rateLimit({ windowMs: 15 * 60 * 1000, max: 20 });
-const webhookLimiter = rateLimit({ windowMs:  1 * 60 * 1000, max: 30  }); // 0.5 req/s por IP
+// Endpoint server-to-server (Evolution API → backend). Múltiplas instâncias Evolution
+// no mesmo servidor compartilham o mesmo IP de origem, e cada mensagem de WhatsApp gera
+// vários eventos (upsert + updates de status + presence). 30/min (0.5 req/s) era
+// insuficiente com 3+ conexões ativas e causava 429 → retry da Evolution → atraso de
+// minutos para a conversa atualizar no painel.
+const webhookLimiter = rateLimit({ windowMs: 1 * 60 * 1000, max: 1200 }); // 20 req/s por IP
 const uploadLimiter  = rateLimit({ windowMs: 15 * 60 * 1000, max: 60  }); // 4 uploads/min
 const csatLimiter    = rateLimit({ windowMs: 60 * 60 * 1000, max: 10  }); // 10 por hora
 app.use('/api/v1/auth/login',             authLimiter);
