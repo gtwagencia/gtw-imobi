@@ -6,6 +6,8 @@ const { authenticate }     = require('../../middleware/auth');
 const { workspaceContext } = require('../../middleware/workspaceContext');
 const { query }    = require('../../config/database');
 const storageSvc   = require('../../services/storage.service');
+const notif        = require('../../services/ticket-notifications');
+const contactsSvc  = require('../contacts/contacts.service');
 const svc = require('./tickets.service');
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } });
@@ -13,6 +15,13 @@ const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 
 const router = Router({ mergeParams: true });
 
 const auth = [authenticate, workspaceContext];
+
+// Extrai nomes mencionados com @Nome (mesmo padrão usado nos comentários)
+function extractMentions(text) {
+  return [...(text || '').matchAll(/@([^\s@,]+(?:\s[^\s@,]+)*)/g)]
+    .map(m => m[1].trim().toLowerCase())
+    .filter(Boolean);
+}
 
 // ── Helper: check board access & optional manager role ────────────────────────
 
@@ -41,6 +50,16 @@ router.get('/enabled', ...auth, async (req, res, next) => {
   try {
     const enabled = await svc.isTicketsEnabled(req.params.workspaceId);
     res.json({ enabled });
+  } catch (err) { next(err); }
+});
+
+// Lista de contatos do workspace, usada no seletor "Cliente" do ticket.
+// Fica fora de requireNotTicketsOnly para funcionar também para usuários tickets_only.
+router.get('/contacts', ...auth, async (req, res, next) => {
+  try {
+    const { search } = req.query;
+    const result = await contactsSvc.list(req.params.workspaceId, { search: search?.slice(0, 200), limit: 100 });
+    res.json(result.data);
   } catch (err) { next(err); }
 });
 
@@ -227,6 +246,21 @@ router.post('/boards/:boardId/tickets/from-conversation', ...auth, (req, res, ne
   } catch (err) { next(err); }
 });
 
+router.put('/boards/:boardId/columns/:columnId/tickets/reorder', ...auth, (req, res, next) => requireBoardAccess(req, res, next, false), async (req, res, next) => {
+  try {
+    if (req.boardRole === 'viewer') {
+      return res.status(403).json({ error: 'Você não tem permissão para reordenar tickets neste board' });
+    }
+    const { orderedIds } = req.body;
+    if (!Array.isArray(orderedIds)) return res.status(400).json({ error: 'orderedIds deve ser array' });
+    await svc.reorderTickets(req.params.columnId, req.params.boardId, orderedIds);
+    req.app.get('io')?.to(`ws:${req.params.workspaceId}`).emit('tickets:reordered', {
+      boardId: req.params.boardId, columnId: req.params.columnId, orderedIds, _userId: req.user.sub,
+    });
+    res.json({ ok: true });
+  } catch (err) { next(err); }
+});
+
 router.get('/tickets/:ticketId', ...auth, async (req, res, next) => {
   try {
     const ticket = await svc.getTicket(req.params.ticketId, req.params.workspaceId);
@@ -275,6 +309,38 @@ router.put('/tickets/:ticketId', ...auth, async (req, res, next) => {
         `${actorName} atribuiu este ticket a você`
       );
       io?.to(`ws:${req.params.workspaceId}`).emit('ticket:alert', { ...alert });
+    }
+
+    // Cria alertas in-app para novas @menções na descrição do ticket
+    if ('description' in req.body && req.body.description !== existing.description) {
+      const oldMentions = new Set(extractMentions(existing.description));
+      const newMentions = [...new Set(extractMentions(req.body.description))].filter(m => !oldMentions.has(m));
+      if (newMentions.length) {
+        const placeholders = newMentions.map((_, i) => `$${i + 2}`).join(', ');
+        const mentionedRes = await query(
+          `SELECT DISTINCT u.id FROM users u
+           JOIN workspace_memberships wm ON wm.user_id = u.id
+           WHERE wm.workspace_id = $1
+             AND (
+               LOWER(u.name) = ANY(ARRAY[${placeholders}])
+               OR LOWER(SPLIT_PART(u.email, '@', 1)) = ANY(ARRAY[${placeholders}])
+             )
+             AND u.id != $${newMentions.length + 2}`,
+          [req.params.workspaceId, ...newMentions, req.user.sub]
+        );
+        if (mentionedRes.rows.length) {
+          const actorRes = await query('SELECT name FROM users WHERE id = $1', [req.user.sub]);
+          const actorName = actorRes.rows[0]?.name || 'Alguém';
+          for (const u of mentionedRes.rows) {
+            const mentionAlert = await svc.createAlert(
+              u.id, ticket.id, ticket.board_id, 'mention',
+              `${actorName} mencionou você na descrição do ticket`
+            );
+            io?.to(`ws:${req.params.workspaceId}`).emit('ticket:alert', { ...mentionAlert });
+          }
+          notif.notifyMentions(ticket.id, req.params.workspaceId, req.user.sub, req.body.description);
+        }
+      }
     }
 
     res.json(ticket);

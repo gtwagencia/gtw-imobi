@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, Fragment } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { getSocket, connectSocket } from '@/lib/socket';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
@@ -16,7 +16,7 @@ import {
   MoreVertical, Check, Pencil, Circle, Bell,
 } from 'lucide-react';
 import clsx from 'clsx';
-import { format, formatDistanceToNow, isPast } from 'date-fns';
+import { format, formatDistanceToNow, isPast, isToday, isThisWeek, isThisMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 // ── Priority helpers ──────────────────────────────────────────────────────────
@@ -34,6 +34,32 @@ function formatDuration(seconds: number) {
   const h = Math.floor(seconds / 3600);
   const m = Math.floor((seconds % 3600) / 60);
   return m > 0 ? `${h}h ${m}min` : `${h}h`;
+}
+
+// ── Agrupamento de cards concluídos por período ────────────────────────────────
+
+const PERIOD_ORDER = ['Hoje', 'Esta semana', 'Este mês', 'Mais antigos'] as const;
+type PeriodLabel = typeof PERIOD_ORDER[number];
+
+function getTicketPeriod(ticket: Ticket): PeriodLabel {
+  const date = new Date(ticket.resolved_at || ticket.updated_at);
+  if (isToday(date)) return 'Hoje';
+  if (isThisWeek(date, { weekStartsOn: 1 })) return 'Esta semana';
+  if (isThisMonth(date)) return 'Este mês';
+  return 'Mais antigos';
+}
+
+// Para colunas "concluído": ordena por data de conclusão (mais recentes primeiro)
+// e devolve os tickets já ordenados junto com o período de cada um, para renderizar
+// cabeçalhos de grupo mantendo o índice contíguo exigido pelo Draggable.
+function sortDoneTickets(tickets: Ticket[]): { ticket: Ticket; period: PeriodLabel }[] {
+  return [...tickets]
+    .map(ticket => ({ ticket, period: getTicketPeriod(ticket) }))
+    .sort((a, b) => {
+      const da = new Date(a.ticket.resolved_at || a.ticket.updated_at).getTime();
+      const db = new Date(b.ticket.resolved_at || b.ticket.updated_at).getTime();
+      return db - da;
+    });
 }
 
 // ── Ticket detail modal ───────────────────────────────────────────────────────
@@ -963,6 +989,25 @@ export default function BoardPage() {
       });
     });
 
+    // Tickets reordenados dentro de uma coluna por outro usuário
+    socket.on('tickets:reordered', (data: any) => {
+      if (data._userId === myId || !forThisBoard(data)) return;
+      setBoard(prev => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          columns: prev.columns.map(col => {
+            if (col.id !== data.columnId) return col;
+            const byId = new Map(col.tickets.map(t => [t.id, t]));
+            const orderedIds = data.orderedIds as string[];
+            const ordered = orderedIds.map(id => byId.get(id)).filter(Boolean) as typeof col.tickets;
+            const remaining = col.tickets.filter(t => !orderedIds.includes(t.id));
+            return { ...col, tickets: [...ordered, ...remaining] };
+          }),
+        };
+      });
+    });
+
     return () => {
       socket.off('ticket:created');
       socket.off('ticket:updated');
@@ -971,6 +1016,7 @@ export default function BoardPage() {
       socket.off('column:updated');
       socket.off('column:deleted');
       socket.off('columns:reordered');
+      socket.off('tickets:reordered');
     };
   }, [currentWorkspace, boardId, user]);
 
@@ -1068,19 +1114,45 @@ export default function BoardPage() {
       return;
     }
 
-    // ── Mover ticket entre colunas ────────────────────────────────────────────
+    // ── Mover/reordenar ticket dentro ou entre colunas ────────────────────────
     if (!board || !canEdit) return;
     const newBoard = { ...board, columns: board.columns.map(c => ({ ...c, tickets: [...c.tickets] })) };
     const srcCol = newBoard.columns.find(c => c.id === source.droppableId)!;
     const dstCol = newBoard.columns.find(c => c.id === destination.droppableId)!;
-    const [moved] = srcCol.tickets.splice(source.index, 1);
-    dstCol.tickets.splice(destination.index, 0, { ...moved, column_id: dstCol.id });
+
+    // Em colunas "concluído" a ordem exibida é agrupada por data (sortDoneTickets),
+    // não a ordem de `position` armazenada em col.tickets. source.index/destination.index
+    // se referem à ordem exibida, então o splice precisa operar sobre essa mesma ordem.
+    const srcRendered = srcCol.is_done ? sortDoneTickets(srcCol.tickets).map(x => x.ticket) : srcCol.tickets;
+    const dstRendered = srcCol.id === dstCol.id
+      ? srcRendered
+      : (dstCol.is_done ? sortDoneTickets(dstCol.tickets).map(x => x.ticket) : dstCol.tickets);
+
+    const [moved] = srcRendered.splice(source.index, 1);
+    dstRendered.splice(destination.index, 0, { ...moved, column_id: dstCol.id });
+    srcCol.tickets = srcRendered;
+    dstCol.tickets = dstRendered;
     setBoard(newBoard);
 
-    await api.put(`/workspaces/${currentWorkspace!.id}/tickets/tickets/${draggableId}`, {
-      columnId: destination.droppableId,
-      position: destination.index,
-    }).catch(() => loadBoard());
+    const wsId = currentWorkspace!.id;
+    const reorder = (col: typeof dstCol) => api.put(
+      `/workspaces/${wsId}/tickets/boards/${boardId}/columns/${col.id}/tickets/reorder`,
+      { orderedIds: col.tickets.map(t => t.id) }
+    );
+
+    try {
+      if (source.droppableId === destination.droppableId) {
+        await reorder(dstCol);
+      } else {
+        await api.put(`/workspaces/${wsId}/tickets/tickets/${draggableId}`, {
+          columnId: destination.droppableId,
+          position: destination.index,
+        });
+        await Promise.all([reorder(dstCol), reorder(srcCol)]);
+      }
+    } catch {
+      loadBoard();
+    }
   }
 
   function handleTicketUpdated(updated: Ticket) {
@@ -1282,19 +1354,30 @@ export default function BoardPage() {
                         <div className="text-xs text-gray-400 text-center py-3">Nenhum ticket</div>
                       )}
 
-                      {col.tickets.map((ticket, index) => (
-                        <Draggable key={ticket.id} draggableId={ticket.id} index={index} isDragDisabled={!canEdit}>
-                          {(prov, snap) => (
-                            <div ref={prov.innerRef} {...prov.draggableProps} {...prov.dragHandleProps}>
-                              <TicketCard
-                                ticket={ticket}
-                                isDragging={snap.isDragging}
-                                hasAlert={alertTicketIds.has(ticket.id)}
-                                onClick={() => router.push(`/dashboard/tickets/${boardId}/${ticket.id}`)}
-                              />
+                      {(col.is_done
+                        ? sortDoneTickets(col.tickets)
+                        : col.tickets.map(ticket => ({ ticket, period: null as PeriodLabel | null }))
+                      ).map(({ ticket, period }, index, arr) => (
+                        <Fragment key={ticket.id}>
+                          {col.is_done && (index === 0 || arr[index - 1].period !== period) && (
+                            <div className={clsx('flex items-center gap-2', index > 0 && 'pt-1')}>
+                              <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide">{period}</span>
+                              <div className="flex-1 h-px bg-gray-200" />
                             </div>
                           )}
-                        </Draggable>
+                          <Draggable draggableId={ticket.id} index={index} isDragDisabled={!canEdit}>
+                            {(prov, snap) => (
+                              <div ref={prov.innerRef} {...prov.draggableProps} {...prov.dragHandleProps}>
+                                <TicketCard
+                                  ticket={ticket}
+                                  isDragging={snap.isDragging}
+                                  hasAlert={alertTicketIds.has(ticket.id)}
+                                  onClick={() => router.push(`/dashboard/tickets/${boardId}/${ticket.id}`)}
+                                />
+                              </div>
+                            )}
+                          </Draggable>
+                        </Fragment>
                       ))}
                       {provided.placeholder}
 

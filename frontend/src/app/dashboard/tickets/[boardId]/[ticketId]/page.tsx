@@ -6,7 +6,7 @@ import { useAuth } from '@/store/auth';
 import api from '@/lib/api';
 import Header from '@/components/layout/Header';
 import MediaLightbox, { type LightboxItem } from '@/components/ui/MediaLightbox';
-import type { Ticket, TicketColumn, TicketBoardMember, TicketLabel, TicketTimeLog, TicketPriority } from '@/types';
+import type { Ticket, TicketColumn, TicketBoardMember, TicketLabel, TicketTimeLog, TicketPriority, Contact } from '@/types';
 import {
   ArrowLeft, RefreshCw, Trash2, Send, Paperclip, X, Download,
   FileText, Image, Film, Music, Clock, Calendar, User, Flag, Tag,
@@ -116,6 +116,7 @@ export default function TicketDetailPage() {
   const [labels,       setLabels]       = useState<TicketLabel[]>([]);
   const [comments,     setComments]     = useState<Comment[]>([]);
   const [attachments,  setAttachments]  = useState<Attachment[]>([]);
+  const [contacts,     setContacts]     = useState<Contact[]>([]);
   const [storage,      setStorage]      = useState<StorageUsage | null>(null);
   const [timeLogs,     setTimeLogs]     = useState<TicketTimeLog[]>([]);
   const [activeTimer,  setActiveTimer]  = useState<TicketTimeLog | null>(null);
@@ -130,6 +131,12 @@ export default function TicketDetailPage() {
   const [mentionQuery, setMentionQuery] = useState('');
   const [mentionPos,   setMentionPos]   = useState(0);
   const [mentionIdx,   setMentionIdx]   = useState(0);
+  const [descMentionOpen,  setDescMentionOpen]  = useState(false);
+  const [descMentionQuery, setDescMentionQuery] = useState('');
+  const [descMentionPos,   setDescMentionPos]   = useState(0);
+  const [descMentionIdx,   setDescMentionIdx]   = useState(0);
+  const [draggingAttachments, setDraggingAttachments] = useState(false);
+  const [draggingCommentFiles, setDraggingCommentFiles] = useState(false);
   const [lightbox,     setLightbox]     = useState<{ items: LightboxItem[]; index: number } | null>(null);
   const timerRef       = useRef<ReturnType<typeof setInterval> | null>(null);
   const fileRef        = useRef<HTMLInputElement>(null);
@@ -153,7 +160,7 @@ export default function TicketDetailPage() {
     if (!currentWorkspace) return;
     setLoading(true);
     try {
-      const [tRes, bRes, mRes, lRes, cRes, aRes, sRes, tlRes] = await Promise.all([
+      const [tRes, bRes, mRes, lRes, cRes, aRes, sRes, tlRes, ctRes] = await Promise.all([
         api.get(`/workspaces/${currentWorkspace.id}/tickets/tickets/${ticketId}`),
         api.get(`/workspaces/${currentWorkspace.id}/tickets/boards/${boardId}`),
         api.get(`/workspaces/${currentWorkspace.id}/tickets/boards/${boardId}/members`),
@@ -162,6 +169,7 @@ export default function TicketDetailPage() {
         api.get(`/workspaces/${currentWorkspace.id}/tickets/tickets/${ticketId}/attachments`),
         api.get(`/workspaces/${currentWorkspace.id}/tickets/storage`),
         api.get(`/workspaces/${currentWorkspace.id}/tickets/tickets/${ticketId}/time-logs`),
+        api.get(`/workspaces/${currentWorkspace.id}/tickets/contacts`),
       ]);
       setTicket(tRes.data);
       setColumns(bRes.data.columns || []);
@@ -170,6 +178,7 @@ export default function TicketDetailPage() {
       setComments(cRes.data);
       setAttachments(aRes.data);
       setStorage(sRes.data);
+      setContacts(ctRes.data);
       setTimeLogs(tlRes.data.logs);
       if (tlRes.data.active) {
         setActiveTimer(tlRes.data.active);
@@ -310,6 +319,63 @@ export default function TicketDetailPage() {
     }
   }
 
+  // ── @mention helpers (descrição do ticket) ────────────────────────────────
+
+  const descMentionFiltered = descMentionOpen
+    ? members.filter(m => {
+        const q = descMentionQuery.toLowerCase();
+        const emailUser = (m.email || '').split('@')[0].toLowerCase();
+        return m.name.toLowerCase().includes(q) || emailUser.includes(q);
+      }).slice(0, 6)
+    : [];
+
+  function handleDescriptionChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
+    const val = e.target.value;
+    setTicket(p => p ? { ...p, description: val } : p);
+    e.target.style.height = 'auto';
+    e.target.style.height = e.target.scrollHeight + 'px';
+
+    const cursor = e.target.selectionStart ?? val.length;
+    const textBefore = val.slice(0, cursor);
+    const match = textBefore.match(/(?:^|\s)@(\S*)$/);
+    if (match) {
+      setDescMentionQuery(match[1]);
+      setDescMentionPos(cursor - match[1].length - 1); // posição do @
+      setDescMentionOpen(true);
+      setDescMentionIdx(0);
+    } else {
+      setDescMentionOpen(false);
+    }
+  }
+
+  function selectDescMention(member: TicketBoardMember) {
+    const text = ticket?.description || '';
+    const before = text.slice(0, descMentionPos);
+    const cursor = descriptionRef.current?.selectionStart ?? text.length;
+    const after  = text.slice(cursor);
+    const displayName = member.name || (member.email || '').split('@')[0];
+    const newText = `${before}@${displayName} ${after}`;
+    setTicket(p => p ? { ...p, description: newText } : p);
+    setDescMentionOpen(false);
+    setTimeout(() => {
+      if (!descriptionRef.current) return;
+      const pos = descMentionPos + displayName.length + 2;
+      descriptionRef.current.focus();
+      descriptionRef.current.setSelectionRange(pos, pos);
+      descriptionRef.current.style.height = 'auto';
+      descriptionRef.current.style.height = descriptionRef.current.scrollHeight + 'px';
+    }, 0);
+  }
+
+  function handleDescriptionKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if (descMentionOpen && descMentionFiltered.length > 0) {
+      if (e.key === 'ArrowDown') { e.preventDefault(); setDescMentionIdx(i => Math.min(i + 1, descMentionFiltered.length - 1)); return; }
+      if (e.key === 'ArrowUp')   { e.preventDefault(); setDescMentionIdx(i => Math.max(i - 1, 0)); return; }
+      if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); selectDescMention(descMentionFiltered[descMentionIdx]); return; }
+      if (e.key === 'Escape')    { setDescMentionOpen(false); return; }
+    }
+  }
+
   // Renderiza texto do comentário com @mentions destacados
   function renderContent(text: string) {
     const memberNames = new Set(members.map(m => m.name));
@@ -427,12 +493,21 @@ export default function TicketDetailPage() {
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-semibold text-indigo-400 uppercase tracking-wide mb-0.5">Cliente</p>
                 {canEdit ? (
-                  <input
-                    value={ticket.contact_name || ''}
-                    onChange={e => setTicket(p => p ? { ...p, contact_name: e.target.value } : p)}
-                    onBlur={() => patch({ contactName: ticket.contact_name } as any)}
-                    className="text-sm font-semibold text-indigo-900 bg-transparent border-0 outline-none border-b border-indigo-200 focus:border-indigo-500 w-full"
-                  />
+                  <>
+                    <input
+                      list="ticket-contacts-list"
+                      value={ticket.contact_name || ''}
+                      onChange={e => setTicket(p => p ? { ...p, contact_name: e.target.value } : p)}
+                      onBlur={() => {
+                        const matched = contacts.find(c => c.name === ticket.contact_name);
+                        patch({ contactName: ticket.contact_name || null, contactId: matched?.id ?? null } as any);
+                      }}
+                      className="text-sm font-semibold text-indigo-900 bg-transparent border-0 outline-none border-b border-indigo-200 focus:border-indigo-500 w-full"
+                    />
+                    <datalist id="ticket-contacts-list">
+                      {contacts.map(c => <option key={c.id} value={c.name} />)}
+                    </datalist>
+                  </>
                 ) : (
                   <p className="text-sm font-semibold text-indigo-900">{ticket.contact_name || '—'}</p>
                 )}
@@ -465,20 +540,47 @@ export default function TicketDetailPage() {
               {/* Description */}
               <div className="mt-3">
                 {canEdit ? (
-                  <textarea
-                    ref={descriptionRef}
-                    value={ticket.description || ''}
-                    onChange={e => {
-                      setTicket(p => p ? { ...p, description: e.target.value } : p);
-                      e.target.style.height = 'auto';
-                      e.target.style.height = e.target.scrollHeight + 'px';
-                    }}
-                    onBlur={() => patch({ description: ticket.description })}
-                    rows={3}
-                    className="w-full text-sm text-gray-600 bg-gray-50 rounded-xl border border-gray-200 p-3 resize-none outline-none focus:ring-2 focus:ring-indigo-200 overflow-hidden"
-                    placeholder="Adicione uma descrição..."
-                    style={{ minHeight: '80px' }}
-                  />
+                  <div className="relative">
+                    <textarea
+                      ref={descriptionRef}
+                      value={ticket.description || ''}
+                      onChange={handleDescriptionChange}
+                      onKeyDown={handleDescriptionKeyDown}
+                      onBlur={() => { setDescMentionOpen(false); patch({ description: ticket.description }); }}
+                      rows={3}
+                      className="w-full text-sm text-gray-600 bg-gray-50 rounded-xl border border-gray-200 p-3 resize-none outline-none focus:ring-2 focus:ring-indigo-200 overflow-hidden"
+                      placeholder="Adicione uma descrição... (use @ para mencionar alguém)"
+                      style={{ minHeight: '80px' }}
+                    />
+
+                    {/* Dropdown de @mention */}
+                    {descMentionOpen && descMentionFiltered.length > 0 && (
+                      <div className="absolute top-full left-0 mt-1 w-64 bg-white border border-gray-200 rounded-xl shadow-lg z-50 overflow-hidden">
+                        <div className="px-3 py-1.5 border-b border-gray-100">
+                          <span className="text-xs text-gray-400 font-medium">Mencionar agente</span>
+                        </div>
+                        {descMentionFiltered.map((m, i) => (
+                          <button
+                            key={m.user_id}
+                            type="button"
+                            onMouseDown={e => { e.preventDefault(); selectDescMention(m); }}
+                            className={clsx(
+                              'w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors',
+                              i === descMentionIdx ? 'bg-indigo-50' : 'hover:bg-gray-50'
+                            )}
+                          >
+                            <div className="w-7 h-7 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 text-xs font-bold flex-shrink-0">
+                              {m.name[0]?.toUpperCase()}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium text-gray-900 truncate">{m.name}</p>
+                              <p className="text-xs text-gray-400 truncate">{m.email}</p>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 ) : (
                   <p className="text-sm text-gray-600 whitespace-pre-wrap">{ticket.description || '—'}</p>
                 )}
@@ -486,7 +588,20 @@ export default function TicketDetailPage() {
             </div>
 
             {/* Direct attachments */}
-            <div className="bg-white rounded-2xl border border-gray-200 p-5">
+            <div
+              className={clsx(
+                'bg-white rounded-2xl border p-5 transition-colors',
+                draggingAttachments ? 'border-indigo-400 bg-indigo-50/50 border-dashed' : 'border-gray-200'
+              )}
+              onDragOver={e => { if (!canEdit) return; e.preventDefault(); setDraggingAttachments(true); }}
+              onDragLeave={e => { if (!canEdit) return; e.preventDefault(); setDraggingAttachments(false); }}
+              onDrop={e => {
+                if (!canEdit) return;
+                e.preventDefault();
+                setDraggingAttachments(false);
+                if (e.dataTransfer.files?.length) uploadAttachment(e.dataTransfer.files);
+              }}
+            >
               <div className="flex items-center justify-between mb-3">
                 <h3 className="font-semibold text-gray-800 text-sm">Arquivos anexados</h3>
                 {canEdit && (
@@ -501,6 +616,11 @@ export default function TicketDetailPage() {
                   </>
                 )}
               </div>
+              {canEdit && draggingAttachments && (
+                <div className="mb-3 text-center text-xs text-indigo-500 font-medium border border-dashed border-indigo-300 rounded-xl py-3">
+                  Solte os arquivos para anexar
+                </div>
+              )}
               {attachments.length === 0 ? (
                 <p className="text-xs text-gray-400">Nenhum arquivo anexado</p>
               ) : (
@@ -606,7 +726,26 @@ export default function TicketDetailPage() {
               </div>
 
               {/* Comment form */}
-              <form onSubmit={submitComment} className="border-t border-gray-100 pt-4">
+              <form
+                onSubmit={submitComment}
+                className={clsx(
+                  'border-t border-gray-100 pt-4 transition-colors',
+                  draggingCommentFiles && 'bg-indigo-50/50 rounded-xl'
+                )}
+                onDragOver={e => { e.preventDefault(); setDraggingCommentFiles(true); }}
+                onDragLeave={e => { e.preventDefault(); setDraggingCommentFiles(false); }}
+                onDrop={e => {
+                  e.preventDefault();
+                  setDraggingCommentFiles(false);
+                  const files = Array.from(e.dataTransfer.files || []);
+                  if (files.length) setCommentFiles(prev => [...prev, ...files]);
+                }}
+              >
+                {draggingCommentFiles && (
+                  <div className="mb-2 text-center text-xs text-indigo-500 font-medium border border-dashed border-indigo-300 rounded-xl py-3">
+                    Solte os arquivos para anexar ao comentário
+                  </div>
+                )}
                 <div className="flex gap-3">
                   <div className="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
                     {(user?.name || '?')[0]?.toUpperCase()}

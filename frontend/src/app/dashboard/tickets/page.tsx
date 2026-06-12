@@ -8,7 +8,7 @@ import api from '@/lib/api';
 import type { TicketBoard } from '@/types';
 import {
   Plus, LayoutGrid, Archive, Settings, Users,
-  Ticket, Calendar, CheckSquare, BarChart2, Copy, Repeat,
+  Ticket, Calendar, CheckSquare, BarChart2, Copy, Repeat, Trash2,
 } from 'lucide-react';
 import clsx from 'clsx';
 import { formatDistanceToNow } from 'date-fns';
@@ -114,6 +114,8 @@ export default function TicketsPage() {
   const [duplicating, setDuplicating] = useState<string | null>(null); // boardId sendo duplicado
   const [duplicateName, setDuplicateName] = useState('');
   const [duplicateLoading, setDuplicateLoading] = useState(false);
+  const [deletingBoard, setDeletingBoard] = useState<TicketBoard | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   const isAdmin = user?.orgs?.some(o => ['owner', 'admin'].includes(o.role));
 
@@ -155,6 +157,19 @@ export default function TicketsPage() {
     } catch {
     } finally {
       setDuplicateLoading(false);
+    }
+  }
+
+  async function handleDeleteBoard() {
+    if (!currentWorkspace || !deletingBoard) return;
+    setDeleteLoading(true);
+    try {
+      await api.delete(`/workspaces/${currentWorkspace.id}/tickets/boards/${deletingBoard.id}`);
+      setBoards(prev => prev.filter(b => b.id !== deletingBoard.id));
+      setDeletingBoard(null);
+    } catch {
+    } finally {
+      setDeleteLoading(false);
     }
   }
 
@@ -311,17 +326,31 @@ export default function TicketsPage() {
                   <span className="text-xs text-gray-400">
                     Criado {formatDistanceToNow(new Date(board.created_at), { locale: ptBR, addSuffix: true })}
                   </span>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setDuplicating(board.id);
-                      setDuplicateName(`${board.name} (cópia)`);
-                    }}
-                    className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-opacity"
-                    title="Duplicar board"
-                  >
-                    <Copy className="w-3.5 h-3.5" />
-                  </button>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setDuplicating(board.id);
+                        setDuplicateName(`${board.name} (cópia)`);
+                      }}
+                      className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-opacity"
+                      title="Duplicar board"
+                    >
+                      <Copy className="w-3.5 h-3.5" />
+                    </button>
+                    {(isAdmin || board.user_role === 'manager') && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setDeletingBoard(board);
+                        }}
+                        className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-red-50 text-gray-400 hover:text-red-600 transition-opacity"
+                        title="Remover board"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
                 </div>
               </button>
             ))}
@@ -377,6 +406,37 @@ export default function TicketsPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete confirmation modal */}
+      {deletingBoard && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-1 flex items-center gap-2">
+              <Trash2 className="w-5 h-5 text-red-500" /> Remover Board
+            </h2>
+            <p className="text-sm text-gray-500 mb-4">
+              Tem certeza que deseja remover o board <strong>{deletingBoard.name}</strong>? Ele e todos os seus tickets deixarão de aparecer na plataforma.
+            </p>
+            <div className="flex justify-end gap-3 pt-1">
+              <button
+                type="button"
+                onClick={() => setDeletingBoard(null)}
+                className="btn-secondary"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteBoard}
+                disabled={deleteLoading}
+                className="btn-danger"
+              >
+                {deleteLoading ? 'Removendo...' : 'Remover'}
+              </button>
+            </div>
           </div>
         </div>
       )}

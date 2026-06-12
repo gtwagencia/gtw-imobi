@@ -13,8 +13,8 @@ const { authenticate }  = require('../../middleware/auth');
 const storageSvc = require('../../services/storage.service');
 
 const ALLOWED_MIME = new Set([
-  'image/jpeg', 'image/png', 'image/gif', 'image/webp',
-  'video/mp4', 'video/webm',
+  'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/heic', 'image/heif',
+  'video/mp4', 'video/webm', 'video/quicktime',
   'audio/mpeg', 'audio/ogg', 'audio/webm', 'audio/mp4',
   'application/pdf',
   'application/msword',
@@ -25,7 +25,8 @@ const ALLOWED_MIME = new Set([
 
 const MIME_EXT = {
   'image/jpeg': '.jpg', 'image/png': '.png', 'image/gif': '.gif', 'image/webp': '.webp',
-  'video/mp4': '.mp4', 'video/webm': '.webm',
+  'image/heic': '.heic', 'image/heif': '.heif',
+  'video/mp4': '.mp4', 'video/webm': '.webm', 'video/quicktime': '.mov',
   'audio/mpeg': '.mp3', 'audio/ogg': '.ogg', 'audio/webm': '.weba', 'audio/mp4': '.m4a',
   'application/pdf': '.pdf',
   'application/msword': '.doc',
@@ -34,12 +35,22 @@ const MIME_EXT = {
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': '.xlsx',
 };
 
+// Fallback pelo nome do arquivo: alguns navegadores/SOs reportam mimetype genérico ou
+// incorreto para arquivos HEIC/MOV exportados de iPhone (ex: imagem identificada como
+// "video/quicktime" ou "application/octet-stream"). Nesse caso, confia na extensão.
+const EXT_MIME = Object.fromEntries(Object.entries(MIME_EXT).map(([mime, ext]) => [ext, mime]));
+
 const upload = multer({
   storage: multer.memoryStorage(),
   limits:  { fileSize: 100 * 1024 * 1024 }, // 100 MB
   fileFilter: (_req, file, cb) => {
-    if (ALLOWED_MIME.has(file.mimetype)) cb(null, true);
-    else cb(Object.assign(new Error('Tipo de arquivo não permitido'), { status: 415 }));
+    if (ALLOWED_MIME.has(file.mimetype)) return cb(null, true);
+    const extMime = EXT_MIME[path.extname(file.originalname).toLowerCase()];
+    if (extMime) {
+      file.mimetype = extMime;
+      return cb(null, true);
+    }
+    cb(Object.assign(new Error('Tipo de arquivo não permitido'), { status: 415 }));
   },
 });
 

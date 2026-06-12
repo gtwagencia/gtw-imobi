@@ -333,6 +333,17 @@ async function reorderColumns(boardId, orderedIds) {
   }
 }
 
+async function reorderTickets(columnId, boardId, orderedIds) {
+  for (let i = 0; i < orderedIds.length; i++) {
+    await query(
+      `UPDATE tickets SET position = $1
+       WHERE id = $2 AND column_id = $3
+         AND column_id IN (SELECT id FROM ticket_columns WHERE board_id = $4)`,
+      [i, orderedIds[i], columnId, boardId]
+    );
+  }
+}
+
 async function deleteColumn(columnId, boardId) {
   // Move tickets to first remaining column
   const firstCol = await query(
@@ -1087,6 +1098,7 @@ module.exports = {
   createColumn,
   updateColumn,
   reorderColumns,
+  reorderTickets,
   deleteColumn,
   createTicket,
   getTicket,
