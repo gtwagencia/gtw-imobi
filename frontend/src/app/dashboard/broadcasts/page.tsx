@@ -272,7 +272,7 @@ function CreateBroadcastModal({ workspaceId, inboxes, onClose, onCreated }: {
           <button onClick={onClose}><X className="w-5 h-5 text-gray-400" /></button>
         </div>
 
-        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">Nome da campanha *</label>
@@ -645,7 +645,7 @@ function BroadcastDetailsModal({ workspaceId, broadcastId, broadcastName, onClos
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-6 pt-3">
+        <div className="flex-1 overflow-y-auto p-4 md:p-6 pt-3">
           {loading ? (
             <div className="py-8 text-center text-sm text-gray-400">Carregando...</div>
           ) : shown.length === 0 ? (
@@ -761,7 +761,7 @@ export default function BroadcastsPage() {
         }
       />
 
-      <div className="flex-1 overflow-y-auto p-6">
+      <div className="flex-1 overflow-y-auto p-4 md:p-6">
         {loading ? (
           <div className="space-y-3">
             {[1,2,3].map(i => <div key={i} className="card h-28 animate-pulse bg-gray-50" />)}

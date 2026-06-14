@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&display=swap');
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -19,20 +19,27 @@
 @layer components {
   .btn {
     @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2
-           font-medium text-sm transition-colors focus:outline-none focus:ring-2
+           font-medium text-sm transition-all focus:outline-none focus:ring-2
            focus:ring-offset-1 disabled:opacity-50 disabled:pointer-events-none;
   }
   .btn-primary {
-    @apply btn bg-brand-600 text-white hover:bg-brand-700 focus:ring-brand-500;
+    @apply btn text-white bg-gradient-to-br from-brand-500 to-brand-700
+           shadow-soft hover:shadow-glow hover:from-brand-500 hover:to-brand-600
+           focus:ring-brand-500 active:scale-[0.98];
   }
   .btn-secondary {
-    @apply btn bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 focus:ring-gray-300;
+    @apply btn bg-white text-gray-700 border border-gray-200 shadow-soft
+           hover:bg-gray-50 hover:border-gray-300 focus:ring-gray-300 active:scale-[0.98];
   }
   .btn-danger {
-    @apply btn bg-red-600 text-white hover:bg-red-700 focus:ring-red-500;
+    @apply btn bg-red-600 text-white shadow-soft hover:bg-red-700 focus:ring-red-500 active:scale-[0.98];
   }
   .btn-ghost {
     @apply btn bg-transparent text-gray-600 hover:bg-gray-100 focus:ring-gray-300;
+  }
+  .btn-accent {
+    @apply btn text-accent-900 bg-gradient-to-br from-accent-300 to-accent-500
+           shadow-soft hover:shadow-md focus:ring-accent-400 active:scale-[0.98];
   }
 
   .input {
@@ -43,7 +50,10 @@
   }
 
   .card {
-    @apply bg-white rounded-xl border border-gray-200 shadow-sm;
+    @apply bg-white rounded-2xl border border-gray-100 shadow-card;
+  }
+  .card-hover {
+    @apply transition-all duration-200 hover:shadow-glow hover:border-brand-200 hover:-translate-y-0.5;
   }
 
   .badge {
@@ -54,4 +64,14 @@
   .badge-yellow { @apply badge bg-yellow-100 text-yellow-700; }
   .badge-blue   { @apply badge bg-blue-100 text-blue-700; }
   .badge-gray   { @apply badge bg-gray-100 text-gray-600; }
+  .badge-brand  { @apply badge bg-brand-50 text-brand-700; }
+  .badge-accent { @apply badge bg-accent-50 text-accent-700; }
+
+  /* Tipografia de destaque — usada em títulos de página, telas de
+     autenticação e seções "hero". Dá identidade própria sem pesar a UI
+     densa (tabelas, cards pequenos) que continua em Inter. */
+  .font-display {
+    font-family: theme('fontFamily.display');
+    letter-spacing: -0.01em;
+  }
 }

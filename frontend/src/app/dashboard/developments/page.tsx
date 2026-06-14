@@ -85,7 +85,7 @@ export default function DevelopmentsPage() {
         }
       />
 
-      <div className="flex-1 overflow-y-auto p-6">
+      <div className="flex-1 overflow-y-auto p-4 md:p-6">
         {/* Search + filter toggle */}
         <div className="flex flex-wrap items-center gap-2 mb-4">
           <div className="relative flex-1 max-w-sm">
@@ -165,7 +165,7 @@ export default function DevelopmentsPage() {
                     {CONSTRUCTION_STATUS_LABELS[d.construction_status]}
                   </span>
                   {d.is_featured && (
-                    <span className="absolute top-2 right-2 bg-amber-400 text-white rounded-full p-1">
+                    <span className="absolute top-2 right-2 bg-gradient-to-br from-accent-300 to-accent-500 text-accent-900 rounded-full p-1 shadow-soft">
                       <Star className="w-3.5 h-3.5" fill="currentColor" />
                     </span>
                   )}

@@ -104,10 +104,10 @@ export default function DashboardPage() {
     <>
       <Header title="Dashboard" />
 
-      <div className="flex-1 overflow-y-auto p-6">
+      <div className="flex-1 overflow-y-auto p-4 md:p-6">
         {/* Welcome */}
         <div className="mb-6">
-          <h2 className="text-2xl font-bold text-gray-900">
+          <h2 className="font-display text-2xl sm:text-3xl font-semibold text-gray-900 tracking-tight">
             Bem-vindo ao {currentWorkspace.name}
           </h2>
           <p className="text-gray-500 mt-1 text-sm">Aqui está um resumo de hoje.</p>
@@ -117,7 +117,7 @@ export default function DashboardPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           {statCards.map((s) => (
             <Link key={s.label} href={s.href}>
-              <div className="card p-5 hover:shadow-md transition-shadow cursor-pointer">
+              <div className="card card-hover p-5 cursor-pointer">
                 <div className="flex items-start justify-between mb-3">
                   <div className={`w-10 h-10 ${s.bg} rounded-xl flex items-center justify-center`}>
                     <s.icon className={`w-5 h-5 ${s.color}`} />
@@ -137,7 +137,7 @@ export default function DashboardPage() {
 
         {/* Quick actions */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Link href="/dashboard/conversations" className="card p-5 hover:shadow-md transition-shadow">
+          <Link href="/dashboard/conversations" className="card card-hover p-5">
             <div className="flex items-center gap-3 mb-2">
               <MessageSquare className="w-5 h-5 text-brand-600" />
               <span className="font-medium text-gray-900">Atendimento</span>
@@ -145,7 +145,7 @@ export default function DashboardPage() {
             <p className="text-sm text-gray-500">Gerencie conversas de WhatsApp e outros canais em tempo real.</p>
           </Link>
 
-          <Link href="/dashboard/kanban" className="card p-5 hover:shadow-md transition-shadow">
+          <Link href="/dashboard/kanban" className="card card-hover p-5">
             <div className="flex items-center gap-3 mb-2">
               <TrendingUp className="w-5 h-5 text-green-600" />
               <span className="font-medium text-gray-900">Funil de Vendas</span>
@@ -153,7 +153,7 @@ export default function DashboardPage() {
             <p className="text-sm text-gray-500">Acompanhe seus deals e mova-os pelo pipeline de forma visual.</p>
           </Link>
 
-          <Link href="/dashboard/contacts" className="card p-5 hover:shadow-md transition-shadow">
+          <Link href="/dashboard/contacts" className="card card-hover p-5">
             <div className="flex items-center gap-3 mb-2">
               <Users className="w-5 h-5 text-purple-600" />
               <span className="font-medium text-gray-900">CRM de Contatos</span>

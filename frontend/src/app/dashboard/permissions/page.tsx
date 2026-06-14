@@ -97,7 +97,7 @@ export default function PermissionsPage() {
     <>
       <Header title="Permissões" />
 
-      <div className="flex-1 overflow-y-auto p-6">
+      <div className="flex-1 overflow-y-auto p-4 md:p-6">
         <p className="text-sm text-gray-500 mb-4 max-w-2xl">
           Defina quais módulos do menu cada tipo de usuário pode acessar. Os perfis
           marcados com <Lock className="w-3 h-3 inline-block" /> são fixos e não

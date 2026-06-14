@@ -151,7 +151,7 @@ export default function MembersPage() {
         )}
       />
 
-      <div className="flex-1 overflow-y-auto p-6">
+      <div className="flex-1 overflow-y-auto p-4 md:p-6">
         {adding && (
           <div className="card p-6 mb-6 max-w-md">
             <h2 className="font-semibold text-gray-900 mb-4">Adicionar membro</h2>

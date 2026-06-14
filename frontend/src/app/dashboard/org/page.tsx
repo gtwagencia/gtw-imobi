@@ -126,7 +126,7 @@ export default function OrgPage() {
     <>
       <Header title="Organização" />
 
-      <div className="flex-1 overflow-y-auto p-6 max-w-4xl">
+      <div className="flex-1 overflow-y-auto p-4 md:p-6 max-w-4xl">
         {/* Org info */}
         <div className="card p-5 mb-6 flex items-center gap-4">
           <div className="w-12 h-12 rounded-xl bg-brand-100 flex items-center justify-center flex-shrink-0">

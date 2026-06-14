@@ -463,7 +463,7 @@ export default function ContactsPage() {
 
       <div className="flex flex-1 overflow-hidden">
         {/* Main content */}
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 overflow-y-auto p-4 md:p-6">
           {/* Import result banner */}
           {importResult && (
             <div className={`mb-4 rounded-xl p-4 flex items-start gap-3 ${importResult.errors.length && !importResult.imported && !importResult.updated ? 'bg-red-50 border border-red-200' : 'bg-green-50 border border-green-200'}`}>

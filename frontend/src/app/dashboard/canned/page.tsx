@@ -71,7 +71,7 @@ export default function CannedPage() {
         }
       />
 
-      <div className="flex-1 overflow-y-auto p-6">
+      <div className="flex-1 overflow-y-auto p-4 md:p-6">
         {/* Search */}
         <div className="relative max-w-sm mb-5">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />

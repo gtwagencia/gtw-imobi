@@ -162,7 +162,7 @@ export default function InboxesPage() {
         }
       />
 
-      <div className="flex-1 overflow-y-auto p-6">
+      <div className="flex-1 overflow-y-auto p-4 md:p-6">
         {/* Create form */}
         {creating && (
           <div className="card p-6 mb-6 max-w-lg">

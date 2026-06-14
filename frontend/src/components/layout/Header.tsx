@@ -62,7 +62,7 @@ export default function Header({ title, actions }: HeaderProps) {
       </button>
 
       <div className="flex-1 min-w-0">
-        <h1 className="text-base md:text-lg font-semibold text-gray-900 truncate">{title}</h1>
+        <h1 className="font-display text-base md:text-lg font-semibold text-gray-900 truncate">{title}</h1>
         {currentWorkspace && (
           <p className="text-xs text-gray-400 truncate">{currentWorkspace.name}</p>
         )}

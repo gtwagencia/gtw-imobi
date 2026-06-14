@@ -11,8 +11,16 @@
  */
 
 const { Router } = require('express');
+const crypto      = require('crypto');
 const { query }  = require('../../config/database');
 const svc         = require('./properties.service');
+
+function tokensMatch(provided, expected) {
+  if (!provided || !expected) return false;
+  const a = Buffer.from(String(provided));
+  const b = Buffer.from(String(expected));
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
 
 const router = Router();
 
@@ -131,7 +139,7 @@ router.get('/:workspaceId/properties.xml', async (req, res, next) => {
       [workspaceId]
     );
     const expected = wsRes.rows[0]?.site_integration_token;
-    if (!expected || !token || token !== expected) {
+    if (!tokensMatch(token, expected)) {
       return res.status(403).type('application/xml').send('<erro>Token inválido</erro>');
     }
 

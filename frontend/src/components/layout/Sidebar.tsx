@@ -146,7 +146,7 @@ export default function Sidebar() {
           Desktop (md+): position static, no fluxo, sempre visível
           Mobile: position fixed, fora do fluxo, desliza com translate */}
       <aside className={clsx(
-        'flex flex-col flex-shrink-0 h-screen bg-gray-900 transition-transform duration-300',
+        'flex flex-col flex-shrink-0 h-screen bg-ink-950 transition-transform duration-300',
         // Desktop: no fluxo, tamanho fixo
         'md:static md:w-64 md:translate-x-0',
         // Mobile: fixed, desliza para dentro/fora
@@ -155,12 +155,12 @@ export default function Sidebar() {
         isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0',
       )}>
       {/* Logo + botão fechar no mobile */}
-      <div className="px-5 py-4 border-b border-gray-800">
+      <div className="px-5 py-4 border-b border-ink-800">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-brand-600 rounded-lg flex items-center justify-center flex-shrink-0">
+          <div className="w-8 h-8 bg-gradient-to-br from-brand-500 to-brand-700 rounded-lg flex items-center justify-center flex-shrink-0 shadow-glow">
             <MessageSquare className="w-4 h-4 text-white" />
           </div>
-          <span className="text-white font-semibold text-sm flex-1">GTW Platform</span>
+          <span className="font-display text-white font-semibold text-sm flex-1 tracking-tight">GTW Platform</span>
           <button onClick={close} className="md:hidden text-gray-500 hover:text-white p-1 rounded">
             <X className="w-5 h-5" />
           </button>
@@ -168,13 +168,13 @@ export default function Sidebar() {
       </div>
 
       {/* Workspace switcher */}
-      <div className="px-3 py-2 border-b border-gray-800" ref={dropRef}>
+      <div className="px-3 py-2 border-b border-ink-800" ref={dropRef}>
         <button
           onClick={() => setWsOpen(!wsOpen)}
           className="w-full flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-left
-                     text-gray-300 hover:bg-gray-800 transition-colors"
+                     text-gray-300 hover:bg-ink-800 transition-colors"
         >
-          <div className="w-7 h-7 rounded-md bg-brand-700 flex items-center justify-center
+          <div className="w-7 h-7 rounded-md bg-gradient-to-br from-brand-500 to-brand-700 flex items-center justify-center
                           text-white text-xs font-bold flex-shrink-0">
             {currentWorkspace?.name[0]?.toUpperCase()}
           </div>
@@ -190,7 +190,7 @@ export default function Sidebar() {
         </button>
 
         {wsOpen && (
-          <div className="mt-1 rounded-xl bg-gray-800 border border-gray-700 shadow-xl overflow-hidden">
+          <div className="mt-1 rounded-xl bg-ink-800 border border-ink-700 shadow-xl overflow-hidden">
             <div className="p-1.5">
               <p className="text-xs text-gray-500 px-2 py-1 font-medium uppercase tracking-wider">
                 {currentOrg?.name}
@@ -200,9 +200,9 @@ export default function Sidebar() {
                   key={ws.id}
                   onClick={() => handleWorkspaceSwitch(ws)}
                   className="w-full flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-left
-                             text-gray-300 hover:bg-gray-700 hover:text-white transition-colors"
+                             text-gray-300 hover:bg-ink-700 hover:text-white transition-colors"
                 >
-                  <div className="w-6 h-6 rounded-md bg-gray-600 flex items-center justify-center
+                  <div className="w-6 h-6 rounded-md bg-ink-700 flex items-center justify-center
                                   text-white text-xs font-bold flex-shrink-0">
                     {ws.name[0]?.toUpperCase()}
                   </div>
@@ -214,13 +214,13 @@ export default function Sidebar() {
               ))}
             </div>
 
-            <div className="border-t border-gray-700 p-1.5">
+            <div className="border-t border-ink-700 p-1.5">
               {(currentOrg?.role === 'owner' || currentOrg?.role === 'admin') && (
                 <Link
                   href="/dashboard/org?tab=workspaces"
                   onClick={() => setWsOpen(false)}
                   className="flex items-center gap-2 rounded-lg px-2.5 py-2 text-sm
-                             text-gray-400 hover:bg-gray-700 hover:text-white transition-colors"
+                             text-gray-400 hover:bg-ink-700 hover:text-white transition-colors"
                 >
                   <Plus className="w-4 h-4" />
                   Novo workspace
@@ -229,7 +229,7 @@ export default function Sidebar() {
               <button
                 onClick={() => { setWsOpen(false); router.push('/select'); }}
                 className="w-full flex items-center gap-2 rounded-lg px-2.5 py-2 text-sm
-                           text-gray-400 hover:bg-gray-700 hover:text-white transition-colors"
+                           text-gray-400 hover:bg-ink-700 hover:text-white transition-colors"
               >
                 <ArrowLeftRight className="w-4 h-4" />
                 Trocar organização
@@ -250,10 +250,10 @@ export default function Sidebar() {
             href={href}
             onClick={close}
             className={clsx(
-              'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
+              'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all',
               isActive(href)
-                ? 'bg-brand-600 text-white'
-                : 'text-gray-400 hover:bg-gray-800 hover:text-white'
+                ? 'bg-gradient-to-r from-brand-600 to-brand-500 text-white shadow-glow'
+                : 'text-gray-400 hover:bg-ink-800 hover:text-white'
             )}
           >
             <Icon className="w-4 h-4 flex-shrink-0" />
@@ -263,7 +263,7 @@ export default function Sidebar() {
       </nav>
 
       {/* Bottom nav */}
-      <div className="px-3 pb-2 space-y-0.5 border-t border-gray-800 pt-2">
+      <div className="px-3 pb-2 space-y-0.5 border-t border-ink-800 pt-2">
         {bottomItems
           .filter(item => currentWorkspace?.role !== 'tickets_only' || item.ticketsOnly)
           .filter(canShow)
@@ -274,8 +274,8 @@ export default function Sidebar() {
             className={clsx(
               'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
               isActive(href)
-                ? 'bg-gray-800 text-white'
-                : 'text-gray-500 hover:bg-gray-800 hover:text-gray-300'
+                ? 'bg-ink-800 text-white'
+                : 'text-gray-500 hover:bg-ink-800 hover:text-gray-300'
             )}
           >
             <Icon className="w-4 h-4 flex-shrink-0" />
@@ -285,9 +285,9 @@ export default function Sidebar() {
       </div>
 
       {/* User */}
-      <div className="px-3 py-3 border-t border-gray-800">
+      <div className="px-3 py-3 border-t border-ink-800">
         <div className="flex items-center gap-3 px-3 py-2">
-          <div className="w-8 h-8 rounded-full bg-brand-600 flex items-center justify-center
+          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-brand-500 to-brand-700 flex items-center justify-center
                           text-white text-sm font-semibold flex-shrink-0">
             {user?.name?.[0]?.toUpperCase()}
           </div>

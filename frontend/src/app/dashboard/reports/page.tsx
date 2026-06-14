@@ -164,7 +164,7 @@ export default function ReportsPage() {
         }
       />
 
-      <div className="flex-1 overflow-y-auto p-6 space-y-6">
+      <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6">
         {loading ? (
           <div className="flex items-center justify-center h-48">
             <div className="w-6 h-6 border-2 border-brand-600 border-t-transparent rounded-full animate-spin" />

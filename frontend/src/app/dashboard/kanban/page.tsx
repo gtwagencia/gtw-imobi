@@ -342,7 +342,7 @@ function FilterBar({
     : inboxes;
 
   return (
-    <div className="px-6 pt-4 pb-2 bg-white border-b border-gray-100">
+    <div className="px-4 md:px-6 pt-4 pb-2 bg-white border-b border-gray-100">
       {/* Pipeline tabs */}
       {pipelines.length > 0 && (
         <div className="flex items-center gap-1 mb-3 flex-wrap">
@@ -576,13 +576,13 @@ export default function KanbanPage() {
         />
 
       {analyzeErr && (
-        <div className="mx-6 mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700 flex items-center gap-2">
+        <div className="mx-4 md:mx-6 mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700 flex items-center gap-2">
           <AlertCircle className="w-4 h-4 flex-shrink-0" />
           {analyzeErr}
         </div>
       )}
 
-      <div className="flex-1 overflow-x-auto p-6 bg-gray-50">
+      <div className="flex-1 overflow-x-auto p-4 md:p-6 bg-gray-50">
         {loading ? (
           <div className="flex gap-4">
             {Array.from({ length: 5 }).map((_, i) => (

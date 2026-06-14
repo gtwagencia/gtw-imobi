@@ -33,6 +33,13 @@ function normalizePhone(jid) {
   return jid?.replace(/@.+$/, '').replace(/\D/g, '') || null;
 }
 
+function tokensMatch(provided, expected) {
+  if (!provided || !expected) return false;
+  const a = Buffer.from(String(provided));
+  const b = Buffer.from(String(expected));
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
+
 /**
  * Normaliza MIME type removendo parâmetros (ex: "audio/ogg; codecs=opus" → "audio/ogg").
  */
@@ -1139,7 +1146,7 @@ router.post('/site-leads/:workspaceId', async (req, res) => {
 
     const wsRes = await query('SELECT site_integration_token FROM workspaces WHERE id = $1', [workspaceId]);
     const expected = wsRes.rows[0]?.site_integration_token;
-    if (!expected || !token || token !== expected) {
+    if (!tokensMatch(token, expected)) {
       return res.status(403).json({ error: 'Token inválido' });
     }
 

@@ -306,7 +306,7 @@ export default function DepartmentsPage() {
         </div>
 
         {/* ── Right: department detail ───────────────────────── */}
-        <div className="flex-1 overflow-y-auto p-6 bg-gray-50">
+        <div className="flex-1 overflow-y-auto p-4 md:p-6 bg-gray-50">
           {!selectedDept ? (
             <div className="flex flex-col items-center justify-center h-full text-center text-gray-400">
               <Users className="w-12 h-12 mb-3 text-gray-200" />

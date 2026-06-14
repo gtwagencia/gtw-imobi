@@ -170,7 +170,7 @@ export default function SettingsPage() {
     <>
       <Header title="Configurações" />
 
-      <div className="flex-1 overflow-y-auto p-6 max-w-2xl">
+      <div className="flex-1 overflow-y-auto p-4 md:p-6 max-w-2xl">
         <form onSubmit={handleSave} className="space-y-6">
 
           {/* ── Workspace geral ────────────────────────────────────── */}

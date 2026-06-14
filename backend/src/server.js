@@ -69,6 +69,10 @@ app.use(cors({
   origin:      process.env.FRONTEND_URL || 'http://localhost:3000',
   credentials: true,
 }));
+// Webhooks da Evolution API enviam mídia em base64 dentro do JSON — vídeos/áudios
+// próximos do limite de 16MB do WhatsApp passam de 20MB já em base64, excedendo
+// o limite padrão de 10mb e causando perda silenciosa dessas mensagens.
+app.use('/api/v1/webhooks', express.json({ limit: '50mb' }));
 app.use(express.json({ limit: '10mb' }));
 
 // ── Rate limiting ──────────────────────────────────────────────────────────
@@ -79,12 +83,15 @@ const authLimiter    = rateLimit({ windowMs: 15 * 60 * 1000, max: 20 });
 // vários eventos (upsert + updates de status + presence). 30/min (0.5 req/s) era
 // insuficiente com 3+ conexões ativas e causava 429 → retry da Evolution → atraso de
 // minutos para a conversa atualizar no painel.
-const webhookLimiter = rateLimit({ windowMs: 1 * 60 * 1000, max: 10000 }); // ~167 req/s por IP
-const uploadLimiter  = rateLimit({ windowMs: 15 * 60 * 1000, max: 60  }); // 4 uploads/min
-const csatLimiter    = rateLimit({ windowMs: 60 * 60 * 1000, max: 10  }); // 10 por hora
+const webhookLimiter  = rateLimit({ windowMs: 1 * 60 * 1000, max: 10000 }); // ~167 req/s por IP
+// Formulário público do site — mais restrito para evitar leads falsos em massa
+const siteLeadLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 30 }); // 30 leads/15min por IP
+const uploadLimiter   = rateLimit({ windowMs: 15 * 60 * 1000, max: 60  }); // 4 uploads/min
+const csatLimiter     = rateLimit({ windowMs: 60 * 60 * 1000, max: 10  }); // 10 por hora
 app.use('/api/v1/auth/login',             authLimiter);
 app.use('/api/v1/auth/register',          authLimiter);
 app.use('/api/v1/webhooks',               webhookLimiter);
+app.use('/api/v1/webhooks/site-leads',    siteLeadLimiter);
 app.use('/api/v1/uploads',                uploadLimiter);
 app.use(/\/conversations\/.*\/csat/,      csatLimiter);
 

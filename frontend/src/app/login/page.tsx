@@ -40,20 +40,24 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-brand-600 to-brand-900 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
+    <div className="min-h-screen relative flex items-center justify-center p-4 overflow-hidden bg-ink-950">
+      {/* Glow decorativo */}
+      <div className="absolute -top-32 -left-24 w-96 h-96 bg-brand-600/30 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute -bottom-32 -right-24 w-96 h-96 bg-accent-500/20 rounded-full blur-3xl pointer-events-none" />
+
+      <div className="w-full max-w-md relative">
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-white/20 rounded-2xl mb-4">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-brand-500 to-brand-700 rounded-2xl mb-4 shadow-glow">
             <MessageSquare className="w-8 h-8 text-white" />
           </div>
-          <h1 className="text-2xl font-bold text-white">GTW Platform</h1>
-          <p className="text-brand-100 text-sm mt-1">Atendimento & CRM inteligente</p>
+          <h1 className="font-display text-3xl font-semibold text-white tracking-tight">GTW Platform</h1>
+          <p className="text-brand-200 text-sm mt-1">Atendimento & CRM inteligente para o mercado imobiliário</p>
         </div>
 
         {/* Card */}
         <div className="card p-8">
-          <h2 className="text-xl font-semibold text-gray-900 mb-6">
+          <h2 className="font-display text-xl font-semibold text-gray-900 mb-6">
             {mode === 'login' ? 'Entrar na sua conta' : 'Criar conta'}
           </h2>
 
