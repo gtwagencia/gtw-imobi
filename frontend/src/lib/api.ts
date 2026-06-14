@@ -1,22 +1,23 @@
 import axios from 'axios';
+import { useAuth } from '@/store/auth';
 
 export const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
 
 export const api = axios.create({
   baseURL: API_URL,
-  withCredentials: false,
+  // Necessário para que os cookies httpOnly de sessão (gtw_refresh/gtw_csrf)
+  // sejam enviados e recebidos pelo navegador.
+  withCredentials: true,
 });
 
-// Inject Authorization header from localStorage
+// Injeta o access token (mantido em memória, nunca em localStorage)
 api.interceptors.request.use((config) => {
-  if (typeof window !== 'undefined') {
-    const token = localStorage.getItem('accessToken');
-    if (token) config.headers.Authorization = `Bearer ${token}`;
-  }
+  const token = useAuth.getState().accessToken;
+  if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
 
-// Auto-refresh on 401
+// Renova a sessão automaticamente via cookie httpOnly em caso de 401
 let isRefreshing = false;
 let failedQueue: Array<{ resolve: (v: string) => void; reject: (e: unknown) => void }> = [];
 
@@ -29,7 +30,9 @@ api.interceptors.response.use(
   (res) => res,
   async (error) => {
     const original = error.config;
-    if (error.response?.status !== 401 || original._retry) {
+    const isAuthRoute = typeof original?.url === 'string' && original.url.startsWith('/auth/');
+
+    if (error.response?.status !== 401 || !original || original._retry || isAuthRoute) {
       return Promise.reject(error);
     }
 
@@ -42,29 +45,19 @@ api.interceptors.response.use(
       });
     }
 
-    original._retry  = true;
+    original._retry = true;
     isRefreshing     = true;
 
-    const refreshToken = localStorage.getItem('refreshToken');
-    if (!refreshToken) {
-      isRefreshing = false;
-      window.location.href = '/login';
-      return Promise.reject(error);
-    }
-
     try {
-      const { data } = await axios.post(`${API_URL}/auth/refresh`, { refreshToken });
-      localStorage.setItem('accessToken',  data.accessToken);
-      localStorage.setItem('refreshToken', data.refreshToken);
-      api.defaults.headers.common.Authorization = `Bearer ${data.accessToken}`;
-      processQueue(null, data.accessToken);
-      original.headers.Authorization = `Bearer ${data.accessToken}`;
+      const ok = await useAuth.getState().restoreSession();
+      if (!ok) throw error;
+      const token = useAuth.getState().accessToken;
+      processQueue(null, token);
+      original.headers.Authorization = `Bearer ${token}`;
       return api(original);
     } catch (err) {
       processQueue(err, null);
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('refreshToken');
-      window.location.href = '/login';
+      if (typeof window !== 'undefined') window.location.href = '/login';
       return Promise.reject(err);
     } finally {
       isRefreshing = false;

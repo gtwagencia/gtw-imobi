@@ -3,10 +3,26 @@
 const { query }   = require('../../config/database');
 const kanbanSvc   = require('../kanban/kanban.service');
 const permissionsSvc = require('../permissions/permissions.service');
+const traefikSvc  = require('../../services/traefik.service');
 const bcrypt      = require('bcrypt');
 const crypto      = require('crypto');
+const dns         = require('dns').promises;
 
 const BCRYPT_ROUNDS = parseInt(process.env.BCRYPT_ROUNDS || '12', 10);
+
+const DOMAIN_RE = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$/;
+
+/** Normaliza um domínio informado pelo usuário (remove protocolo, path, espaços). */
+function normalizeDomain(value) {
+  if (value === null || value === undefined) return null;
+  const trimmed = String(value).trim().toLowerCase();
+  if (!trimmed) return null;
+  const domain = trimmed.replace(/^https?:\/\//, '').replace(/\/.*$/, '');
+  if (!DOMAIN_RE.test(domain)) {
+    throw Object.assign(new Error('Domínio inválido'), { status: 400 });
+  }
+  return domain;
+}
 
 // ── List workspaces ────────────────────────────────────────────────────────
 
@@ -91,11 +107,13 @@ async function update(workspaceId, body) {
     aiProvider:           'ai_provider',
     aiModel:              'ai_model',
     slaResponseMinutes:   'sla_response_minutes',
+    leadStaleHours:       'lead_stale_hours',
     aiIgnoreGroups:       'ai_ignore_groups',
     aiBaseUrl:            'ai_base_url',
     customAiApiKey:       'custom_ai_api_key',
     aiToolsEnabled:       'ai_tools_enabled',
     businessModel:        'business_model',
+    aiAgentName:          'ai_agent_name',
   };
 
   const fields = [];
@@ -103,9 +121,29 @@ async function update(workspaceId, body) {
   let   idx    = 1;
 
   for (const [jsKey, dbCol] of Object.entries(map)) {
-    if (body[jsKey] !== undefined) {
-      fields.push(`${dbCol} = $${idx++}`);
-      vals.push(body[jsKey]);
+    if (body[jsKey] === undefined) continue;
+    // Nunca permite nome de agente vazio
+    if (jsKey === 'aiAgentName' && !String(body[jsKey]).trim()) continue;
+    fields.push(`${dbCol} = $${idx++}`);
+    vals.push(body[jsKey]);
+  }
+
+  // Domínio customizado (white-label) — normaliza e, ao mudar, volta para
+  // "pending" e gera um novo token de verificação.
+  let domainChanged = false;
+  if (body.customDomain !== undefined) {
+    const normalized = normalizeDomain(body.customDomain);
+    const current = await query('SELECT custom_domain FROM workspaces WHERE id = $1', [workspaceId]);
+    const currentDomain = current.rows[0]?.custom_domain || null;
+
+    fields.push(`custom_domain = $${idx++}`);
+    vals.push(normalized);
+
+    if (normalized !== currentDomain) {
+      domainChanged = true;
+      fields.push(`custom_domain_status = $${idx++}`);
+      vals.push(normalized ? 'pending' : 'none');
+      fields.push(`custom_domain_verification_token = encode(gen_random_bytes(16), 'hex')`);
     }
   }
 
@@ -116,7 +154,44 @@ async function update(workspaceId, body) {
     `UPDATE workspaces SET ${fields.join(', ')} WHERE id = $${idx} RETURNING *`,
     vals
   );
+
+  if (domainChanged) traefikSvc.regenerateDomainsConfig();
+
   return r.rows[0];
+}
+
+/**
+ * Verifica a propriedade do domínio customizado via registro TXT em
+ * `_gtw-verify.<dominio>` contendo o token de verificação do workspace.
+ * Em caso de sucesso, regenera a configuração dinâmica do Traefik para que
+ * o domínio passe a ser servido (com certificado SSL automático).
+ */
+async function verifyCustomDomain(workspaceId) {
+  const r = await query(
+    'SELECT custom_domain, custom_domain_verification_token FROM workspaces WHERE id = $1',
+    [workspaceId]
+  );
+  const ws = r.rows[0];
+  if (!ws) throw Object.assign(new Error('Workspace não encontrado'), { status: 404 });
+  if (!ws.custom_domain) throw Object.assign(new Error('Nenhum domínio customizado configurado'), { status: 400 });
+
+  let verified = false;
+  try {
+    const records = await dns.resolveTxt(`_gtw-verify.${ws.custom_domain}`);
+    verified = records.some(parts => parts.join('').includes(ws.custom_domain_verification_token));
+  } catch {
+    verified = false;
+  }
+
+  const status = verified ? 'verified' : 'error';
+  const updated = await query(
+    'UPDATE workspaces SET custom_domain_status = $1 WHERE id = $2 RETURNING *',
+    [status, workspaceId]
+  );
+
+  await traefikSvc.regenerateDomainsConfig();
+
+  return { workspace: updated.rows[0], verified };
 }
 
 // ── Integração com o site ───────────────────────────────────────────────────
@@ -253,6 +328,6 @@ async function updateMemberProfile(workspaceId, userId, { creci, phone }) {
 }
 
 module.exports = {
-  listForOrg, create, getById, update, regenerateSiteToken,
+  listForOrg, create, getById, update, regenerateSiteToken, verifyCustomDomain,
   listMembers, addMember, removeMember, updateMemberRole, updateMemberProfile, resetMemberPassword,
 };

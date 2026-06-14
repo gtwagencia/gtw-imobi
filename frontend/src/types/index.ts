@@ -4,6 +4,7 @@ export interface User {
   email: string;
   avatar_url: string | null;
   is_super_admin: boolean;
+  two_factor_enabled?: boolean;
   orgs: OrgSummary[];
 }
 
@@ -73,7 +74,12 @@ export interface Workspace {
   ai_tools_enabled: boolean;
   business_model: 'imobiliaria' | 'construtora';
   sla_response_minutes: number | null;
+  lead_stale_hours: number;
   site_integration_token: string | null;
+  ai_agent_name: string;
+  custom_domain: string | null;
+  custom_domain_status: 'none' | 'pending' | 'verified' | 'error';
+  custom_domain_verification_token: string | null;
   created_at: string;
   member_count?: number;
   inbox_count?: number;
@@ -277,6 +283,7 @@ export interface PropertyVisit {
   status: 'proposta' | 'confirmada' | 'realizada' | 'cancelada';
   notes: string | null;
   created_by_ai: boolean;
+  google_synced: boolean;
   created_at: string;
 }
 
@@ -474,6 +481,25 @@ export interface VolumeByDay {
   resolved: number;
 }
 
+export interface BrokerDealReport {
+  id: string;
+  name: string;
+  avatar_url: string | null;
+  total_deals: number;
+  won_deals: number;
+  lost_deals: number;
+  won_value: string | number;
+  avg_days_to_close: string | number | null;
+}
+
+export interface LeadSourceReport {
+  source_label: string;
+  total_deals: number;
+  won_deals: number;
+  lost_deals: number;
+  won_value: string | number;
+}
+
 export interface PaginatedResponse<T> {
   data: T[];
   total: number;
@@ -600,6 +626,18 @@ export interface TicketAlert {
   created_at: string;
   ticket_title?: string;
   board_name?: string;
+}
+
+export interface CrmNotification {
+  id: string;
+  workspace_id: string;
+  user_id: string;
+  conversation_id: string | null;
+  type: 'sla_breached' | 'lead_stale';
+  title: string;
+  message: string | null;
+  is_read: boolean;
+  created_at: string;
 }
 
 export interface TicketResolutionReport {

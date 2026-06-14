@@ -137,4 +137,83 @@ async function getCampaignBreakdown(workspaceId, { startDate, endDate } = {}) {
   };
 }
 
-module.exports = { getSummary, getAgentPerformance, getVolumeByDay, getCampaignBreakdown };
+/**
+ * Performance de negócios (deals) por corretor: ganhos, perdidos, valor
+ * fechado e tempo médio até o fechamento.
+ */
+async function getBrokerDealPerformance(workspaceId, { startDate, endDate } = {}) {
+  const start = startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+  const end   = endDate   || new Date().toISOString();
+
+  const r = await query(
+    `WITH deal_owner AS (
+       SELECT d.*,
+              COALESCE(d.assignee_id, conv.assignee_id) AS owner_id,
+              ks.is_purchase
+       FROM deals d
+       LEFT JOIN conversations conv  ON conv.id = d.conversation_id
+       LEFT JOIN kanban_stages ks    ON ks.id   = d.stage_id
+       WHERE d.workspace_id = $1
+         AND d.created_at BETWEEN $2 AND $3
+     )
+     SELECT
+       u.id,
+       u.name,
+       u.avatar_url,
+       COUNT(do.id)::int                                                       AS total_deals,
+       COUNT(do.id) FILTER (WHERE do.is_purchase = true)::int                  AS won_deals,
+       COUNT(do.id) FILTER (WHERE do.lost_reason IS NOT NULL)::int             AS lost_deals,
+       COALESCE(SUM(do.value) FILTER (WHERE do.is_purchase = true), 0)         AS won_value,
+       AVG(EXTRACT(EPOCH FROM (do.closed_at - do.created_at)) / 86400.0)
+         FILTER (WHERE do.closed_at IS NOT NULL)                                AS avg_days_to_close
+     FROM users u
+     JOIN workspace_memberships wm ON wm.user_id = u.id AND wm.workspace_id = $1
+     LEFT JOIN deal_owner do        ON do.owner_id = u.id
+     GROUP BY u.id, u.name, u.avatar_url
+     ORDER BY won_value DESC, total_deals DESC`,
+    [workspaceId, start, end]
+  );
+
+  return r.rows;
+}
+
+/**
+ * Performance de negócios por origem do lead (site, anúncio, orgânico).
+ */
+async function getLeadSourcePerformance(workspaceId, { startDate, endDate } = {}) {
+  const start = startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+  const end   = endDate   || new Date().toISOString();
+
+  const r = await query(
+    `WITH deal_src AS (
+       SELECT d.*, ks.is_purchase,
+         CASE
+           WHEN d.lead_source = 'site_form'     THEN 'Site (formulário)'
+           WHEN d.lead_source = 'site_whatsapp' THEN 'Site (WhatsApp)'
+           WHEN d.meta_source = 'paid'          THEN 'WhatsApp (Anúncio)'
+           ELSE 'WhatsApp (Orgânico)'
+         END AS source_label
+       FROM deals d
+       LEFT JOIN kanban_stages ks ON ks.id = d.stage_id
+       WHERE d.workspace_id = $1
+         AND d.created_at BETWEEN $2 AND $3
+     )
+     SELECT
+       source_label,
+       COUNT(*)::int                                                AS total_deals,
+       COUNT(*) FILTER (WHERE is_purchase = true)::int              AS won_deals,
+       COUNT(*) FILTER (WHERE lost_reason IS NOT NULL)::int         AS lost_deals,
+       COALESCE(SUM(value) FILTER (WHERE is_purchase = true), 0)    AS won_value
+     FROM deal_src
+     GROUP BY source_label
+     ORDER BY total_deals DESC`,
+    [workspaceId, start, end]
+  );
+
+  return r.rows;
+}
+
+module.exports = {
+  getSummary, getAgentPerformance, getVolumeByDay, getCampaignBreakdown,
+  getBrokerDealPerformance, getLeadSourcePerformance,
+};

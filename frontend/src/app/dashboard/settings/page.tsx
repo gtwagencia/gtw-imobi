@@ -5,8 +5,41 @@ import { useAuth } from '@/store/auth';
 import Header from '@/components/layout/Header';
 import api, { API_URL } from '@/lib/api';
 import type { BusinessHours, BusinessHoursDay } from '@/types';
-import { Save, Eye, EyeOff, Brain, Clock, MessageSquare, CheckCircle, Sparkles, Globe, Copy, Check, RefreshCw } from 'lucide-react';
+import { Save, Eye, EyeOff, Brain, Clock, MessageSquare, CheckCircle, Sparkles, Globe, Copy, Check, RefreshCw, ShieldCheck, AlertTriangle } from 'lucide-react';
 import clsx from 'clsx';
+
+interface AuditLogEntry {
+  id: string;
+  action: string;
+  entity_type: string | null;
+  entity_id: string | null;
+  metadata: Record<string, unknown> | null;
+  ip_address: string | null;
+  created_at: string;
+  user_name: string | null;
+  user_email: string | null;
+}
+
+const AUDIT_ACTION_LABELS: Record<string, string> = {
+  'workspace.update':                 'Configurações do workspace alteradas',
+  'workspace.site_token_regenerated': 'Token de integração do site regenerado',
+  'workspace.custom_domain_verified': 'Domínio personalizado verificado',
+  'member.role_changed':              'Papel de membro alterado',
+  'member.removed':                   'Membro removido',
+  'member.password_reset':            'Senha de membro redefinida',
+  'permission_profile.update':        'Perfil de permissões atualizado',
+  '2fa.enable':                       'Verificação em duas etapas ativada',
+  '2fa.disable':                      'Verificação em duas etapas desativada',
+  'auth.account_locked':              'Conta bloqueada por tentativas de login',
+  'contact.merge':                    'Contatos duplicados mesclados',
+};
+
+const DOMAIN_STATUS_LABELS: Record<string, { label: string; className: string }> = {
+  none:     { label: 'Não configurado',         className: 'bg-gray-100 text-gray-600' },
+  pending:  { label: 'Pendente de verificação',  className: 'bg-yellow-100 text-yellow-700' },
+  verified: { label: 'Verificado',               className: 'bg-green-100 text-green-700' },
+  error:    { label: 'Falha na verificação',     className: 'bg-red-100 text-red-700' },
+};
 
 // ── Default business hours ───────────────────────────────────────────────────
 
@@ -63,6 +96,10 @@ export default function SettingsPage() {
     aiBaseUrl:            '',
     customAiApiKey:       '',
     aiToolsEnabled:       false,
+    aiAgentName:          'Lia',
+    customDomain:         '',
+    slaResponseMinutes:   30,
+    leadStaleHours:       24,
   });
 
   const [businessHours, setBusinessHours] = useState<BusinessHours>(DEFAULT_BUSINESS_HOURS);
@@ -71,6 +108,9 @@ export default function SettingsPage() {
   const [saved,         setSaved]         = useState(false);
   const [copiedField,   setCopiedField]   = useState<string | null>(null);
   const [regeneratingToken, setRegeneratingToken] = useState(false);
+  const [verifyingDomain, setVerifyingDomain] = useState(false);
+  const [domainError,     setDomainError]     = useState('');
+  const [auditLogs,        setAuditLogs]       = useState<AuditLogEntry[] | null>(null);
 
   useEffect(() => {
     if (currentWorkspace) {
@@ -94,9 +134,22 @@ export default function SettingsPage() {
         aiBaseUrl:            currentWorkspace.ai_base_url || '',
         customAiApiKey:       '',
         aiToolsEnabled:       currentWorkspace.ai_tools_enabled ?? false,
+        aiAgentName:          currentWorkspace.ai_agent_name || 'Lia',
+        customDomain:         currentWorkspace.custom_domain || '',
+        slaResponseMinutes:   currentWorkspace.sla_response_minutes ?? 30,
+        leadStaleHours:       currentWorkspace.lead_stale_hours ?? 24,
       });
       setBusinessHours(currentWorkspace.business_hours ?? DEFAULT_BUSINESS_HOURS);
     }
+  }, [currentWorkspace]);
+
+  // Log de auditoria — só carrega para quem tem permissão (admin/owner/superadmin);
+  // se o backend retornar 403, simplesmente não exibimos a seção.
+  useEffect(() => {
+    if (!currentWorkspace) return;
+    api.get<AuditLogEntry[]>(`/orgs/${currentWorkspace.org_id}/workspaces/${currentWorkspace.id}/audit-logs`)
+      .then(({ data }) => setAuditLogs(data))
+      .catch(() => setAuditLogs(null));
   }, [currentWorkspace]);
 
   function updateDay(day: typeof DAY_KEYS[number], field: keyof BusinessHoursDay, value: string | boolean) {
@@ -154,6 +207,27 @@ export default function SettingsPage() {
     }
   }
 
+  async function handleVerifyDomain() {
+    if (!currentWorkspace) return;
+    setVerifyingDomain(true);
+    setDomainError('');
+    try {
+      const { data } = await api.post(
+        `/orgs/${currentWorkspace.org_id}/workspaces/${currentWorkspace.id}/custom-domain/verify`
+      );
+      setWorkspace(data);
+      if (data.custom_domain_status !== 'verified') {
+        setDomainError('Ainda não encontramos o registro TXT de verificação. Confira a configuração de DNS e tente novamente em alguns minutos (a propagação pode demorar).');
+      }
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { error?: string } } })
+        ?.response?.data?.error || 'Erro ao verificar domínio';
+      setDomainError(msg);
+    } finally {
+      setVerifyingDomain(false);
+    }
+  }
+
   if (!currentWorkspace) {
     return (
       <>
@@ -165,6 +239,9 @@ export default function SettingsPage() {
 
   const feedUrl  = `${API_URL}/feeds/${currentWorkspace.id}/properties.xml?token=${currentWorkspace.site_integration_token}`;
   const leadsUrl = `${API_URL}/webhooks/site-leads/${currentWorkspace.id}?token=${currentWorkspace.site_integration_token}`;
+  // Domínio principal da plataforma (extraído da API_URL) — usado nas instruções de DNS do domínio customizado.
+  const platformDomain = API_URL.replace(/^https?:\/\//, '').split('/')[0];
+  const domainStatus = DOMAIN_STATUS_LABELS[currentWorkspace.custom_domain_status] || DOMAIN_STATUS_LABELS.none;
 
   return (
     <>
@@ -243,7 +320,7 @@ export default function SettingsPage() {
                   </label>
                 </div>
                 <p className="text-xs text-gray-400 mt-1">
-                  Usado pela IA (Lais) para adaptar o tom e o foco das conversas com os contatos.
+                  Usado pela IA ({form.aiAgentName || 'Lia'}) para adaptar o tom e o foco das conversas com os contatos.
                 </p>
               </div>
             </div>
@@ -396,6 +473,21 @@ export default function SettingsPage() {
             </p>
 
             <div className="space-y-4">
+              {/* Nome do agente de IA */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Nome do agente de IA</label>
+                <input
+                  className="input max-w-xs"
+                  value={form.aiAgentName}
+                  onChange={(e) => setForm({ ...form, aiAgentName: e.target.value })}
+                  placeholder="Lia"
+                  maxLength={40}
+                />
+                <p className="text-xs text-gray-400 mt-1">
+                  Nome que a assistente virtual usa para se apresentar aos contatos no WhatsApp (padrão: Lia).
+                </p>
+              </div>
+
               {/* AI Provider selector */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Provedor de IA</label>
@@ -630,7 +722,7 @@ export default function SettingsPage() {
                 </div>
               </label>
 
-              {/* Lais tools toggle */}
+              {/* Ferramentas do agente de IA */}
               <label className="flex items-center gap-3 cursor-pointer">
                 <div className="relative flex-shrink-0">
                   <input
@@ -651,7 +743,7 @@ export default function SettingsPage() {
                 <div>
                   <div className="text-sm font-medium text-gray-900 flex items-center gap-1.5">
                     <Sparkles className="w-3.5 h-3.5 text-indigo-500" />
-                    Lais pode buscar imóveis, enviar fichas e propor visitas
+                    {form.aiAgentName || 'Lia'} pode buscar imóveis, enviar fichas e propor visitas
                   </div>
                   <div className="text-xs text-gray-500">
                     Durante a conversa, a IA pode consultar o catálogo, enviar a ficha de um imóvel
@@ -804,6 +896,182 @@ export default function SettingsPage() {
               </div>
             )}
           </div>
+
+          {/* ── Alertas internos: SLA e leads sem retorno ──────────── */}
+          <div className="card p-6">
+            <h2 className="font-semibold text-gray-900 mb-1 flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-red-500" />
+              Alertas Internos
+            </h2>
+            <p className="text-sm text-gray-500 mb-4">
+              Avisa o corretor responsável quando uma conversa estoura o prazo de resposta ou quando
+              um lead fica sem retorno por muito tempo.
+            </p>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">SLA de resposta (minutos)</label>
+                <input
+                  type="number"
+                  min={0}
+                  className="input"
+                  value={form.slaResponseMinutes}
+                  onChange={(e) => setForm({ ...form, slaResponseMinutes: parseInt(e.target.value) || 0 })}
+                />
+                <p className="text-xs text-gray-400 mt-1">
+                  0 desativa o alerta. Avisa o corretor quando o lead aguarda a primeira resposta há mais tempo que isso.
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Lead esquecido (horas)</label>
+                <input
+                  type="number"
+                  min={0}
+                  className="input"
+                  value={form.leadStaleHours}
+                  onChange={(e) => setForm({ ...form, leadStaleHours: parseInt(e.target.value) || 0 })}
+                />
+                <p className="text-xs text-gray-400 mt-1">
+                  0 desativa o alerta. Avisa o corretor quando uma conversa fica sem resposta dele há mais tempo que isso.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* ── White-label: domínio personalizado ─────────────────── */}
+          <div className="card p-6">
+            <h2 className="font-semibold text-gray-900 mb-1 flex items-center gap-2">
+              <Globe className="w-4 h-4 text-purple-500" />
+              Domínio Personalizado (White-label)
+            </h2>
+            <p className="text-sm text-gray-500 mb-4">
+              Use o domínio da sua empresa para acessar o painel, com logomarca própria e certificado SSL gerado automaticamente.
+            </p>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Domínio personalizado</label>
+                <input
+                  className="input max-w-xs font-mono text-sm"
+                  value={form.customDomain}
+                  onChange={(e) => setForm({ ...form, customDomain: e.target.value })}
+                  placeholder="painel.suaempresa.com.br"
+                />
+                <p className="text-xs text-gray-400 mt-1">
+                  Salve as alterações e siga as instruções de DNS abaixo para ativar o domínio.
+                </p>
+              </div>
+
+              {currentWorkspace.custom_domain && (
+                <div className="border border-gray-100 rounded-lg p-4 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-gray-900">Status:</span>
+                    <span className={clsx('text-xs font-medium px-2 py-0.5 rounded-full', domainStatus.className)}>
+                      {domainStatus.label}
+                    </span>
+                  </div>
+
+                  {currentWorkspace.custom_domain_status === 'verified' ? (
+                    <p className="text-sm text-green-700 flex items-center gap-1.5">
+                      <CheckCircle className="w-3.5 h-3.5" />
+                      Domínio verificado e ativo, com certificado SSL renovado automaticamente.
+                    </p>
+                  ) : (
+                    <>
+                      <p className="text-xs text-gray-500">
+                        Para comprovar que você é o responsável por este domínio, crie um registro DNS do tipo TXT:
+                      </p>
+                      <div className="bg-gray-50 rounded p-3 font-mono text-xs space-y-1">
+                        <div><span className="text-gray-400">Tipo:</span> TXT</div>
+                        <div><span className="text-gray-400">Nome:</span> _gtw-verify.{currentWorkspace.custom_domain}</div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-gray-400">Valor:</span>
+                          <span className="break-all">{currentWorkspace.custom_domain_verification_token}</span>
+                          <button
+                            type="button"
+                            className="btn-ghost px-1.5 py-0.5 flex-shrink-0"
+                            onClick={() => copy(currentWorkspace.custom_domain_verification_token || '', 'domain-token')}
+                            title="Copiar"
+                          >
+                            {copiedField === 'domain-token' ? <Check className="w-3.5 h-3.5 text-green-600" /> : <Copy className="w-3.5 h-3.5" />}
+                          </button>
+                        </div>
+                      </div>
+                      <p className="text-xs text-gray-500">
+                        Em seguida, crie um registro <strong>CNAME</strong> apontando{' '}
+                        <span className="font-mono">{currentWorkspace.custom_domain}</span> para{' '}
+                        <span className="font-mono">{platformDomain}</span> e clique em &quot;Verificar domínio&quot;.
+                        A propagação do DNS pode levar alguns minutos a algumas horas.
+                      </p>
+                    </>
+                  )}
+
+                  {domainError && (
+                    <p className="text-xs text-red-600">{domainError}</p>
+                  )}
+
+                  <button
+                    type="button"
+                    className="btn-ghost text-xs"
+                    onClick={handleVerifyDomain}
+                    disabled={verifyingDomain}
+                  >
+                    <RefreshCw className={clsx('w-3.5 h-3.5', verifyingDomain && 'animate-spin')} />
+                    {verifyingDomain ? 'Verificando...' : 'Verificar domínio'}
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* ── Log de Auditoria ────────────────────────────────────── */}
+          {auditLogs !== null && (
+            <div className="card p-6">
+              <h2 className="font-semibold text-gray-900 mb-1 flex items-center gap-2">
+                <ShieldCheck className="w-4 h-4 text-emerald-500" />
+                Log de Auditoria
+              </h2>
+              <p className="text-sm text-gray-500 mb-4">
+                Últimas ações sensíveis registradas neste workspace (configurações, permissões e segurança).
+              </p>
+
+              {auditLogs.length === 0 ? (
+                <p className="text-sm text-gray-400">Nenhuma ação registrada ainda.</p>
+              ) : (
+                <div className="overflow-x-auto -mx-2">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="text-left text-gray-400 border-b border-gray-100">
+                        <th className="px-2 py-1.5 font-medium">Quando</th>
+                        <th className="px-2 py-1.5 font-medium">Ação</th>
+                        <th className="px-2 py-1.5 font-medium">Usuário</th>
+                        <th className="px-2 py-1.5 font-medium">IP</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {auditLogs.map((log) => (
+                        <tr key={log.id} className="border-b border-gray-50 last:border-0">
+                          <td className="px-2 py-1.5 text-gray-500 whitespace-nowrap">
+                            {new Date(log.created_at).toLocaleString('pt-BR')}
+                          </td>
+                          <td className="px-2 py-1.5 text-gray-900">
+                            {AUDIT_ACTION_LABELS[log.action] || log.action}
+                          </td>
+                          <td className="px-2 py-1.5 text-gray-500">
+                            {log.user_name || log.user_email || '—'}
+                          </td>
+                          <td className="px-2 py-1.5 text-gray-400 font-mono">
+                            {log.ip_address || '—'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
 
           <button type="submit" className="btn-primary" disabled={saving}>
             <Save className="w-4 h-4" />

@@ -4,7 +4,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/store/auth';
 import Header from '@/components/layout/Header';
 import api from '@/lib/api';
-import { User, Lock, Save, Eye, EyeOff, CheckCircle, AlertCircle, Calendar, Unlink, Mail, Send } from 'lucide-react';
+import { User, Lock, Save, Eye, EyeOff, CheckCircle, AlertCircle, Calendar, Unlink, Mail, Send, Shield, ShieldCheck, Bell, BellOff } from 'lucide-react';
+import { getPushPermission, getPushSubscription, subscribeToPush, unsubscribeFromPush } from '@/lib/push';
 
 type GcalStatus  = { connected: boolean; googleEmail: string | null; configured: boolean };
 type MailStatus  = { configured: boolean; host: string | null; from: string | null; user: string | null };
@@ -33,6 +34,42 @@ export default function ProfilePage() {
   }, []);
 
   useEffect(() => { loadGcalStatus(); }, [loadGcalStatus]);
+
+  // ── Notificações Push ───────────────────────────────────
+  const [pushPermission, setPushPermission] = useState<NotificationPermission | 'unsupported'>('unsupported');
+  const [pushSubscribed, setPushSubscribed]  = useState(false);
+  const [pushLoading,    setPushLoading]     = useState(false);
+
+  useEffect(() => {
+    setPushPermission(getPushPermission());
+    getPushSubscription().then((sub) => setPushSubscribed(!!sub));
+  }, []);
+
+  async function handlePushEnable() {
+    setPushLoading(true);
+    try {
+      let permission = pushPermission;
+      if (permission === 'default') {
+        permission = await Notification.requestPermission();
+        setPushPermission(permission);
+      }
+      if (permission !== 'granted') return;
+      const ok = await subscribeToPush();
+      setPushSubscribed(ok);
+    } finally {
+      setPushLoading(false);
+    }
+  }
+
+  async function handlePushDisable() {
+    setPushLoading(true);
+    try {
+      await unsubscribeFromPush();
+      setPushSubscribed(false);
+    } finally {
+      setPushLoading(false);
+    }
+  }
 
   async function handleGcalConnect() {
     setGcalConnecting(true);
@@ -109,6 +146,72 @@ export default function ProfilePage() {
   const [showPwds,    setShowPwds]    = useState(false);
   const [savingPwd,   setSavingPwd]   = useState(false);
   const [pwdAlert,    setPwdAlert]    = useState<AlertType>(null);
+
+  // ── 2FA ──────────────────────────────────────────────
+  const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
+  const [twoFactorLoading, setTwoFactorLoading] = useState(false);
+  const [twoFactorAlert,   setTwoFactorAlert]   = useState<AlertType>(null);
+  const [setupData,        setSetupData]        = useState<{ secret: string; qrCodeDataUrl: string } | null>(null);
+  const [enableCode,        setEnableCode]      = useState('');
+  const [backupCodes,       setBackupCodes]     = useState<string[] | null>(null);
+  const [disablePassword,   setDisablePassword] = useState('');
+
+  useEffect(() => {
+    api.get<{ enabled: boolean }>('/auth/2fa/status')
+      .then(r => setTwoFactorEnabled(r.data.enabled))
+      .catch(() => {});
+  }, []);
+
+  function twoFactorErrorMsg(err: unknown, fallback: string) {
+    return (err as { response?: { data?: { error?: string } } })?.response?.data?.error || fallback;
+  }
+
+  async function handleStartTwoFactorSetup() {
+    setTwoFactorAlert(null);
+    setTwoFactorLoading(true);
+    try {
+      const { data } = await api.post<{ secret: string; qrCodeDataUrl: string }>('/auth/2fa/setup');
+      setSetupData(data);
+    } catch (err) {
+      setTwoFactorAlert({ type: 'error', msg: twoFactorErrorMsg(err, 'Erro ao iniciar configuração') });
+    } finally {
+      setTwoFactorLoading(false);
+    }
+  }
+
+  async function handleEnableTwoFactor(e: React.FormEvent) {
+    e.preventDefault();
+    setTwoFactorAlert(null);
+    setTwoFactorLoading(true);
+    try {
+      const { data } = await api.post<{ backupCodes: string[] }>('/auth/2fa/enable', { code: enableCode });
+      setBackupCodes(data.backupCodes);
+      setTwoFactorEnabled(true);
+      setSetupData(null);
+      setEnableCode('');
+    } catch (err) {
+      setTwoFactorAlert({ type: 'error', msg: twoFactorErrorMsg(err, 'Código inválido') });
+    } finally {
+      setTwoFactorLoading(false);
+    }
+  }
+
+  async function handleDisableTwoFactor(e: React.FormEvent) {
+    e.preventDefault();
+    setTwoFactorAlert(null);
+    setTwoFactorLoading(true);
+    try {
+      await api.post('/auth/2fa/disable', { password: disablePassword });
+      setTwoFactorEnabled(false);
+      setDisablePassword('');
+      setBackupCodes(null);
+      setTwoFactorAlert({ type: 'success', msg: 'Verificação em duas etapas desativada.' });
+    } catch (err) {
+      setTwoFactorAlert({ type: 'error', msg: twoFactorErrorMsg(err, 'Senha incorreta') });
+    } finally {
+      setTwoFactorLoading(false);
+    }
+  }
 
   async function handleSaveProfile(e: React.FormEvent) {
     e.preventDefault();
@@ -311,6 +414,92 @@ export default function ProfilePage() {
             </form>
           </div>
 
+          {/* ── 2FA ──────────────────────────────────────────────── */}
+          <div className="card p-6">
+            <h3 className="font-medium text-gray-900 mb-1 flex items-center gap-2">
+              <ShieldCheck className="w-4 h-4 text-gray-400" />
+              Verificação em duas etapas (2FA)
+            </h3>
+            <p className="text-xs text-gray-400 mb-4">
+              Exige um código do seu aplicativo autenticador (Google Authenticator, Authy etc.) ao entrar.
+            </p>
+
+            {backupCodes ? (
+              <div className="space-y-3">
+                <div className="rounded-lg bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-700">
+                  Guarde estes códigos de backup em local seguro. Cada um pode ser usado uma vez caso você perca acesso ao aplicativo autenticador.
+                </div>
+                <div className="grid grid-cols-2 gap-2 font-mono text-sm bg-gray-50 rounded-lg p-4">
+                  {backupCodes.map((c) => <div key={c}>{c}</div>)}
+                </div>
+                <button className="btn-secondary text-sm" onClick={() => setBackupCodes(null)}>Concluído</button>
+              </div>
+            ) : twoFactorEnabled ? (
+              <div className="space-y-3">
+                <div className="flex items-center gap-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+                  <CheckCircle className="w-4 h-4 text-green-600 flex-shrink-0" />
+                  <p className="text-sm font-medium text-green-700">Ativada</p>
+                </div>
+                <form onSubmit={handleDisableTwoFactor} className="space-y-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Confirme sua senha para desativar</label>
+                    <input
+                      className="input"
+                      type="password"
+                      value={disablePassword}
+                      onChange={(e) => setDisablePassword(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <Alert alert={twoFactorAlert} />
+                  <button type="submit" className="btn-secondary text-sm text-red-600 border-red-200 hover:bg-red-50" disabled={twoFactorLoading}>
+                    {twoFactorLoading ? 'Aguarde...' : 'Desativar 2FA'}
+                  </button>
+                </form>
+              </div>
+            ) : setupData ? (
+              <form onSubmit={handleEnableTwoFactor} className="space-y-4">
+                <div className="flex flex-col items-center gap-3">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={setupData.qrCodeDataUrl} alt="QR Code 2FA" className="w-44 h-44 border rounded-lg" />
+                  <p className="text-xs text-gray-400 text-center">
+                    Escaneie com o app autenticador ou insira manualmente:<br />
+                    <span className="font-mono text-gray-600 break-all">{setupData.secret}</span>
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Código de 6 dígitos</label>
+                  <input
+                    className="input text-center tracking-widest"
+                    inputMode="numeric"
+                    maxLength={10}
+                    value={enableCode}
+                    onChange={(e) => setEnableCode(e.target.value)}
+                    required
+                    autoFocus
+                  />
+                </div>
+                <Alert alert={twoFactorAlert} />
+                <div className="flex gap-2">
+                  <button type="submit" className="btn-primary text-sm" disabled={twoFactorLoading}>
+                    {twoFactorLoading ? 'Verificando...' : 'Ativar'}
+                  </button>
+                  <button type="button" className="btn-secondary text-sm" onClick={() => { setSetupData(null); setEnableCode(''); }}>
+                    Cancelar
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <>
+                <Alert alert={twoFactorAlert} />
+                <button onClick={handleStartTwoFactorSetup} disabled={twoFactorLoading} className="btn-secondary text-sm flex items-center gap-2 mt-2">
+                  <Shield className="w-4 h-4" />
+                  {twoFactorLoading ? 'Aguarde...' : 'Configurar 2FA'}
+                </button>
+              </>
+            )}
+          </div>
+
           {/* ── Google Calendar ─────────────────────────────────── */}
           {gcalStatus && (
             <div className="card p-6">
@@ -319,7 +508,7 @@ export default function ProfilePage() {
                 Google Calendar
               </h3>
               <p className="text-xs text-gray-400 mb-4">
-                Tickets com prazo atribuídos a você serão sincronizados automaticamente.
+                Tickets com prazo e visitas a imóveis atribuídos a você serão sincronizados automaticamente.
               </p>
 
               {!gcalStatus.configured ? (
@@ -364,6 +553,51 @@ export default function ProfilePage() {
               )}
             </div>
           )}
+
+          {/* ── Notificações Push ───────────────────────────────── */}
+          <div className="card p-6">
+            <h3 className="font-medium text-gray-900 mb-1 flex items-center gap-2">
+              <Bell className="w-4 h-4 text-gray-400" />
+              Notificações push
+            </h3>
+            <p className="text-xs text-gray-400 mb-4">
+              Receba avisos de novos leads e mensagens neste dispositivo, mesmo com o app em segundo plano.
+            </p>
+
+            {pushPermission === 'unsupported' ? (
+              <p className="text-sm text-gray-500 bg-gray-50 border border-gray-200 rounded-lg px-4 py-3">
+                Este navegador não suporta notificações push.
+              </p>
+            ) : pushPermission === 'denied' ? (
+              <p className="text-sm text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3">
+                As notificações foram bloqueadas para este site. Habilite-as nas configurações do navegador para ativar.
+              </p>
+            ) : pushSubscribed ? (
+              <div className="space-y-3">
+                <div className="flex items-center gap-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+                  <CheckCircle className="w-4 h-4 text-green-600 flex-shrink-0" />
+                  <p className="text-sm font-medium text-green-700">Ativadas neste dispositivo</p>
+                </div>
+                <button
+                  onClick={handlePushDisable}
+                  disabled={pushLoading}
+                  className="btn-secondary text-sm text-red-600 border-red-200 hover:bg-red-50 flex items-center gap-2"
+                >
+                  <BellOff className="w-4 h-4" />
+                  {pushLoading ? 'Aguarde...' : 'Desativar neste dispositivo'}
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={handlePushEnable}
+                disabled={pushLoading}
+                className="btn-secondary text-sm flex items-center gap-2"
+              >
+                <Bell className="w-4 h-4" />
+                {pushLoading ? 'Aguarde...' : 'Ativar notificações push'}
+              </button>
+            )}
+          </div>
 
           {/* ── E-mail (teste) ──────────────────────────────────── */}
           {mailStatus && (

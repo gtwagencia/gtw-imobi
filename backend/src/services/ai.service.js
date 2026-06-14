@@ -54,9 +54,9 @@ async function callLLM({ provider, apiKey, baseUrl, model, system, messages, max
   return response.content[0]?.text?.trim() || '';
 }
 
-// ── Lais — persona padrão e ferramentas ─────────────────────────────────────
+// ── Lia — persona padrão e ferramentas (nome do agente configurável por workspace) ──
 
-const DEFAULT_LAIS_PERSONA = `Você é a Lais, assistente virtual de atendimento da imobiliária. Atenda leads do mercado imobiliário de forma simpática, objetiva e profissional, em português brasileiro.
+const DEFAULT_AGENT_PERSONA = `Você é Lia, assistente virtual de atendimento da imobiliária. Atenda leads do mercado imobiliário de forma simpática, objetiva e profissional, em português brasileiro.
 
 Você pode usar estas ferramentas quando fizer sentido:
 - buscar_imoveis: busca imóveis no catálogo a partir de critérios do cliente (finalidade, tipo, cidade, quartos, valor).
@@ -73,20 +73,23 @@ Regras:
 - Se não conseguir ajudar, diga que um corretor da equipe vai continuar o atendimento.`;
 
 /**
- * Monta a persona da Lais dinamicamente a partir do modelo de negócio do
- * workspace (imobiliária x construtora/incorporadora) e da lista de setores
- * disponíveis para transferência automática. Usada por dispatchChatbotResponse.
+ * Monta a persona do agente de IA dinamicamente a partir do nome configurado
+ * no workspace (padrão "Lia"), do modelo de negócio (imobiliária x
+ * construtora/incorporadora) e da lista de setores disponíveis para
+ * transferência automática. Usada por dispatchChatbotResponse.
  *
  * @param {object} opts
+ * @param {string} [opts.agentName] Nome do agente de IA configurado pelo cliente (padrão "Lia")
  * @param {'imobiliaria'|'construtora'} [opts.businessModel]
  * @param {{ name: string, ai_routing_description?: string|null }[]} [opts.departments]
  */
-function buildLaisPersona({ businessModel, departments } = {}) {
+function buildAgentPersona({ agentName, businessModel, departments } = {}) {
+  const name = agentName?.trim() || 'Lia';
   const isConstrutora = businessModel === 'construtora';
 
   const intro = isConstrutora
-    ? `Você é a Lais, assistente virtual de atendimento da construtora/incorporadora. Atenda leads interessados nos empreendimentos da empresa de forma simpática, objetiva e profissional, em português brasileiro. Esta empresa trabalha apenas com empreendimentos e unidades próprias — não atende imóveis de terceiros.`
-    : `Você é a Lais, assistente virtual de atendimento da imobiliária. Atenda leads do mercado imobiliário de forma simpática, objetiva e profissional, em português brasileiro. Esta imobiliária trabalha tanto com imóveis de terceiros quanto com unidades de empreendimentos/lançamentos.`;
+    ? `Você é ${name}, assistente virtual de atendimento da construtora/incorporadora. Atenda leads interessados nos empreendimentos da empresa de forma simpática, objetiva e profissional, em português brasileiro. Esta empresa trabalha apenas com empreendimentos e unidades próprias — não atende imóveis de terceiros.`
+    : `Você é ${name}, assistente virtual de atendimento da imobiliária. Atenda leads do mercado imobiliário de forma simpática, objetiva e profissional, em português brasileiro. Esta imobiliária trabalha tanto com imóveis de terceiros quanto com unidades de empreendimentos/lançamentos.`;
 
   const toolsBlock = isConstrutora
     ? `Você pode usar estas ferramentas quando fizer sentido:
@@ -123,7 +126,7 @@ Se não tiver certeza do que o cliente quer, faça uma pergunta curta para escla
   return [intro, toolsBlock, routingBlock, rules].join('\n\n');
 }
 
-const LAIS_TOOL_DEFS = [
+const AGENT_TOOL_DEFS = [
   {
     name: 'buscar_imoveis',
     description: 'Busca imóveis disponíveis no catálogo da imobiliária pelos critérios informados.',
@@ -195,14 +198,14 @@ const LAIS_TOOL_DEFS = [
   },
 ];
 
-// Para Anthropic, LAIS_TOOL_DEFS já está no formato esperado por `tools`.
+// Para Anthropic, AGENT_TOOL_DEFS já está no formato esperado por `tools`.
 // Para OpenAI/custom (function calling), converte para o formato `tools: [{type:'function', function}]`.
-const LAIS_TOOL_DEFS_OPENAI = LAIS_TOOL_DEFS.map(t => ({
+const AGENT_TOOL_DEFS_OPENAI = AGENT_TOOL_DEFS.map(t => ({
   type: 'function',
   function: { name: t.name, description: t.description, parameters: t.input_schema },
 }));
 
-const MAX_LAIS_TOOL_ITERATIONS = 3;
+const MAX_AGENT_TOOL_ITERATIONS = 3;
 
 async function getConversationMessages(conversationId, includePrivate = false) {
   const r = await query(
@@ -444,7 +447,7 @@ async function generateChatbotResponse(conversationId, systemPrompt, apiKey, pro
 
 /**
  * Constrói o histórico de mensagens (user/assistant alternado) usado tanto
- * por generateChatbotResponse quanto pelos loops de tool-use da Lais.
+ * por generateChatbotResponse quanto pelos loops de tool-use do agente de IA.
  */
 function buildChatHistory(messages) {
   const history = [];
@@ -653,7 +656,7 @@ async function analyzeDeal(dealId, workspaceId) {
   return { ...result, dealId };
 }
 
-// ── Lais — execução de ferramentas e loops de tool-use ──────────────────────
+// ── Agente de IA — execução de ferramentas e loops de tool-use ──────────────
 
 function formatBRL(v) {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
@@ -693,9 +696,9 @@ function buildDevelopmentCaption(d) {
 }
 
 /**
- * Executa uma ferramenta da Lais. ctx = { workspaceId, conversationId, contactId, io }
+ * Executa uma ferramenta do agente de IA. ctx = { workspaceId, conversationId, contactId, io }
  */
-async function executeLaisTool(name, input, ctx) {
+async function executeAgentTool(name, input, ctx) {
   try {
     switch (name) {
       case 'buscar_imoveis': {
@@ -800,7 +803,7 @@ async function executeLaisTool(name, input, ctx) {
         return { success: false, error: 'Ferramenta desconhecida' };
     }
   } catch (err) {
-    logger.warn('Lais tool execution failed', { name, err: err.message });
+    logger.warn('AI agent tool execution failed', { name, err: err.message });
     return { success: false, error: 'Erro interno ao executar ação' };
   }
 }
@@ -813,9 +816,9 @@ async function runAnthropicToolLoop({ apiKey, model, system, history, ctx }) {
   const client   = new Anthropic({ apiKey });
   const messages = [...history];
 
-  for (let i = 0; i < MAX_LAIS_TOOL_ITERATIONS; i++) {
+  for (let i = 0; i < MAX_AGENT_TOOL_ITERATIONS; i++) {
     const response = await client.messages.create({
-      model: resolvedModel, max_tokens: 400, system, messages, tools: LAIS_TOOL_DEFS,
+      model: resolvedModel, max_tokens: 400, system, messages, tools: AGENT_TOOL_DEFS,
     });
 
     if (response.stop_reason !== 'tool_use') {
@@ -827,7 +830,7 @@ async function runAnthropicToolLoop({ apiKey, model, system, history, ctx }) {
     const toolResults = [];
     for (const block of response.content) {
       if (block.type !== 'tool_use') continue;
-      const result = await executeLaisTool(block.name, block.input || {}, ctx);
+      const result = await executeAgentTool(block.name, block.input || {}, ctx);
       toolResults.push({ type: 'tool_result', tool_use_id: block.id, content: JSON.stringify(result) });
     }
     messages.push({ role: 'user', content: toolResults });
@@ -847,10 +850,10 @@ async function runOpenAICompatToolLoop({ apiKey, baseUrl, model, system, history
   const resolvedModel = model || (baseUrl ? undefined : DEFAULT_MODELS.openai.smart);
   const messages = [{ role: 'system', content: system }, ...history];
 
-  for (let i = 0; i < MAX_LAIS_TOOL_ITERATIONS; i++) {
+  for (let i = 0; i < MAX_AGENT_TOOL_ITERATIONS; i++) {
     const resp = await axios.post(
       url,
-      { model: resolvedModel, messages, max_tokens: 400, tools: LAIS_TOOL_DEFS_OPENAI },
+      { model: resolvedModel, messages, max_tokens: 400, tools: AGENT_TOOL_DEFS_OPENAI },
       { headers: { Authorization: `Bearer ${apiKey || 'ollama'}` }, timeout: 30000 }
     );
     const message = resp.data.choices[0]?.message;
@@ -864,7 +867,7 @@ async function runOpenAICompatToolLoop({ apiKey, baseUrl, model, system, history
     for (const tc of message.tool_calls) {
       let input = {};
       try { input = JSON.parse(tc.function.arguments || '{}'); } catch {}
-      const result = await executeLaisTool(tc.function.name, input, ctx);
+      const result = await executeAgentTool(tc.function.name, input, ctx);
       messages.push({ role: 'tool', tool_call_id: tc.id, content: JSON.stringify(result) });
     }
   }
@@ -873,8 +876,8 @@ async function runOpenAICompatToolLoop({ apiKey, baseUrl, model, system, history
 }
 
 /**
- * Gera a resposta do chatbot com acesso às ferramentas da Lais (busca de
- * imóveis, envio de ficha, proposta de visita). ws = row de `workspaces`
+ * Gera a resposta do chatbot com acesso às ferramentas do agente de IA (busca
+ * de imóveis, envio de ficha, proposta de visita). ws = row de `workspaces`
  * (anthropic_api_key, openai_api_key, custom_ai_api_key, ai_base_url,
  * ai_provider, ai_model). ctx = { workspaceId, conversationId, contactId, io }.
  */
@@ -894,12 +897,12 @@ async function generateChatbotResponseWithTools(conversationId, systemPrompt, ws
     const baseUrl = provider === 'custom' ? ws.ai_base_url : 'https://api.openai.com/v1';
     return await runOpenAICompatToolLoop({ apiKey, baseUrl, model: ws.ai_model, system: systemPrompt, history, ctx });
   } catch (err) {
-    logger.warn('Lais tool loop failed', { conversationId, err: err.message });
+    logger.warn('AI agent tool loop failed', { conversationId, err: err.message });
     return null;
   }
 }
 
 module.exports = {
   analyzeConversation, generateFollowUp, generateChatbotResponse, analyzeDeal,
-  generateChatbotResponseWithTools, DEFAULT_LAIS_PERSONA, buildLaisPersona,
+  generateChatbotResponseWithTools, DEFAULT_AGENT_PERSONA, buildAgentPersona,
 };

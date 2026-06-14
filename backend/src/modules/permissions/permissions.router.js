@@ -4,6 +4,7 @@ const { Router } = require('express');
 const { authenticate } = require('../../middleware/auth');
 const { workspaceContext } = require('../../middleware/workspaceContext');
 const { PERMISSION_MODULES } = require('../../config/permissionModules');
+const { logAudit } = require('../../services/audit.service');
 const svc = require('./permissions.service');
 
 const router = Router({ mergeParams: true });
@@ -36,7 +37,13 @@ router.put('/:profileId', authenticate, workspaceContext, async (req, res, next)
     if (!permissions || typeof permissions !== 'object') {
       return res.status(400).json({ error: 'permissions é obrigatório' });
     }
-    res.json(await svc.updateProfile(req.workspace.id, req.params.profileId, permissions));
+    const result = await svc.updateProfile(req.workspace.id, req.params.profileId, permissions);
+    await logAudit({
+      orgId: req.workspace.org_id, workspaceId: req.workspace.id, userId: req.user.sub,
+      action: 'permission_profile.update', entityType: 'permission_profile', entityId: req.params.profileId,
+      metadata: { permissions }, ip: req.ip,
+    });
+    res.json(result);
   } catch (err) { next(err); }
 });
 

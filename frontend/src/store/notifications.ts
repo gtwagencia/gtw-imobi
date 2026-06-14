@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { getSocket } from '@/lib/socket';
 import { useAuth } from '@/store/auth';
+import { subscribeToPush } from '@/lib/push';
 
 interface Notification {
   id:        string;
@@ -114,8 +115,13 @@ export const useNotifications = create<NotificationState>((set, get) => ({
 
   requestPermission: () => {
     if (typeof window === 'undefined') return;
-    if ('Notification' in window && Notification.permission === 'default') {
-      Notification.requestPermission();
+    if (!('Notification' in window)) return;
+    if (Notification.permission === 'default') {
+      Notification.requestPermission().then((perm) => {
+        if (perm === 'granted') subscribeToPush();
+      });
+    } else if (Notification.permission === 'granted') {
+      subscribeToPush();
     }
   },
 

@@ -1,10 +1,11 @@
 'use client';
 
 import { useRef, useState, useEffect } from 'react';
-import { Bell, Menu, MessageSquare, Ticket, UserCheck, MessageCircle, Users, AtSign } from 'lucide-react';
+import { Bell, Menu, MessageSquare, Ticket, UserCheck, MessageCircle, Users, AtSign, AlertTriangle, Clock } from 'lucide-react';
 import { useAuth } from '@/store/auth';
 import { useNotifications } from '@/store/notifications';
 import { useAlerts } from '@/store/alerts';
+import { useCrmAlerts } from '@/store/crmAlerts';
 import { useSidebar } from '@/store/sidebar';
 import { useRouter } from 'next/navigation';
 import { formatDistanceToNow } from 'date-fns';
@@ -24,22 +25,31 @@ const NOTIF_CONFIG = {
   ticket_updated:   { icon: Ticket,        color: 'text-orange-500', bg: 'bg-orange-50', label: 'Ticket'    },
 } as const;
 
+const CRM_NOTIF_CONFIG = {
+  sla_breached: { icon: AlertTriangle, color: 'text-red-500',   bg: 'bg-red-50'   },
+  lead_stale:   { icon: Clock,         color: 'text-amber-500', bg: 'bg-amber-50' },
+} as const;
+
 export default function Header({ title, actions }: HeaderProps) {
   const { currentWorkspace }                        = useAuth();
   const { notifications, unreadCount, markAllRead } = useNotifications();
   const { alerts, unreadCount: alertCount, markRead, markAllRead: markAllAlerts } = useAlerts();
+  const { alerts: crmAlerts, unreadCount: crmAlertCount, markRead: markCrmRead, markAllRead: markAllCrmAlerts } = useCrmAlerts();
   const { toggle } = useSidebar();
   const router = useRouter();
 
   const [open,      setOpen]      = useState(false);
   const [openAlert, setOpenAlert] = useState(false);
+  const [openCrmAlert, setOpenCrmAlert] = useState(false);
   const dropRef      = useRef<HTMLDivElement>(null);
   const alertDropRef = useRef<HTMLDivElement>(null);
+  const crmAlertDropRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     function handler(e: MouseEvent) {
       if (dropRef.current      && !dropRef.current.contains(e.target as Node))      setOpen(false);
       if (alertDropRef.current && !alertDropRef.current.contains(e.target as Node)) setOpenAlert(false);
+      if (crmAlertDropRef.current && !crmAlertDropRef.current.contains(e.target as Node)) setOpenCrmAlert(false);
     }
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
@@ -136,6 +146,75 @@ export default function Header({ title, actions }: HeaderProps) {
                       </div>
                     </div>
                   ))
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* CRM alerts bell — SLA de resposta vencido e leads sem retorno */}
+        <div className="relative" ref={crmAlertDropRef}>
+          <button
+            onClick={() => setOpenCrmAlert((v) => !v)}
+            className="relative p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+            title="Alertas de SLA e leads sem retorno"
+          >
+            <AlertTriangle className="w-5 h-5" />
+            {crmAlertCount > 0 && (
+              <span className="absolute top-1 right-1 w-4 h-4 bg-red-500 text-white text-xs
+                               rounded-full flex items-center justify-center font-medium leading-none">
+                {crmAlertCount > 9 ? '9+' : crmAlertCount}
+              </span>
+            )}
+          </button>
+
+          {openCrmAlert && (
+            <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-xl shadow-xl
+                            border border-gray-200 overflow-hidden z-50">
+              <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+                <span className="font-semibold text-gray-900 text-sm">Alertas de leads</span>
+                {crmAlertCount > 0 && currentWorkspace && (
+                  <button
+                    onClick={() => markAllCrmAlerts(currentWorkspace.id)}
+                    className="text-xs text-indigo-600 hover:underline"
+                  >
+                    Limpar todos
+                  </button>
+                )}
+              </div>
+              <div className="max-h-96 overflow-y-auto divide-y divide-gray-50">
+                {crmAlerts.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-10 text-center px-4">
+                    <AlertTriangle className="w-8 h-8 text-gray-200 mb-3" />
+                    <p className="text-sm text-gray-400">Nenhum alerta pendente</p>
+                  </div>
+                ) : (
+                  crmAlerts.map((a) => {
+                    const cfg = CRM_NOTIF_CONFIG[a.type] ?? CRM_NOTIF_CONFIG.lead_stale;
+                    const Icon = cfg.icon;
+                    return (
+                      <div
+                        key={a.id}
+                        className="flex items-start gap-3 px-4 py-3 hover:bg-gray-50 cursor-pointer"
+                        onClick={() => {
+                          if (currentWorkspace) markCrmRead(a.id, currentWorkspace.id);
+                          if (a.conversation_id) router.push(`/dashboard/conversations?id=${a.conversation_id}`);
+                          setOpenCrmAlert(false);
+                        }}
+                      >
+                        <div className={clsx('w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5', cfg.bg)}>
+                          <Icon className={clsx('w-4 h-4', cfg.color)} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-gray-900 truncate">{a.title}</p>
+                          <p className="text-xs text-gray-500 mt-0.5">{a.message}</p>
+                          <p className="text-xs text-gray-400 mt-1">
+                            {formatDistanceToNow(new Date(a.created_at), { addSuffix: true, locale: ptBR })}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })
                 )}
               </div>
             </div>

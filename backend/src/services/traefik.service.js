@@ -1,0 +1,143 @@
+'use strict';
+
+const fs     = require('fs');
+const path   = require('path');
+const { query } = require('../config/database');
+const logger = require('../utils/logger');
+
+// ── White-label: geração de configuração dinâmica do Traefik ────────────────
+//
+// Para cada workspace com domínio customizado verificado (`custom_domain_status
+// = 'verified'`), gera roteadores HTTP no Traefik (file provider) apontando
+// para os mesmos serviços do frontend/backend/MinIO, com certificado Let's
+// Encrypt emitido automaticamente via HTTP challenge (`letsencryptresolver`).
+//
+// Requer:
+// - Volume compartilhado entre o backend e o Traefik (ver docker-compose.yml
+//   e traefik/docker-compose.traefik.yml — volume `gtw_traefik_dynamic`).
+// - Traefik configurado com `--providers.file.directory=<dir> --providers.file.watch=true`.
+// - Variável de ambiente TRAEFIK_DYNAMIC_DIR apontando para o diretório montado
+//   (ex: /app/traefik-dynamic). Se não definida, a geração é desativada (no-op),
+//   o que é seguro para ambientes de desenvolvimento.
+
+const DYNAMIC_DIR  = process.env.TRAEFIK_DYNAMIC_DIR || null;
+const OUTPUT_FILE  = 'custom-domains.yml';
+
+const FRONTEND_URL = process.env.TRAEFIK_FRONTEND_URL || 'http://gtw-frontend:3000';
+const BACKEND_URL  = process.env.TRAEFIK_BACKEND_URL  || 'http://gtw-backend:4000';
+const MINIO_URL    = process.env.TRAEFIK_MINIO_URL    || 'http://gtw-minio:9000';
+
+/** Identificador curto e seguro para usar em nomes de router/service do Traefik. */
+function safeId(workspaceId) {
+  return String(workspaceId).replace(/[^a-z0-9]/gi, '').slice(0, 12);
+}
+
+function buildRouterBlock(workspace) {
+  const id     = safeId(workspace.id);
+  const domain = workspace.custom_domain;
+
+  return `
+    wl-${id}-frontend:
+      rule: "Host(\`${domain}\`)"
+      entryPoints: ["websecure"]
+      service: wl-frontend
+      priority: 1
+      tls:
+        certResolver: letsencryptresolver
+        domains:
+          - main: "${domain}"
+    wl-${id}-api:
+      rule: "Host(\`${domain}\`) && PathPrefix(\`/api\`)"
+      entryPoints: ["websecure"]
+      service: wl-backend
+      priority: 20
+      tls:
+        certResolver: letsencryptresolver
+        domains:
+          - main: "${domain}"
+    wl-${id}-uploads:
+      rule: "Host(\`${domain}\`) && PathPrefix(\`/uploads\`)"
+      entryPoints: ["websecure"]
+      service: wl-backend
+      priority: 10
+      tls:
+        certResolver: letsencryptresolver
+        domains:
+          - main: "${domain}"
+    wl-${id}-files:
+      rule: "Host(\`${domain}\`) && PathPrefix(\`/files\`)"
+      entryPoints: ["websecure"]
+      service: wl-minio
+      middlewares: ["wl-minio-strip"]
+      priority: 25
+      tls:
+        certResolver: letsencryptresolver
+        domains:
+          - main: "${domain}"
+    wl-${id}-ws:
+      rule: "Host(\`${domain}\`) && PathPrefix(\`/socket.io\`)"
+      entryPoints: ["websecure"]
+      service: wl-backend-ws
+      priority: 15
+      tls:
+        certResolver: letsencryptresolver
+        domains:
+          - main: "${domain}"`;
+}
+
+const SHARED_SERVICES_AND_MIDDLEWARES = `
+  services:
+    wl-frontend:
+      loadBalancer:
+        servers:
+          - url: "${FRONTEND_URL}"
+    wl-backend:
+      loadBalancer:
+        servers:
+          - url: "${BACKEND_URL}"
+    wl-backend-ws:
+      loadBalancer:
+        servers:
+          - url: "${BACKEND_URL}"
+        sticky:
+          cookie:
+            name: gtw_ws_sticky
+    wl-minio:
+      loadBalancer:
+        servers:
+          - url: "${MINIO_URL}"
+  middlewares:
+    wl-minio-strip:
+      stripPrefix:
+        prefixes: ["/files"]`;
+
+/**
+ * Regenera o arquivo de configuração dinâmica do Traefik com um roteador
+ * (frontend + /api + /uploads + /files + /socket.io) para cada domínio
+ * customizado verificado. Nunca lança erro — apenas registra um aviso.
+ */
+async function regenerateDomainsConfig() {
+  if (!DYNAMIC_DIR) return;
+
+  try {
+    const r = await query(
+      `SELECT id, custom_domain FROM workspaces
+       WHERE custom_domain_status = 'verified' AND custom_domain IS NOT NULL`
+    );
+
+    let content;
+    if (!r.rows.length) {
+      content = '# Nenhum domínio customizado verificado.\n';
+    } else {
+      content = ['http:', '  routers:', ...r.rows.map(buildRouterBlock), SHARED_SERVICES_AND_MIDDLEWARES]
+        .join('\n') + '\n';
+    }
+
+    fs.mkdirSync(DYNAMIC_DIR, { recursive: true });
+    fs.writeFileSync(path.join(DYNAMIC_DIR, OUTPUT_FILE), content, 'utf8');
+  } catch (err) {
+    logger.warn('Falha ao gerar configuração dinâmica do Traefik', { err: err.message });
+  }
+}
+
+module.exports = { regenerateDomainsConfig };

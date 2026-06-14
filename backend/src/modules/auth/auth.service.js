@@ -3,11 +3,18 @@
 const bcrypt = require('bcrypt');
 const jwt    = require('jsonwebtoken');
 const crypto = require('crypto');
+const { authenticator } = require('otplib');
+const QRCode = require('qrcode');
 const { query } = require('../../config/database');
+const { logAudit } = require('../../services/audit.service');
 
 const SALT_ROUNDS       = 12;
 const ACCESS_TOKEN_TTL  = '15m';
 const REFRESH_TOKEN_TTL = 30; // days
+
+const MAX_FAILED_ATTEMPTS      = 5;
+const LOCKOUT_MINUTES           = 15;
+const TWO_FACTOR_CHALLENGE_TTL  = '5m';
 
 // ── Token helpers ──────────────────────────────────────────────────────────
 
@@ -16,6 +23,14 @@ function signAccess(user) {
     { sub: user.id, isSuperAdmin: user.is_super_admin },
     process.env.JWT_SECRET,
     { expiresIn: ACCESS_TOKEN_TTL }
+  );
+}
+
+function signTwoFactorChallenge(userId) {
+  return jwt.sign(
+    { sub: userId, type: '2fa_challenge' },
+    process.env.JWT_SECRET,
+    { expiresIn: TWO_FACTOR_CHALLENGE_TTL }
   );
 }
 
@@ -31,11 +46,15 @@ async function createRefreshToken(userId) {
   return raw;
 }
 
+function hashBackupCode(code) {
+  return crypto.createHash('sha256').update(String(code).trim().toLowerCase()).digest('hex');
+}
+
 // ── Helpers ────────────────────────────────────────────────────────────────
 
 async function getUserWithOrgs(userId) {
   const userRes = await query(
-    'SELECT id, name, email, avatar_url, is_super_admin, is_active FROM users WHERE id = $1',
+    'SELECT id, name, email, avatar_url, is_super_admin, is_active, two_factor_enabled FROM users WHERE id = $1',
     [userId]
   );
   if (!userRes.rows.length) return null;
@@ -51,6 +70,18 @@ async function getUserWithOrgs(userId) {
   );
   user.orgs = orgsRes.rows;
   return user;
+}
+
+/**
+ * Emite tokens de sessão (access + refresh) e atualiza last_login_at.
+ * Usado após autenticação bem-sucedida (com ou sem 2FA).
+ */
+async function issueSession(user) {
+  await query('UPDATE users SET last_login_at = NOW() WHERE id = $1', [user.id]);
+  const accessToken  = signAccess(user);
+  const refreshToken = await createRefreshToken(user.id);
+  const fullUser     = await getUserWithOrgs(user.id);
+  return { accessToken, refreshToken, user: fullUser };
 }
 
 // ── Register ───────────────────────────────────────────────────────────────
@@ -106,11 +137,7 @@ async function register({ name, email, password, orgName }) {
     [org.id, user.id, 'owner']
   );
 
-  const accessToken  = signAccess(user);
-  const refreshToken = await createRefreshToken(user.id);
-  const fullUser     = await getUserWithOrgs(user.id);
-
-  return { accessToken, refreshToken, user: fullUser };
+  return issueSession(user);
 }
 
 // ── Login ──────────────────────────────────────────────────────────────────
@@ -123,16 +150,81 @@ async function login({ email, password }) {
     throw Object.assign(new Error('Credenciais inválidas'), { status: 401 });
   }
 
+  if (user.locked_until && new Date(user.locked_until) > new Date()) {
+    const minutes = Math.max(1, Math.ceil((new Date(user.locked_until).getTime() - Date.now()) / 60000));
+    throw Object.assign(
+      new Error(`Conta temporariamente bloqueada por excesso de tentativas. Tente novamente em ${minutes} min.`),
+      { status: 423 }
+    );
+  }
+
   const valid = await bcrypt.compare(password, user.password_hash);
-  if (!valid) throw Object.assign(new Error('Credenciais inválidas'), { status: 401 });
+  if (!valid) {
+    const attempts = (user.failed_login_attempts || 0) + 1;
+    if (attempts >= MAX_FAILED_ATTEMPTS) {
+      await query(
+        `UPDATE users SET failed_login_attempts = $1, locked_until = NOW() + INTERVAL '${LOCKOUT_MINUTES} minutes' WHERE id = $2`,
+        [attempts, user.id]
+      );
+      await logAudit({ userId: user.id, action: 'auth.account_locked', metadata: { email: user.email, attempts } });
+      throw Object.assign(
+        new Error(`Muitas tentativas de login. Conta bloqueada por ${LOCKOUT_MINUTES} minutos.`),
+        { status: 423 }
+      );
+    }
+    await query('UPDATE users SET failed_login_attempts = $1 WHERE id = $2', [attempts, user.id]);
+    throw Object.assign(new Error('Credenciais inválidas'), { status: 401 });
+  }
 
-  await query('UPDATE users SET last_login_at = NOW() WHERE id = $1', [user.id]);
+  if (user.failed_login_attempts > 0 || user.locked_until) {
+    await query('UPDATE users SET failed_login_attempts = 0, locked_until = NULL WHERE id = $1', [user.id]);
+  }
 
-  const accessToken  = signAccess(user);
-  const refreshToken = await createRefreshToken(user.id);
-  const fullUser     = await getUserWithOrgs(user.id);
+  if (user.two_factor_enabled) {
+    return { twoFactorRequired: true, challenge: signTwoFactorChallenge(user.id) };
+  }
 
-  return { accessToken, refreshToken, user: fullUser };
+  return issueSession(user);
+}
+
+// ── 2FA — verificação no login ───────────────────────────────────────────────
+
+async function verifyTwoFactorLogin({ challenge, code }) {
+  if (!challenge || !code) throw Object.assign(new Error('Dados incompletos'), { status: 400 });
+
+  let payload;
+  try {
+    payload = jwt.verify(challenge, process.env.JWT_SECRET);
+  } catch {
+    throw Object.assign(new Error('Sessão de verificação expirada. Faça login novamente.'), { status: 401 });
+  }
+  if (payload.type !== '2fa_challenge') {
+    throw Object.assign(new Error('Token inválido'), { status: 401 });
+  }
+
+  const res  = await query('SELECT * FROM users WHERE id = $1', [payload.sub]);
+  const user = res.rows[0];
+  if (!user || !user.is_active || !user.two_factor_enabled) {
+    throw Object.assign(new Error('Usuário inválido'), { status: 401 });
+  }
+
+  const cleanCode = String(code).replace(/\s+/g, '');
+  let validTotp = false;
+  try { validTotp = authenticator.check(cleanCode, user.two_factor_secret); } catch { /* ignore */ }
+
+  if (!validTotp) {
+    // Tenta código de backup (uso único, gerado na ativação do 2FA)
+    const codes = user.two_factor_backup_codes || [];
+    const hash  = hashBackupCode(cleanCode);
+    const idx   = codes.indexOf(hash);
+    if (idx === -1) {
+      throw Object.assign(new Error('Código de verificação inválido'), { status: 401 });
+    }
+    const remaining = [...codes.slice(0, idx), ...codes.slice(idx + 1)];
+    await query('UPDATE users SET two_factor_backup_codes = $1 WHERE id = $2', [remaining, user.id]);
+  }
+
+  return issueSession(user);
 }
 
 // ── Refresh ────────────────────────────────────────────────────────────────
@@ -217,4 +309,66 @@ async function updateProfile(userId, { name, avatarUrl }) {
   return getUserWithOrgs(userId);
 }
 
-module.exports = { register, login, refresh, logout, me, changePassword, updateProfile };
+// ── 2FA — configuração (owners/admins) ────────────────────────────────────────
+
+async function getTwoFactorStatus(userId) {
+  const r = await query('SELECT two_factor_enabled FROM users WHERE id = $1', [userId]);
+  return { enabled: !!r.rows[0]?.two_factor_enabled };
+}
+
+async function setupTwoFactor(userId) {
+  const userRes = await query('SELECT email, two_factor_enabled FROM users WHERE id = $1', [userId]);
+  const user = userRes.rows[0];
+  if (!user) throw Object.assign(new Error('Usuário não encontrado'), { status: 404 });
+  if (user.two_factor_enabled) {
+    throw Object.assign(new Error('A verificação em duas etapas já está ativada'), { status: 400 });
+  }
+
+  const secret = authenticator.generateSecret();
+  await query('UPDATE users SET two_factor_secret = $1 WHERE id = $2', [secret, userId]);
+
+  const otpUrl = authenticator.keyuri(user.email, 'GTW Imobi', secret);
+  const qrCodeDataUrl = await QRCode.toDataURL(otpUrl);
+
+  return { secret, qrCodeDataUrl };
+}
+
+async function enableTwoFactor(userId, code) {
+  const r = await query('SELECT two_factor_secret FROM users WHERE id = $1', [userId]);
+  const secret = r.rows[0]?.two_factor_secret;
+  if (!secret) throw Object.assign(new Error('Configure a verificação em duas etapas antes de ativar'), { status: 400 });
+
+  const valid = authenticator.check(String(code).replace(/\s+/g, ''), secret);
+  if (!valid) throw Object.assign(new Error('Código inválido'), { status: 400 });
+
+  const backupCodes = Array.from({ length: 8 }, () => crypto.randomBytes(5).toString('hex'));
+  const hashed = backupCodes.map(hashBackupCode);
+
+  await query(
+    'UPDATE users SET two_factor_enabled = true, two_factor_backup_codes = $1 WHERE id = $2',
+    [hashed, userId]
+  );
+
+  await logAudit({ userId, action: '2fa.enable' });
+  return { backupCodes };
+}
+
+async function disableTwoFactor(userId, password) {
+  const r = await query('SELECT password_hash FROM users WHERE id = $1', [userId]);
+  const user = r.rows[0];
+  if (!user) throw Object.assign(new Error('Usuário não encontrado'), { status: 404 });
+
+  const valid = await bcrypt.compare(password, user.password_hash);
+  if (!valid) throw Object.assign(new Error('Senha incorreta'), { status: 400 });
+
+  await query(
+    'UPDATE users SET two_factor_enabled = false, two_factor_secret = NULL, two_factor_backup_codes = NULL WHERE id = $1',
+    [userId]
+  );
+  await logAudit({ userId, action: '2fa.disable' });
+}
+
+module.exports = {
+  register, login, verifyTwoFactorLogin, refresh, logout, me, changePassword, updateProfile,
+  getTwoFactorStatus, setupTwoFactor, enableTwoFactor, disableTwoFactor,
+};

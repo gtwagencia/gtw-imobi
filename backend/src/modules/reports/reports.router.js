@@ -35,4 +35,18 @@ router.get('/campaigns', authenticate, workspaceContext, requirePermission('repo
   } catch (err) { next(err); }
 });
 
+router.get('/deals-by-broker', authenticate, workspaceContext, requirePermission('reports'), async (req, res, next) => {
+  try {
+    const { startDate, endDate } = req.query;
+    res.json(await svc.getBrokerDealPerformance(req.params.workspaceId, { startDate, endDate }));
+  } catch (err) { next(err); }
+});
+
+router.get('/deals-by-source', authenticate, workspaceContext, requirePermission('reports'), async (req, res, next) => {
+  try {
+    const { startDate, endDate } = req.query;
+    res.json(await svc.getLeadSourcePerformance(req.params.workspaceId, { startDate, endDate }));
+  } catch (err) { next(err); }
+});
+
 module.exports = router;

@@ -38,6 +38,7 @@ const COLORS = [
 
 export default function DepartmentsPage() {
   const { currentWorkspace, currentOrg } = useAuth();
+  const agentName = currentWorkspace?.ai_agent_name || 'Lia';
 
   const [departments,     setDepartments]     = useState<Department[]>([]);
   const [selectedDept,    setSelectedDept]    = useState<Department | null>(null);
@@ -57,12 +58,12 @@ export default function DepartmentsPage() {
   const [editingId,   setEditingId]   = useState<string | null>(null);
   const [editName,    setEditName]    = useState('');
 
-  // IA (Lais) persona
+  // IA — persona do agente
   const [aiPersonaDraft, setAiPersonaDraft] = useState('');
   const [savingPersona,  setSavingPersona]  = useState(false);
   const [personaSaved,   setPersonaSaved]   = useState(false);
 
-  // IA (Lais) — roteamento automático para este setor
+  // IA — roteamento automático para este setor
   const [routingDraft, setRoutingDraft] = useState('');
   const [savingRouting, setSavingRouting] = useState(false);
   const [routingSaved,  setRoutingSaved]  = useState(false);
@@ -322,14 +323,14 @@ export default function DepartmentsPage() {
                 )}
               </div>
 
-              {/* IA (Lais) — persona deste setor */}
+              {/* IA — persona deste setor */}
               <div className="card p-4 mb-6">
                 <h3 className="font-medium text-gray-900 text-sm flex items-center gap-1.5 mb-1">
                   <Sparkles className="w-4 h-4 text-indigo-500" />
-                  IA (Lais) — persona deste setor
+                  IA ({agentName}) — persona deste setor
                 </h3>
                 <p className="text-xs text-gray-400 mb-2">
-                  Esse texto é somado à persona padrão da Lais para conversas deste setor
+                  Esse texto é somado à persona padrão de {agentName} para conversas deste setor
                   (ex: foco em locação, tom de voz específico).
                 </p>
                 <textarea
@@ -352,14 +353,14 @@ export default function DepartmentsPage() {
                 </div>
               </div>
 
-              {/* IA (Lais) — roteamento automático para este setor */}
+              {/* IA — roteamento automático para este setor */}
               <div className="card p-4 mb-6">
                 <h3 className="font-medium text-gray-900 text-sm flex items-center gap-1.5 mb-1">
                   <Sparkles className="w-4 h-4 text-indigo-500" />
-                  IA (Lais) — quando transferir para este setor
+                  IA ({agentName}) — quando transferir para este setor
                 </h3>
                 <p className="text-xs text-gray-400 mb-2">
-                  Descreva os assuntos que devem ser direcionados para este setor. A Lais usa esse
+                  Descreva os assuntos que devem ser direcionados para este setor. {agentName} usa esse
                   texto para identificar a intenção do contato e transferir a conversa automaticamente
                   (ex: &quot;Financeiro: 2ª via de boleto, pagamentos, inadimplência, distrato&quot;).
                 </p>

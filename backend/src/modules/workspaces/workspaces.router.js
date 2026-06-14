@@ -4,6 +4,7 @@ const { Router } = require('express');
 const { authenticate, requireOrgRole } = require('../../middleware/auth');
 const { orgContext }                   = require('../../middleware/orgContext');
 const { workspaceContext }             = require('../../middleware/workspaceContext');
+const { logAudit, listForWorkspace }   = require('../../services/audit.service');
 const svc = require('./workspaces.service');
 
 // mergeParams so :orgId from parent router is available
@@ -64,6 +65,11 @@ router.put('/:workspaceId', authenticate, orgContext, workspaceContext, async (r
       delete req.body.ticketStorageQuotaMb;
     }
     const ws = await svc.update(req.params.workspaceId, req.body);
+    await logAudit({
+      orgId: req.params.orgId, workspaceId: req.params.workspaceId, userId: req.user.sub,
+      action: 'workspace.update', entityType: 'workspace', entityId: req.params.workspaceId,
+      metadata: { fields: Object.keys(req.body) }, ip: req.ip,
+    });
     res.json(sanitizeWorkspace(ws));
   } catch (err) { next(err); }
 });
@@ -75,7 +81,40 @@ router.post('/:workspaceId/site-integration/regenerate-token', authenticate, org
       return res.status(403).json({ error: 'Acesso negado' });
     }
     const ws = await svc.regenerateSiteToken(req.params.workspaceId);
+    await logAudit({
+      orgId: req.params.orgId, workspaceId: req.params.workspaceId, userId: req.user.sub,
+      action: 'workspace.site_token_regenerated', entityType: 'workspace', entityId: req.params.workspaceId,
+      ip: req.ip,
+    });
     res.json(sanitizeWorkspace(ws));
+  } catch (err) { next(err); }
+});
+
+// POST /orgs/:orgId/workspaces/:workspaceId/custom-domain/verify
+router.post('/:workspaceId/custom-domain/verify', authenticate, orgContext, workspaceContext, async (req, res, next) => {
+  try {
+    if (!['admin', 'owner'].includes(req.orgRole) && !req.user.isSuperAdmin) {
+      return res.status(403).json({ error: 'Acesso negado' });
+    }
+    const { workspace, verified } = await svc.verifyCustomDomain(req.params.workspaceId);
+    if (verified) {
+      await logAudit({
+        orgId: req.params.orgId, workspaceId: req.params.workspaceId, userId: req.user.sub,
+        action: 'workspace.custom_domain_verified', entityType: 'workspace', entityId: req.params.workspaceId,
+        metadata: { domain: workspace.custom_domain }, ip: req.ip,
+      });
+    }
+    res.json(sanitizeWorkspace(workspace));
+  } catch (err) { next(err); }
+});
+
+// GET /orgs/:orgId/workspaces/:workspaceId/audit-logs
+router.get('/:workspaceId/audit-logs', authenticate, orgContext, workspaceContext, async (req, res, next) => {
+  try {
+    if (req.workspaceRole !== 'admin' && !['owner', 'admin'].includes(req.orgRole) && !req.user.isSuperAdmin) {
+      return res.status(403).json({ error: 'Apenas administradores podem ver o log de auditoria' });
+    }
+    res.json(await listForWorkspace(req.params.workspaceId, { limit: 200 }));
   } catch (err) { next(err); }
 });
 
@@ -112,6 +151,11 @@ router.put('/:workspaceId/members/:userId/role', authenticate, orgContext, works
       return res.status(400).json({ error: `role inválido. Use: ${VALID_ROLES.join(', ')}` });
     }
     const member = await svc.updateMemberRole(req.params.workspaceId, req.params.userId, role);
+    await logAudit({
+      orgId: req.params.orgId, workspaceId: req.params.workspaceId, userId: req.user.sub,
+      action: 'member.role_changed', entityType: 'user', entityId: req.params.userId,
+      metadata: { newRole: role }, ip: req.ip,
+    });
     res.json(member);
   } catch (err) { next(err); }
 });
@@ -132,6 +176,10 @@ router.put('/:workspaceId/members/:userId/profile', authenticate, orgContext, wo
 router.delete('/:workspaceId/members/:userId', authenticate, orgContext, workspaceContext, async (req, res, next) => {
   try {
     await svc.removeMember(req.params.workspaceId, req.params.userId);
+    await logAudit({
+      orgId: req.params.orgId, workspaceId: req.params.workspaceId, userId: req.user.sub,
+      action: 'member.removed', entityType: 'user', entityId: req.params.userId, ip: req.ip,
+    });
     res.json({ ok: true });
   } catch (err) { next(err); }
 });
@@ -142,6 +190,10 @@ router.post('/:workspaceId/members/:userId/reset-password', authenticate, orgCon
       return res.status(403).json({ error: 'Acesso negado' });
     }
     const result = await svc.resetMemberPassword(req.params.workspaceId, req.params.userId);
+    await logAudit({
+      orgId: req.params.orgId, workspaceId: req.params.workspaceId, userId: req.user.sub,
+      action: 'member.password_reset', entityType: 'user', entityId: req.params.userId, ip: req.ip,
+    });
     res.json(result);
   } catch (err) { next(err); }
 });

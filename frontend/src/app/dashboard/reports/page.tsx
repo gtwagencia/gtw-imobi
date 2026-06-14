@@ -4,8 +4,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/store/auth';
 import Header from '@/components/layout/Header';
 import api from '@/lib/api';
-import type { AgentReport, VolumeByDay } from '@/types';
-import { MessageSquare, CheckCircle, Clock, Star, AlertTriangle, Download, Megaphone, TrendingUp } from 'lucide-react';
+import type { AgentReport, VolumeByDay, BrokerDealReport, LeadSourceReport } from '@/types';
+import { MessageSquare, CheckCircle, Clock, Star, AlertTriangle, Download, Megaphone, TrendingUp, DollarSign, Target } from 'lucide-react';
 
 function formatSeconds(secs: number | null) {
   if (!secs) return '—';
@@ -47,6 +47,18 @@ interface CampaignTotals {
   total: number;
 }
 
+function formatCurrency(value: string | number | null) {
+  const n = typeof value === 'string' ? parseFloat(value) : (value ?? 0);
+  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(n || 0);
+}
+
+function formatDays(value: string | number | null) {
+  if (value === null || value === undefined) return '—';
+  const n = typeof value === 'string' ? parseFloat(value) : value;
+  if (!n) return '—';
+  return n < 1 ? `${Math.round(n * 24)}h` : `${n.toFixed(1)}d`;
+}
+
 export default function ReportsPage() {
   const { currentWorkspace } = useAuth();
   const [summary,          setSummary]          = useState<Summary | null>(null);
@@ -54,6 +66,8 @@ export default function ReportsPage() {
   const [volume,           setVolume]           = useState<VolumeByDay[]>([]);
   const [campaigns,        setCampaigns]        = useState<CampaignRow[]>([]);
   const [campaignTotals,   setCampaignTotals]   = useState<CampaignTotals | null>(null);
+  const [brokerDeals,      setBrokerDeals]      = useState<BrokerDealReport[]>([]);
+  const [leadSources,      setLeadSources]      = useState<LeadSourceReport[]>([]);
   const [loading,          setLoading]          = useState(true);
   const [days,             setDays]             = useState(30);
 
@@ -65,17 +79,21 @@ export default function ReportsPage() {
     const params    = { startDate, endDate };
 
     try {
-      const [s, a, v, c] = await Promise.all([
-        api.get(`/workspaces/${currentWorkspace.id}/reports/summary`,   { params }),
-        api.get(`/workspaces/${currentWorkspace.id}/reports/agents`,    { params }),
-        api.get(`/workspaces/${currentWorkspace.id}/reports/volume`,    { params }),
-        api.get(`/workspaces/${currentWorkspace.id}/reports/campaigns`, { params }),
+      const [s, a, v, c, b, ls] = await Promise.all([
+        api.get(`/workspaces/${currentWorkspace.id}/reports/summary`,        { params }),
+        api.get(`/workspaces/${currentWorkspace.id}/reports/agents`,         { params }),
+        api.get(`/workspaces/${currentWorkspace.id}/reports/volume`,         { params }),
+        api.get(`/workspaces/${currentWorkspace.id}/reports/campaigns`,      { params }),
+        api.get(`/workspaces/${currentWorkspace.id}/reports/deals-by-broker`, { params }),
+        api.get(`/workspaces/${currentWorkspace.id}/reports/deals-by-source`, { params }),
       ]);
       setSummary(s.data);
       setAgents(a.data);
       setVolume(v.data);
       setCampaigns(c.data.campaigns || []);
       setCampaignTotals(c.data.totals || null);
+      setBrokerDeals(b.data || []);
+      setLeadSources(ls.data || []);
     } finally {
       setLoading(false);
     }
@@ -111,6 +129,26 @@ export default function ReportsPage() {
       [],
       ['VOLUME POR DIA', 'Conversas'],
       ...volume.map(v => [v.date, String(v.total)]),
+      [],
+      ['VENDAS POR CORRETOR', 'Negócios', 'Ganhos', 'Perdidos', 'Valor ganho', 'Tempo médio até fechar'],
+      ...brokerDeals.map(b => [
+        b.name,
+        String(b.total_deals),
+        String(b.won_deals),
+        String(b.lost_deals),
+        formatCurrency(b.won_value),
+        formatDays(b.avg_days_to_close),
+      ]),
+      [],
+      ['LEADS POR ORIGEM', 'Negócios', 'Ganhos', 'Perdidos', 'Valor ganho', 'Taxa de conversão'],
+      ...leadSources.map(s => [
+        s.source_label,
+        String(s.total_deals),
+        String(s.won_deals),
+        String(s.lost_deals),
+        formatCurrency(s.won_value),
+        (s.won_deals + s.lost_deals) > 0 ? `${Math.round((s.won_deals / (s.won_deals + s.lost_deals)) * 100)}%` : '—',
+      ]),
     ];
 
     const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
@@ -387,6 +425,113 @@ export default function ReportsPage() {
                           <td className="py-2.5 text-right text-gray-600">{agent.messages_sent}</td>
                         </tr>
                       ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* Vendas por corretor */}
+            {brokerDeals.length > 0 && (
+              <div className="card p-5">
+                <h2 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                  <DollarSign className="w-4 h-4 text-green-500" />
+                  Vendas por corretor
+                </h2>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="text-xs text-gray-500 border-b border-gray-100">
+                        <th className="text-left pb-2 font-medium">Corretor</th>
+                        <th className="text-right pb-2 font-medium">Negócios</th>
+                        <th className="text-right pb-2 font-medium">Ganhos</th>
+                        <th className="text-right pb-2 font-medium">Perdidos</th>
+                        <th className="text-right pb-2 font-medium">Conversão</th>
+                        <th className="text-right pb-2 font-medium">Valor ganho</th>
+                        <th className="text-right pb-2 font-medium hidden sm:table-cell">Tempo até fechar</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-50">
+                      {brokerDeals.map(b => {
+                        const closed = b.won_deals + b.lost_deals;
+                        const convRate = closed > 0 ? Math.round((b.won_deals / closed) * 100) : null;
+                        return (
+                          <tr key={b.id} className="hover:bg-gray-50">
+                            <td className="py-2.5">
+                              <div className="flex items-center gap-2.5">
+                                <div className="w-7 h-7 rounded-full bg-brand-100 flex items-center justify-center text-brand-700 text-xs font-semibold flex-shrink-0">
+                                  {b.name[0]?.toUpperCase()}
+                                </div>
+                                <span className="font-medium text-gray-900 truncate max-w-32">{b.name}</span>
+                              </div>
+                            </td>
+                            <td className="py-2.5 text-right text-gray-700">{b.total_deals}</td>
+                            <td className="py-2.5 text-right">
+                              <span className="text-green-600 font-medium">{b.won_deals}</span>
+                            </td>
+                            <td className="py-2.5 text-right">
+                              <span className="text-red-500 font-medium">{b.lost_deals}</span>
+                            </td>
+                            <td className="py-2.5 text-right text-gray-600">
+                              {convRate !== null ? `${convRate}%` : '—'}
+                            </td>
+                            <td className="py-2.5 text-right font-semibold text-gray-900">
+                              {formatCurrency(b.won_value)}
+                            </td>
+                            <td className="py-2.5 text-right text-gray-600 hidden sm:table-cell">
+                              {formatDays(b.avg_days_to_close)}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* Leads por origem */}
+            {leadSources.length > 0 && (
+              <div className="card p-5">
+                <h2 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                  <Target className="w-4 h-4 text-indigo-500" />
+                  Leads por origem
+                </h2>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="text-xs text-gray-500 border-b border-gray-100">
+                        <th className="text-left pb-2 font-medium">Origem</th>
+                        <th className="text-right pb-2 font-medium">Leads</th>
+                        <th className="text-right pb-2 font-medium">Ganhos</th>
+                        <th className="text-right pb-2 font-medium">Perdidos</th>
+                        <th className="text-right pb-2 font-medium">Conversão</th>
+                        <th className="text-right pb-2 font-medium">Valor ganho</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-50">
+                      {leadSources.map((s, i) => {
+                        const closed = s.won_deals + s.lost_deals;
+                        const convRate = closed > 0 ? Math.round((s.won_deals / closed) * 100) : null;
+                        return (
+                          <tr key={i} className="hover:bg-gray-50">
+                            <td className="py-2.5 font-medium text-gray-900">{s.source_label}</td>
+                            <td className="py-2.5 text-right text-gray-700">{s.total_deals}</td>
+                            <td className="py-2.5 text-right">
+                              <span className="text-green-600 font-medium">{s.won_deals}</span>
+                            </td>
+                            <td className="py-2.5 text-right">
+                              <span className="text-red-500 font-medium">{s.lost_deals}</span>
+                            </td>
+                            <td className="py-2.5 text-right text-gray-600">
+                              {convRate !== null ? `${convRate}%` : '—'}
+                            </td>
+                            <td className="py-2.5 text-right font-semibold text-gray-900">
+                              {formatCurrency(s.won_value)}
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>

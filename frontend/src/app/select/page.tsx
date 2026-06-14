@@ -13,7 +13,7 @@ type Step = 'org' | 'workspace';
 
 export default function SelectPage() {
   const router = useRouter();
-  const { user, currentOrg, setOrg, setWorkspace, accessToken, _hasHydrated } = useAuth();
+  const { user, currentOrg, setOrg, setWorkspace, accessToken, _hasHydrated, _sessionChecked, restoreSession } = useAuth();
   const { workspaces, loading, error: wsError, fetchForOrg } = useWorkspaceStore();
 
   const [step,          setStep]          = useState<Step>('org');
@@ -25,8 +25,13 @@ export default function SelectPage() {
   // Redirect to login if not authenticated (wait for hydration first)
   useEffect(() => {
     if (!_hasHydrated) return;
+    // Página recarregada: tenta restaurar a sessão via cookie httpOnly antes de decidir
+    if (!accessToken && !_sessionChecked) {
+      restoreSession();
+      return;
+    }
     if (!accessToken || !user) router.replace('/login');
-  }, [_hasHydrated, accessToken, user, router]);
+  }, [_hasHydrated, _sessionChecked, accessToken, user, restoreSession, router]);
 
   // If only one org and already has workspaces, auto-advance
   useEffect(() => {
@@ -68,7 +73,7 @@ export default function SelectPage() {
     router.replace('/dashboard');
   }
 
-  if (!user) return null;
+  if (!_hasHydrated || (!accessToken && !_sessionChecked) || !user) return null;
 
   const planBadge = (plan: string) => {
     const map: Record<string, string> = {

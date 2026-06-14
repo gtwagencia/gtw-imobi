@@ -1,6 +1,7 @@
 'use strict';
 
 const { query } = require('../../config/database');
+const gcal      = require('../../services/google-calendar.service');
 
 const SELECT_BASE = `
   SELECT v.*,
@@ -10,12 +11,28 @@ const SELECT_BASE = `
            WHERE pm.property_id = p.id AND pm.is_cover = true LIMIT 1) AS property_cover_url,
          ct.name  AS contact_name,
          ct.phone AS contact_phone,
-         u.name   AS assignee_name
+         u.name   AS assignee_name,
+         EXISTS (
+           SELECT 1 FROM property_visit_google_events pvge
+           WHERE pvge.visit_id = v.id AND pvge.user_id = v.assignee_id
+         ) AS google_synced
   FROM property_visits v
   JOIN properties p       ON p.id = v.property_id
   LEFT JOIN contacts ct   ON ct.id = v.contact_id
   LEFT JOIN users u       ON u.id = v.assignee_id
 `;
+
+function visitEventPayload(visit) {
+  return {
+    title:         `${visit.property_code} · ${visit.property_title}`,
+    contactName:   visit.contact_name,
+    contactPhone:  visit.contact_phone,
+    propertyCode:  visit.property_code,
+    propertyTitle: visit.property_title,
+    notes:         visit.notes,
+    scheduledAt:   visit.scheduled_at,
+  };
+}
 
 // ── List ──────────────────────────────────────────────────────────────────
 
@@ -61,7 +78,15 @@ async function create(workspaceId, {
   );
 
   const visit = await query(`${SELECT_BASE} WHERE v.id = $1`, [r.rows[0].id]);
-  return visit.rows[0];
+  const created = visit.rows[0];
+
+  // Sincroniza com o Google Calendar do corretor responsável, em background
+  if (created.assignee_id && created.status !== 'cancelada') {
+    gcal.createVisitEvent(created.assignee_id, created.id, visitEventPayload(created))
+      .catch(err => console.error('[gcal-sync] createVisit:', err.message));
+  }
+
+  return created;
 }
 
 // ── Update ────────────────────────────────────────────────────────────────
@@ -74,6 +99,13 @@ const UPDATE_FIELD_MAP = {
 };
 
 async function update(visitId, workspaceId, body) {
+  const prevR = await query(
+    'SELECT assignee_id, status FROM property_visits WHERE id = $1 AND workspace_id = $2',
+    [visitId, workspaceId]
+  );
+  if (!prevR.rows.length) throw Object.assign(new Error('Visita não encontrada'), { status: 404 });
+  const prev = prevR.rows[0];
+
   const fields = [];
   const vals   = [];
   let   idx    = 1;
@@ -93,8 +125,39 @@ async function update(visitId, workspaceId, body) {
   );
   if (!r.rows.length) throw Object.assign(new Error('Visita não encontrada'), { status: 404 });
 
-  const visit = await query(`${SELECT_BASE} WHERE v.id = $1`, [visitId]);
-  return visit.rows[0];
+  const visit   = await query(`${SELECT_BASE} WHERE v.id = $1`, [visitId]);
+  const updated = visit.rows[0];
+
+  // ── Sincroniza com o Google Calendar do corretor responsável ─────────────
+  const newAssigneeId = 'assigneeId' in body ? (body.assigneeId || null) : prev.assignee_id;
+  const newStatus     = 'status'     in body ? body.status              : prev.status;
+
+  const assigneeChanged = 'assigneeId' in body && body.assigneeId !== prev.assignee_id;
+  const scheduleChanged = 'scheduledAt' in body;
+  const becameCancelled = newStatus === 'cancelada' && prev.status !== 'cancelada';
+  const becameActive    = prev.status === 'cancelada' && newStatus !== 'cancelada';
+
+  if (assigneeChanged) {
+    if (prev.assignee_id) {
+      gcal.deleteVisitEvent(prev.assignee_id, visitId)
+        .catch(err => console.error('[gcal-sync] deleteVisitEvent (old assignee):', err.message));
+    }
+    if (newAssigneeId && newStatus !== 'cancelada') {
+      gcal.createVisitEvent(newAssigneeId, visitId, visitEventPayload(updated))
+        .catch(err => console.error('[gcal-sync] createVisitEvent (new assignee):', err.message));
+    }
+  } else if (becameCancelled && newAssigneeId) {
+    gcal.deleteVisitEvent(newAssigneeId, visitId)
+      .catch(err => console.error('[gcal-sync] deleteVisitEvent (cancelada):', err.message));
+  } else if (becameActive && newAssigneeId) {
+    gcal.createVisitEvent(newAssigneeId, visitId, visitEventPayload(updated))
+      .catch(err => console.error('[gcal-sync] createVisitEvent (reativada):', err.message));
+  } else if (scheduleChanged && newAssigneeId && newStatus !== 'cancelada') {
+    gcal.updateVisitEvent(newAssigneeId, visitId, visitEventPayload(updated))
+      .catch(err => console.error('[gcal-sync] updateVisitEvent:', err.message));
+  }
+
+  return updated;
 }
 
 module.exports = { list, create, update };

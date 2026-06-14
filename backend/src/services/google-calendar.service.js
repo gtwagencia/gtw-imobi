@@ -274,6 +274,120 @@ async function listEvents(userId, from, to) {
   }
 }
 
+// ── Visitas a imóveis (property_visits) ────────────────────────────────────
+
+function buildVisitEventDescription(visit) {
+  const appUrl = process.env.APP_URL || 'http://localhost:3000';
+  const parts = [];
+  if (visit.contactName) {
+    parts.push(`Cliente: ${visit.contactName}${visit.contactPhone ? ` (${visit.contactPhone})` : ''}`);
+  }
+  if (visit.propertyCode || visit.propertyTitle) {
+    parts.push(`Imóvel: ${[visit.propertyCode, visit.propertyTitle].filter(Boolean).join(' — ')}`);
+  }
+  if (visit.notes) parts.push(visit.notes);
+  parts.push(`\n🔗 Ver visitas: ${appUrl}/dashboard/visitas`);
+  return parts.join('\n');
+}
+
+async function createVisitEvent(userId, visitId, visit) {
+  if (!isConfigured() || !visit.scheduledAt) return;
+  const client = await getAuthorizedClient(userId);
+  if (!client) return;
+
+  try {
+    const calendar = google.calendar({ version: 'v3', auth: client });
+    const times    = toEventTimes(visit.scheduledAt);
+
+    const res = await calendar.events.insert({
+      calendarId:  'primary',
+      requestBody: {
+        summary:     `[Visita] ${visit.title}`,
+        description: buildVisitEventDescription(visit),
+        ...times,
+        extendedProperties: { private: { gtw_visit_id: visitId } },
+      },
+    });
+
+    await query(
+      `INSERT INTO property_visit_google_events (visit_id, user_id, event_id)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (visit_id, user_id) DO UPDATE SET event_id = EXCLUDED.event_id`,
+      [visitId, userId, res.data.id]
+    );
+  } catch (err) {
+    console.error('[gcal] createVisitEvent error:', err.message);
+  }
+}
+
+async function updateVisitEvent(userId, visitId, visit) {
+  if (!isConfigured()) return;
+  const client = await getAuthorizedClient(userId);
+  if (!client) return;
+
+  const evR = await query(
+    'SELECT event_id FROM property_visit_google_events WHERE visit_id = $1 AND user_id = $2',
+    [visitId, userId]
+  );
+  if (!evR.rows.length) {
+    if (visit.scheduledAt) await createVisitEvent(userId, visitId, visit);
+    return;
+  }
+
+  try {
+    const calendar = google.calendar({ version: 'v3', auth: client });
+    const times    = toEventTimes(visit.scheduledAt);
+
+    await calendar.events.patch({
+      calendarId:  'primary',
+      eventId:     evR.rows[0].event_id,
+      requestBody: {
+        summary:     `[Visita] ${visit.title}`,
+        description: buildVisitEventDescription(visit),
+        ...times,
+      },
+    });
+  } catch (err) {
+    if (err.code === 404 || err.status === 404) {
+      await query(
+        'DELETE FROM property_visit_google_events WHERE visit_id = $1 AND user_id = $2',
+        [visitId, userId]
+      );
+    } else {
+      console.error('[gcal] updateVisitEvent error:', err.message);
+    }
+  }
+}
+
+async function deleteVisitEvent(userId, visitId) {
+  if (!isConfigured()) return;
+  const client = await getAuthorizedClient(userId);
+  if (!client) return;
+
+  const evR = await query(
+    'SELECT event_id FROM property_visit_google_events WHERE visit_id = $1 AND user_id = $2',
+    [visitId, userId]
+  );
+  if (!evR.rows.length) return;
+
+  try {
+    const calendar = google.calendar({ version: 'v3', auth: client });
+    await calendar.events.delete({
+      calendarId: 'primary',
+      eventId:    evR.rows[0].event_id,
+    });
+  } catch (err) {
+    if (err.code !== 404 && err.status !== 404) {
+      console.error('[gcal] deleteVisitEvent error:', err.message);
+    }
+  }
+
+  await query(
+    'DELETE FROM property_visit_google_events WHERE visit_id = $1 AND user_id = $2',
+    [visitId, userId]
+  );
+}
+
 module.exports = {
   isConfigured,
   getAuthUrl,
@@ -286,4 +400,7 @@ module.exports = {
   updateEvent,
   deleteEvent,
   listEvents,
+  createVisitEvent,
+  updateVisitEvent,
+  deleteVisitEvent,
 };

@@ -17,6 +17,7 @@ const kanbanSvc      = require('../kanban/kanban.service');
 const aiSvc          = require('../../services/ai.service');
 const logger         = require('../../utils/logger');
 const storageSvc     = require('../../services/storage.service');
+const pushSvc        = require('../../services/push.service');
 
 const router = Router();
 
@@ -371,6 +372,11 @@ async function handleGroupMessage(msg, inbox, io, event) {
         contactName:    groupName,
         isGroup:        true,
       });
+      pushSvc.sendToWorkspace(inbox.workspace_id, {
+        title: 'Novo grupo',
+        body:  `${groupName} iniciou uma conversa`,
+        url:   `/dashboard/conversations?id=${conversation.id}`,
+      }).catch(err => logger.warn('Push notification failed', { err: err.message }));
     }
   } catch (err) {
     logger.error('Erro ao processar mensagem de grupo', { err: err.message });
@@ -446,7 +452,7 @@ async function autoAssignAgent(workspaceId, inboxId, departmentId) {
 }
 
 /**
- * Dispara a resposta do chatbot (Lais) para uma conversa, resolvendo o
+ * Dispara a resposta do agente de IA para uma conversa, resolvendo o
  * provider/persona configurados no workspace e no departamento. Compartilhado
  * pelos webhooks Evolution e WABA.
  */
@@ -454,6 +460,7 @@ async function dispatchChatbotResponse(inbox, conversation, contact, io) {
   const wsRes = await query(
     `SELECT w.anthropic_api_key, w.openai_api_key, w.custom_ai_api_key, w.ai_base_url,
             w.ai_provider, w.ai_model, w.ai_ignore_groups, w.ai_tools_enabled, w.business_model,
+            w.ai_agent_name,
             d.ai_persona AS department_ai_persona
      FROM workspaces w
      LEFT JOIN departments d ON d.id = $2
@@ -473,14 +480,14 @@ async function dispatchChatbotResponse(inbox, conversation, contact, io) {
 
   await query('UPDATE conversations SET bot_active = true WHERE id = $1', [conversation.id]);
 
-  // Setores disponíveis para a Lais transferir a conversa automaticamente
+  // Setores disponíveis para o agente de IA transferir a conversa automaticamente
   const deptRes = await query(
     `SELECT id, name, ai_routing_description FROM departments WHERE workspace_id = $1 ORDER BY name`,
     [inbox.workspace_id]
   );
 
   const systemPrompt = [
-    aiSvc.buildLaisPersona({ businessModel: ws.business_model, departments: deptRes.rows }),
+    aiSvc.buildAgentPersona({ agentName: ws.ai_agent_name, businessModel: ws.business_model, departments: deptRes.rows }),
     ws.department_ai_persona,
     inbox.chatbot_prompt,
   ].filter(Boolean).join('\n\n---\n\n');
@@ -908,6 +915,11 @@ router.post('/evolution/:inboxId', async (req, res) => {
           io?.to(`ws:${inbox.workspace_id}`).emit('conversation:new', {
             conversationId: conversation.id, contactName: contact.name, inboxId: inbox.id,
           });
+          pushSvc.sendToWorkspace(inbox.workspace_id, {
+            title: 'Novo lead',
+            body:  `${contact.name} iniciou uma conversa`,
+            url:   `/dashboard/conversations?id=${conversation.id}`,
+          }).catch(err => logger.warn('Push notification failed', { err: err.message }));
         }
         io?.to(`conv:${conversation.id}`).emit('message:new', { ...message, contact_name: contact.name });
         io?.to(`ws:${inbox.workspace_id}`).emit('message:new', { ...message, contact_name: contact.name });
@@ -1115,6 +1127,11 @@ router.post('/waba', async (req, res) => {
         io?.to(`ws:${inbox.workspace_id}`).emit('conversation:new', {
           conversationId: conversation.id, contactName: contact.name, inboxId: inbox.id,
         });
+        pushSvc.sendToWorkspace(inbox.workspace_id, {
+          title: 'Novo lead',
+          body:  `${contact.name} iniciou uma conversa`,
+          url:   `/dashboard/conversations?id=${conversation.id}`,
+        }).catch(err => logger.warn('Push notification failed (WABA)', { err: err.message }));
       }
 
       if (inbox.chatbot_enabled && !conversation.assignee_id && (created || conversation.bot_active)) {

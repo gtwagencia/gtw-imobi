@@ -4,6 +4,7 @@ const cron    = require('node-cron');
 const { query } = require('../config/database');
 const aiSvc   = require('../services/ai.service');
 const msgSvc  = require('../modules/messages/messages.service');
+const notifSvc = require('../modules/notifications/notifications.service');
 const logger  = require('../utils/logger');
 
 // ── Business hours helpers ─────────────────────────────────────────────────
@@ -190,7 +191,7 @@ async function runAiAnalysis() {
 
 // ── SLA breach detection ───────────────────────────────────────────────────
 
-async function runSlaCheck() {
+async function runSlaCheck(io) {
   // Find workspaces with SLA configured
   const wsRes = await query(
     `SELECT id, sla_response_minutes FROM workspaces
@@ -198,16 +199,85 @@ async function runSlaCheck() {
   );
 
   for (const ws of wsRes.rows) {
-    await query(
-      `UPDATE conversations
+    const r = await query(
+      `UPDATE conversations c
        SET sla_breached = true
-       WHERE workspace_id = $1
-         AND status = 'open'
-         AND sla_breached = false
-         AND first_response_at IS NULL
-         AND created_at <= NOW() - ($2 * INTERVAL '1 minute')`,
+       WHERE c.workspace_id = $1
+         AND c.status = 'open'
+         AND c.sla_breached = false
+         AND c.first_response_at IS NULL
+         AND c.created_at <= NOW() - ($2 * INTERVAL '1 minute')
+       RETURNING c.id, c.assignee_id, c.contact_id`,
       [ws.id, ws.sla_response_minutes]
     );
+
+    for (const conv of r.rows) {
+      if (!conv.assignee_id) continue;
+      try {
+        const contactRes = await query('SELECT name FROM contacts WHERE id = $1', [conv.contact_id]);
+        const contactName = contactRes.rows[0]?.name || 'Um lead';
+        await notifSvc.create({
+          workspaceId:    ws.id,
+          userId:         conv.assignee_id,
+          conversationId: conv.id,
+          type:           'sla_breached',
+          title:          'SLA de resposta vencido',
+          message:        `${contactName} está aguardando resposta há mais de ${ws.sla_response_minutes} minutos.`,
+        }, io);
+      } catch (err) {
+        logger.warn('SLA notification failed', { conversationId: conv.id, err: err.message });
+      }
+    }
+  }
+}
+
+// ── Lead esquecido (sem retorno do corretor) ───────────────────────────────
+
+async function runStaleLeadCheck(io) {
+  const wsRes = await query(
+    `SELECT id, lead_stale_hours FROM workspaces WHERE lead_stale_hours > 0`
+  );
+
+  for (const ws of wsRes.rows) {
+    const r = await query(
+      `SELECT c.id, c.assignee_id, ct.name AS contact_name
+       FROM conversations c
+       JOIN contacts ct ON ct.id = c.contact_id
+       WHERE c.workspace_id = $1
+         AND c.status = 'open'
+         AND c.assignee_id IS NOT NULL
+         AND c.last_inbound_at IS NOT NULL
+         AND c.last_inbound_at <= NOW() - ($2 * INTERVAL '1 hour')
+         AND NOT EXISTS (
+           SELECT 1 FROM messages m
+           WHERE m.conversation_id = c.id
+             AND m.direction = 'outbound'
+             AND m.is_private = false
+             AND m.created_at > c.last_inbound_at
+         )
+         AND NOT EXISTS (
+           SELECT 1 FROM crm_notifications n
+           WHERE n.conversation_id = c.id
+             AND n.type = 'lead_stale'
+             AND n.created_at > NOW() - ($2 * INTERVAL '1 hour')
+         )`,
+      [ws.id, ws.lead_stale_hours]
+    );
+
+    for (const conv of r.rows) {
+      try {
+        await notifSvc.create({
+          workspaceId:    ws.id,
+          userId:         conv.assignee_id,
+          conversationId: conv.id,
+          type:           'lead_stale',
+          title:          'Lead sem retorno',
+          message:        `${conv.contact_name} está sem resposta sua há mais de ${ws.lead_stale_hours}h.`,
+        }, io);
+      } catch (err) {
+        logger.warn('Stale lead notification failed', { conversationId: conv.id, err: err.message });
+      }
+    }
   }
 }
 
@@ -266,7 +336,7 @@ async function runTicketDueSoon() {
 
 // ── Schedule jobs ──────────────────────────────────────────────────────────
 
-function startJobs() {
+function startJobs(io) {
   // 30-minute follow-up — every 5 minutes
   cron.schedule('*/5 * * * *', () => {
     runFollowUp('30min').catch(err => logger.error('followUp 30min error', { err: err.message }));
@@ -295,7 +365,12 @@ function startJobs() {
 
   // SLA breach check — every 5 minutes
   cron.schedule('*/5 * * * *', () => {
-    runSlaCheck().catch(err => logger.error('SLA check error', { err: err.message }));
+    runSlaCheck(io).catch(err => logger.error('SLA check error', { err: err.message }));
+  });
+
+  // Stale lead check (lead sem retorno) — every 30 minutes
+  cron.schedule('*/30 * * * *', () => {
+    runStaleLeadCheck(io).catch(err => logger.error('Stale lead check error', { err: err.message }));
   });
 
   // Ticket reminders — every minute
@@ -327,7 +402,7 @@ function startJobs() {
     broadcastSvc.runScheduledBroadcasts().catch(err => logger.error('Scheduled broadcasts error', { err: err.message }));
   });
 
-  logger.info('Background jobs started (follow-up + AI analysis + SLA check + ticket reminders + scheduled broadcasts)');
+  logger.info('Background jobs started (follow-up + AI analysis + SLA check + stale lead alerts + ticket reminders + scheduled broadcasts)');
 }
 
 module.exports = { startJobs, backfillAttending };

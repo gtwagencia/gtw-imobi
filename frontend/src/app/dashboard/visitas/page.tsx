@@ -6,7 +6,7 @@ import Header from '@/components/layout/Header';
 import api from '@/lib/api';
 import type { PropertyVisit } from '@/types';
 import {
-  CalendarCheck, Building2, User, Phone, Clock, Sparkles, Check, X, Loader,
+  CalendarCheck, Building2, User, Phone, Clock, Sparkles, Check, X, Loader, Calendar,
 } from 'lucide-react';
 import clsx from 'clsx';
 import { format, isToday, isTomorrow } from 'date-fns';
@@ -147,12 +147,17 @@ export default function VisitasPage() {
                           <div className="flex items-center gap-1 mt-1 text-xs text-gray-500">
                             <Clock className="w-3 h-3 flex-shrink-0" />
                             {format(new Date(visit.scheduled_at), 'HH:mm')}
+                            {visit.google_synced && (
+                              <span className="flex items-center gap-1 text-green-600 ml-1" title="Sincronizado com o Google Calendar do corretor">
+                                <Calendar className="w-3 h-3" />
+                              </span>
+                            )}
                           </div>
 
                           {visit.created_by_ai && (
                             <div className="flex items-center gap-1 mt-1 text-xs text-indigo-500">
                               <Sparkles className="w-3 h-3 flex-shrink-0" />
-                              Proposta pela Lais
+                              Proposta por {currentWorkspace?.ai_agent_name || 'Lia'}
                             </div>
                           )}
 

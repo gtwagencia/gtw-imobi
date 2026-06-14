@@ -1,6 +1,6 @@
 'use strict';
 
-const { query } = require('../../config/database');
+const { query, pool } = require('../../config/database');
 
 async function list(workspaceId, { search, tags, contactType, brokerId, page = 1, limit = 50 } = {}) {
   const offset = (page - 1) * limit;
@@ -62,6 +62,54 @@ async function getById(contactId, workspaceId) {
   return r.rows[0] || null;
 }
 
+/**
+ * Atualiza um contato já existente com dados de um novo lead que chegou por
+ * outro canal/formato de telefone (mesmo número, normalizado). Preenche
+ * apenas campos vazios — nunca sobrescreve dados já preenchidos — e une tags.
+ */
+async function mergeIncomingIntoExisting(existing, body) {
+  const {
+    name, email, avatarUrl,
+    metaLeadId, metaCampaignId, metaAdsetId, metaAdId, metaFormId,
+    utmSource, utmCampaign, utmMedium,
+    tags, notes,
+  } = body;
+
+  // Contatos criados via WhatsApp sem nome salvo recebem o próprio telefone
+  // como nome (ver webhooks.router.js) — nesse caso, um nome real vindo de
+  // outro canal pode substituí-lo.
+  const hasPlaceholderName = !existing.name || existing.name === existing.phone;
+  const mergedTags = Array.from(new Set([...(existing.tags || []), ...(tags || [])]));
+
+  const r = await query(
+    `UPDATE contacts SET
+       name             = $1,
+       email            = COALESCE(email, $2),
+       avatar_url       = COALESCE(avatar_url, $3),
+       meta_lead_id     = COALESCE(meta_lead_id, $4),
+       meta_campaign_id = COALESCE(meta_campaign_id, $5),
+       meta_adset_id    = COALESCE(meta_adset_id, $6),
+       meta_ad_id       = COALESCE(meta_ad_id, $7),
+       meta_form_id     = COALESCE(meta_form_id, $8),
+       utm_source       = COALESCE(utm_source, $9),
+       utm_campaign     = COALESCE(utm_campaign, $10),
+       utm_medium       = COALESCE(utm_medium, $11),
+       notes            = COALESCE(notes, $12),
+       tags             = $13,
+       updated_at       = NOW()
+     WHERE id = $14
+     RETURNING *`,
+    [
+      hasPlaceholderName && name ? name : existing.name,
+      email || null, avatarUrl || null, metaLeadId || null,
+      metaCampaignId || null, metaAdsetId || null, metaAdId || null, metaFormId || null,
+      utmSource || null, utmCampaign || null, utmMedium || null,
+      notes || null, mergedTags, existing.id,
+    ]
+  );
+  return r.rows[0];
+}
+
 async function create(workspaceId, body) {
   const {
     name, phone, email, avatarUrl,
@@ -70,6 +118,22 @@ async function create(workspaceId, body) {
     tags, notes, customFields,
     contactType, documentType, documentNumber, assignedBrokerId,
   } = body;
+
+  // Mesmo telefone em outro formato (com/sem 9º dígito, com/sem +55, outro
+  // canal) já cadastrado? Reaproveita o contato existente em vez de criar um
+  // duplicado — é a mesma pessoa entrando em contato por outro meio.
+  if (phone) {
+    const dup = await query(
+      `SELECT * FROM contacts
+       WHERE workspace_id = $1
+         AND phone_normalized = gtw_normalize_phone_br($2)
+         AND phone_normalized IS NOT NULL
+         AND phone IS DISTINCT FROM $2
+       LIMIT 1`,
+      [workspaceId, phone]
+    );
+    if (dup.rows[0]) return mergeIncomingIntoExisting(dup.rows[0], body);
+  }
 
   const r = await query(
     `INSERT INTO contacts
@@ -128,6 +192,123 @@ async function remove(contactId, workspaceId) {
     [contactId, workspaceId]
   );
   if (!r.rows.length) throw Object.assign(new Error('Contato não encontrado'), { status: 404 });
+}
+
+// ── Deduplicação por telefone ────────────────────────────────────────────────
+
+/**
+ * Lista grupos de contatos que compartilham o mesmo telefone normalizado
+ * (ex: registros antigos criados antes da deduplicação automática, ou
+ * cadastros manuais com formatos diferentes do mesmo número).
+ */
+async function listDuplicates(workspaceId) {
+  const r = await query(
+    `SELECT c.id, c.name, c.phone, c.phone_normalized, c.email, c.tags,
+            c.contact_type, c.created_at,
+            COUNT(DISTINCT conv.id)::int AS conversation_count,
+            COUNT(DISTINCT d.id)::int    AS deal_count
+     FROM contacts c
+     LEFT JOIN conversations conv ON conv.contact_id = c.id
+     LEFT JOIN deals d ON d.contact_id = c.id
+     WHERE c.workspace_id = $1
+       AND c.phone_normalized IN (
+         SELECT phone_normalized FROM contacts
+         WHERE workspace_id = $1 AND phone_normalized IS NOT NULL
+         GROUP BY phone_normalized HAVING COUNT(*) > 1
+       )
+     GROUP BY c.id
+     ORDER BY c.phone_normalized, c.created_at`,
+    [workspaceId]
+  );
+
+  const groups = new Map();
+  for (const row of r.rows) {
+    const key = row.phone_normalized;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(row);
+  }
+  return Array.from(groups.entries()).map(([phoneNormalized, contacts]) => ({ phoneNormalized, contacts }));
+}
+
+/**
+ * Mescla `duplicateId` em `primaryId`: reatribui conversas, negócios, visitas,
+ * tickets, eventos de conversão e imóveis (proprietário) para o contato
+ * principal, une tags/dados em branco e remove o contato duplicado.
+ */
+async function mergeContacts(workspaceId, primaryId, duplicateId) {
+  if (primaryId === duplicateId) {
+    throw Object.assign(new Error('Selecione dois contatos diferentes para mesclar'), { status: 400 });
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    const r = await client.query(
+      `SELECT * FROM contacts WHERE id = ANY($1::uuid[]) AND workspace_id = $2 FOR UPDATE`,
+      [[primaryId, duplicateId], workspaceId]
+    );
+    if (r.rows.length !== 2) {
+      throw Object.assign(new Error('Contato não encontrado'), { status: 404 });
+    }
+    const primary   = r.rows.find(c => c.id === primaryId);
+    const duplicate = r.rows.find(c => c.id === duplicateId);
+
+    // Reatribui referências do contato duplicado para o principal
+    await client.query('UPDATE deals               SET contact_id = $1 WHERE contact_id = $2', [primaryId, duplicateId]);
+    await client.query('UPDATE conversations       SET contact_id = $1 WHERE contact_id = $2', [primaryId, duplicateId]);
+    await client.query('UPDATE meta_conversion_events SET contact_id = $1 WHERE contact_id = $2', [primaryId, duplicateId]);
+    await client.query('UPDATE tickets             SET contact_id = $1 WHERE contact_id = $2', [primaryId, duplicateId]);
+    await client.query('UPDATE property_visits     SET contact_id = $1 WHERE contact_id = $2', [primaryId, duplicateId]);
+    await client.query('UPDATE properties          SET owner_id   = $1 WHERE owner_id   = $2', [primaryId, duplicateId]);
+
+    // broadcast_contacts tem UNIQUE(broadcast_id, contact_id) — remove do duplicado
+    // os envios que colidiriam com os do principal antes de reatribuir o restante
+    await client.query(
+      `DELETE FROM broadcast_contacts bc
+       WHERE bc.contact_id = $2
+         AND EXISTS (SELECT 1 FROM broadcast_contacts p WHERE p.contact_id = $1 AND p.broadcast_id = bc.broadcast_id)`,
+      [primaryId, duplicateId]
+    );
+    await client.query('UPDATE broadcast_contacts SET contact_id = $1 WHERE contact_id = $2', [primaryId, duplicateId]);
+
+    // Preenche campos vazios do principal com dados do duplicado e une tags/custom_fields
+    const mergedTags = Array.from(new Set([...(primary.tags || []), ...(duplicate.tags || [])]));
+    await client.query(
+      `UPDATE contacts SET
+         email            = COALESCE(email, $1),
+         avatar_url       = COALESCE(avatar_url, $2),
+         meta_lead_id     = COALESCE(meta_lead_id, $3),
+         meta_campaign_id = COALESCE(meta_campaign_id, $4),
+         meta_adset_id    = COALESCE(meta_adset_id, $5),
+         meta_ad_id       = COALESCE(meta_ad_id, $6),
+         meta_form_id     = COALESCE(meta_form_id, $7),
+         utm_source       = COALESCE(utm_source, $8),
+         utm_campaign     = COALESCE(utm_campaign, $9),
+         utm_medium       = COALESCE(utm_medium, $10),
+         notes            = COALESCE(notes, $11),
+         tags             = $12,
+         custom_fields    = $13::jsonb || custom_fields,
+         updated_at       = NOW()
+       WHERE id = $14`,
+      [
+        duplicate.email, duplicate.avatar_url, duplicate.meta_lead_id,
+        duplicate.meta_campaign_id, duplicate.meta_adset_id, duplicate.meta_ad_id, duplicate.meta_form_id,
+        duplicate.utm_source, duplicate.utm_campaign, duplicate.utm_medium,
+        duplicate.notes, mergedTags, JSON.stringify(duplicate.custom_fields || {}), primaryId,
+      ]
+    );
+
+    await client.query('DELETE FROM contacts WHERE id = $1', [duplicateId]);
+    await client.query('COMMIT');
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+
+  return getById(primaryId, workspaceId);
 }
 
 async function listConversations(contactId, workspaceId) {
@@ -244,4 +425,4 @@ async function csvImport(workspaceId, csvText, { defaultTag } = {}) {
   return results;
 }
 
-module.exports = { list, getById, create, update, remove, listConversations, csvImport };
+module.exports = { list, getById, create, update, remove, listConversations, csvImport, listDuplicates, mergeContacts };

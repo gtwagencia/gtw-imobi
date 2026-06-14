@@ -4,6 +4,7 @@ const { Router } = require('express');
 const multer               = require('multer');
 const { authenticate }     = require('../../middleware/auth');
 const { workspaceContext, requirePermission } = require('../../middleware/workspaceContext');
+const { logAudit }         = require('../../services/audit.service');
 const svc = require('./contacts.service');
 
 const router  = Router({ mergeParams: true });
@@ -32,6 +33,35 @@ router.post('/', authenticate, workspaceContext, requirePermission('contacts'), 
     if (!name) return res.status(400).json({ error: 'name é obrigatório' });
     const contact = await svc.create(req.params.workspaceId, req.body);
     res.status(201).json(contact);
+  } catch (err) { next(err); }
+});
+
+// GET /contacts/duplicates — agrupa contatos que compartilham o mesmo telefone
+// normalizado (mesma pessoa cadastrada por canais/formatos diferentes)
+router.get('/duplicates', authenticate, workspaceContext, requirePermission('contacts'), async (req, res, next) => {
+  try {
+    const groups = await svc.listDuplicates(req.params.workspaceId);
+    res.json(groups);
+  } catch (err) { next(err); }
+});
+
+// POST /contacts/merge — mescla um contato duplicado no contato principal
+router.post('/merge', authenticate, workspaceContext, requirePermission('contacts'), async (req, res, next) => {
+  try {
+    if (req.workspaceRole !== 'admin') {
+      return res.status(403).json({ error: 'Apenas administradores podem mesclar contatos' });
+    }
+    const { primaryId, duplicateId } = req.body;
+    if (!primaryId || !duplicateId) {
+      return res.status(400).json({ error: 'primaryId e duplicateId são obrigatórios' });
+    }
+    const merged = await svc.mergeContacts(req.params.workspaceId, primaryId, duplicateId);
+    await logAudit({
+      orgId: req.workspace.org_id, workspaceId: req.params.workspaceId, userId: req.user.sub,
+      action: 'contact.merge', entityType: 'contact', entityId: primaryId,
+      metadata: { duplicateId }, ip: req.ip,
+    });
+    res.json(merged);
   } catch (err) { next(err); }
 });
 

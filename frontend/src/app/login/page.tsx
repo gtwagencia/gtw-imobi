@@ -9,7 +9,7 @@ type Mode = 'login' | 'register';
 
 export default function LoginPage() {
   const router   = useRouter();
-  const { login, register } = useAuth();
+  const { login, register, verifyTwoFactor } = useAuth();
 
   const [mode,     setMode]     = useState<Mode>('login');
   const [name,     setName]     = useState('');
@@ -19,13 +19,21 @@ export default function LoginPage() {
   const [loading,  setLoading]  = useState(false);
   const [error,    setError]    = useState('');
 
+  // ── Verificação em duas etapas (2FA) ──────────────────────
+  const [twoFactorChallenge, setTwoFactorChallenge] = useState<string | null>(null);
+  const [twoFactorCode,      setTwoFactorCode]      = useState('');
+
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError('');
     setLoading(true);
     try {
       if (mode === 'login') {
-        await login(email, password);
+        const result = await login(email, password);
+        if (result.twoFactorRequired) {
+          setTwoFactorChallenge(result.challenge);
+          return;
+        }
       } else {
         await register(name, email, password, orgName || undefined);
       }
@@ -33,6 +41,23 @@ export default function LoginPage() {
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { error?: string } } })
         ?.response?.data?.error || 'Erro ao autenticar';
+      setError(msg);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleTwoFactorSubmit(e: FormEvent) {
+    e.preventDefault();
+    if (!twoFactorChallenge) return;
+    setError('');
+    setLoading(true);
+    try {
+      await verifyTwoFactor(twoFactorChallenge, twoFactorCode.trim());
+      router.replace('/select');
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { error?: string } } })
+        ?.response?.data?.error || 'Código inválido';
       setError(msg);
     } finally {
       setLoading(false);
@@ -57,6 +82,51 @@ export default function LoginPage() {
 
         {/* Card */}
         <div className="card p-8">
+          {twoFactorChallenge ? (
+            <>
+              <h2 className="font-display text-xl font-semibold text-gray-900 mb-2">
+                Verificação em duas etapas
+              </h2>
+              <p className="text-sm text-gray-500 mb-6">
+                Digite o código gerado pelo seu aplicativo autenticador (ou um código de backup).
+              </p>
+
+              <form onSubmit={handleTwoFactorSubmit} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Código</label>
+                  <input
+                    className="input text-center text-lg tracking-widest"
+                    type="text"
+                    inputMode="numeric"
+                    placeholder="000000"
+                    maxLength={10}
+                    value={twoFactorCode}
+                    onChange={(e) => setTwoFactorCode(e.target.value)}
+                    autoFocus
+                    required
+                  />
+                </div>
+
+                {error && (
+                  <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
+                    {error}
+                  </div>
+                )}
+
+                <button type="submit" className="btn-primary w-full" disabled={loading}>
+                  {loading ? 'Verificando...' : 'Confirmar'}
+                </button>
+                <button
+                  type="button"
+                  className="text-center w-full text-sm text-gray-500 hover:underline"
+                  onClick={() => { setTwoFactorChallenge(null); setTwoFactorCode(''); setError(''); }}
+                >
+                  Voltar
+                </button>
+              </form>
+            </>
+          ) : (
+          <>
           <h2 className="font-display text-xl font-semibold text-gray-900 mb-6">
             {mode === 'login' ? 'Entrar na sua conta' : 'Criar conta'}
           </h2>
@@ -143,6 +213,8 @@ export default function LoginPage() {
               </>
             )}
           </p>
+          </>
+          )}
         </div>
       </div>
     </div>

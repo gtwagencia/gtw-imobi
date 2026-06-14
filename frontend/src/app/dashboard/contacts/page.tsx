@@ -6,7 +6,7 @@ import { useAuth } from '@/store/auth';
 import Header from '@/components/layout/Header';
 import api from '@/lib/api';
 import type { Contact, ContactType, DocumentType } from '@/types';
-import { Search, Plus, Mail, X, MessageSquare, ExternalLink, ChevronLeft, ChevronRight, Pencil, Upload, CheckCircle, AlertCircle } from 'lucide-react';
+import { Search, Plus, Mail, X, MessageSquare, ExternalLink, ChevronLeft, ChevronRight, Pencil, Upload, CheckCircle, AlertCircle, Users, GitMerge } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import clsx from 'clsx';
@@ -347,6 +347,152 @@ function ContactPanel({ contact, workspaceId, onClose, onEdit }: {
 
 interface ImportResult { imported: number; updated: number; errors: { line: number; error: string }[]; }
 
+interface DuplicateContactSummary {
+  id: string;
+  name: string;
+  phone: string | null;
+  phone_normalized: string | null;
+  email: string | null;
+  tags: string[];
+  contact_type: ContactType[];
+  created_at: string;
+  conversation_count: number;
+  deal_count: number;
+}
+
+interface DuplicateGroup {
+  phoneNormalized: string;
+  contacts: DuplicateContactSummary[];
+}
+
+/** Sugere qual contato deve ser o principal: o com mais conversas/negócios, depois o mais antigo. */
+function suggestPrimary(contacts: DuplicateContactSummary[]): string {
+  return [...contacts].sort((a, b) => {
+    const score = (c: DuplicateContactSummary) => c.conversation_count + c.deal_count;
+    if (score(b) !== score(a)) return score(b) - score(a);
+    return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+  })[0].id;
+}
+
+function DuplicatesModal({ workspaceId, groups, onClose, onMerged }: {
+  workspaceId: string;
+  groups: DuplicateGroup[];
+  onClose: () => void;
+  onMerged: () => void;
+}) {
+  const [primaryByGroup, setPrimaryByGroup] = useState<Record<string, string>>(
+    () => Object.fromEntries(groups.map(g => [g.phoneNormalized, suggestPrimary(g.contacts)]))
+  );
+  const [merging, setMerging] = useState<string | null>(null);
+  const [errors,  setErrors]  = useState<Record<string, string>>({});
+  const [done,    setDone]    = useState<Set<string>>(new Set());
+
+  async function mergeGroup(group: DuplicateGroup) {
+    const primaryId = primaryByGroup[group.phoneNormalized];
+    const others    = group.contacts.filter(c => c.id !== primaryId);
+    setMerging(group.phoneNormalized);
+    setErrors(prev => ({ ...prev, [group.phoneNormalized]: '' }));
+    try {
+      for (const dup of others) {
+        await api.post(`/workspaces/${workspaceId}/contacts/merge`, { primaryId, duplicateId: dup.id });
+      }
+      setDone(prev => new Set(prev).add(group.phoneNormalized));
+      onMerged();
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error || 'Erro ao mesclar contatos';
+      setErrors(prev => ({ ...prev, [group.phoneNormalized]: msg }));
+    } finally {
+      setMerging(null);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+          <div>
+            <h3 className="font-semibold text-gray-900">Contatos duplicados</h3>
+            <p className="text-xs text-gray-400 mt-0.5">
+              Mesmo telefone cadastrado em mais de um contato (formatos ou canais diferentes).
+            </p>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X className="w-4 h-4" /></button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-6 space-y-4">
+          {groups.length === 0 ? (
+            <div className="text-center py-12 text-gray-400 text-sm">
+              <Users className="w-8 h-8 mx-auto mb-2 opacity-30" />
+              Nenhum contato duplicado encontrado.
+            </div>
+          ) : (
+            groups.map(group => {
+              const isDone = done.has(group.phoneNormalized);
+              return (
+                <div key={group.phoneNormalized} className={clsx('border rounded-xl p-4', isDone ? 'border-green-200 bg-green-50' : 'border-gray-200')}>
+                  <div className="text-xs text-gray-400 mb-2 font-mono">Telefone: {group.phoneNormalized}</div>
+
+                  {isDone ? (
+                    <p className="text-sm text-green-700 flex items-center gap-1.5">
+                      <CheckCircle className="w-4 h-4" />
+                      Contatos mesclados.
+                    </p>
+                  ) : (
+                    <>
+                      <div className="space-y-2">
+                        {group.contacts.map(c => (
+                          <label key={c.id} className="flex items-start gap-2 p-2 rounded-lg hover:bg-gray-50 cursor-pointer">
+                            <input
+                              type="radio"
+                              className="mt-1"
+                              name={`primary-${group.phoneNormalized}`}
+                              checked={primaryByGroup[group.phoneNormalized] === c.id}
+                              onChange={() => setPrimaryByGroup(prev => ({ ...prev, [group.phoneNormalized]: c.id }))}
+                            />
+                            <div className="min-w-0 flex-1">
+                              <div className="font-medium text-gray-900 text-sm truncate">{c.name}</div>
+                              <div className="text-xs text-gray-500">
+                                {c.phone || '—'}
+                                {c.email ? ` · ${c.email}` : ''}
+                              </div>
+                              <div className="text-xs text-gray-400 mt-0.5">
+                                {c.conversation_count} conversa{c.conversation_count !== 1 ? 's' : ''} · {c.deal_count} negócio{c.deal_count !== 1 ? 's' : ''} · criado em {format(new Date(c.created_at), 'd MMM yyyy', { locale: ptBR })}
+                              </div>
+                              {c.tags?.length > 0 && (
+                                <div className="flex flex-wrap gap-1 mt-1">
+                                  {c.tags.map(tag => <span key={tag} className="badge-blue text-xs">{tag}</span>)}
+                                </div>
+                              )}
+                            </div>
+                          </label>
+                        ))}
+                      </div>
+
+                      {errors[group.phoneNormalized] && (
+                        <p className="text-xs text-red-600 mt-2">{errors[group.phoneNormalized]}</p>
+                      )}
+
+                      <button
+                        type="button"
+                        className="btn-secondary text-xs mt-3"
+                        disabled={merging === group.phoneNormalized}
+                        onClick={() => mergeGroup(group)}
+                      >
+                        <GitMerge className="w-3.5 h-3.5" />
+                        {merging === group.phoneNormalized ? 'Mesclando...' : 'Mesclar neste contato'}
+                      </button>
+                    </>
+                  )}
+                </div>
+              );
+            })
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function ContactsPage() {
   const { currentWorkspace, currentOrg } = useAuth();
   const [contacts,     setContacts]     = useState<Contact[]>([]);
@@ -361,6 +507,8 @@ export default function ContactsPage() {
   const [importing,    setImporting]    = useState(false);
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
   const [importTag,    setImportTag]    = useState('');
+  const [duplicateGroups, setDuplicateGroups] = useState<DuplicateGroup[]>([]);
+  const [duplicatesOpen,  setDuplicatesOpen]  = useState(false);
 
   const load = useCallback(async () => {
     if (!currentWorkspace) return;
@@ -387,7 +535,18 @@ export default function ContactsPage() {
     );
   }
 
+  const loadDuplicates = useCallback(async () => {
+    if (!currentWorkspace) return;
+    try {
+      const { data } = await api.get<DuplicateGroup[]>(`/workspaces/${currentWorkspace.id}/contacts/duplicates`);
+      setDuplicateGroups(data);
+    } catch {
+      setDuplicateGroups([]);
+    }
+  }, [currentWorkspace]);
+
   useEffect(() => { load(); }, [load]);
+  useEffect(() => { loadDuplicates(); }, [loadDuplicates]);
 
   // Debounce search
   useEffect(() => {
@@ -450,6 +609,13 @@ export default function ContactsPage() {
               {importing ? 'Importando...' : 'Importar CSV'}
               <input type="file" accept=".csv,text/csv" className="hidden" onChange={handleCsvImport} disabled={importing} />
             </label>
+            {duplicateGroups.length > 0 && (
+              <button className="btn-secondary text-sm" onClick={() => setDuplicatesOpen(true)}>
+                <Users className="w-4 h-4" />
+                Duplicados
+                <span className="badge-blue text-xs">{duplicateGroups.length}</span>
+              </button>
+            )}
             <button
               className="btn-primary text-sm"
               onClick={() => { setEditing(undefined); setFormOpen(true); }}
@@ -675,6 +841,16 @@ export default function ContactsPage() {
                 setTotal(t => t + 1);
               }
             }}
+          />
+        )}
+
+        {/* Contatos duplicados */}
+        {duplicatesOpen && (
+          <DuplicatesModal
+            workspaceId={currentWorkspace.id}
+            groups={duplicateGroups}
+            onClose={() => setDuplicatesOpen(false)}
+            onMerged={() => { loadDuplicates(); load(); }}
           />
         )}
 

@@ -23,7 +23,7 @@ module.exports = {
           900: '#2a2580',
           950: '#1a1652',
         },
-        // Dourado/champanhe — destaques premium (imóveis em destaque, IA Lais,
+        // Dourado/champanhe — destaques premium (imóveis em destaque, agente de IA,
         // selos de "lançamento" etc.)
         accent: {
           50:  '#fdf8ec',

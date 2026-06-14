@@ -8,6 +8,7 @@ version: '3.9'
 #
 # Pré-requisito:
 #   docker network create --driver overlay --attachable network_public
+#   docker volume create gtw_traefik_dynamic
 # =============================================================
 
 networks:
@@ -17,6 +18,10 @@ networks:
 volumes:
   traefik_certs:
     driver: local
+  # Compartilhado com o stack gtw-platform — recebe a configuração dinâmica
+  # de domínios customizados (white-label), gerada pelo backend.
+  gtw_traefik_dynamic:
+    external: true
 
 services:
   traefik:
@@ -31,6 +36,10 @@ services:
       - "--providers.docker.swarmMode=true"
       - "--providers.docker.exposedByDefault=false"
       - "--providers.docker.network=network_public"
+
+      # White-label: domínios customizados (gerado pelo backend em runtime)
+      - "--providers.file.directory=/dynamic"
+      - "--providers.file.watch=true"
 
       # ── Entrypoints ──────────────────────────────────────────
       - "--entrypoints.web.address=:80"
@@ -64,6 +73,7 @@ services:
     volumes:
       - "/var/run/docker.sock:/var/run/docker.sock:ro"
       - "traefik_certs:/letsencrypt"
+      - "gtw_traefik_dynamic:/dynamic:ro"
 
     networks:
       - network_public

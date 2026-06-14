@@ -7,16 +7,19 @@ const http       = require('http');
 const { Server } = require('socket.io');
 const helmet     = require('helmet');
 const cors       = require('cors');
+const cookieParser = require('cookie-parser');
 const rateLimit  = require('express-rate-limit');
 
 const jwt = require('jsonwebtoken');
 
 const { initDatabase } = require('./config/database');
 const { ensureBucket } = require('./services/storage.service');
+const { regenerateDomainsConfig } = require('./services/traefik.service');
 const logger           = require('./utils/logger');
 const { startJobs }    = require('./jobs/followUp.job');
 
 const { requireNotTicketsOnly } = require('./middleware/workspaceContext');
+const { corsOriginValidator }   = require('./middleware/corsConfig');
 const authRouter          = require('./modules/auth/auth.router');
 const orgsRouter          = require('./modules/organizations/organizations.router');
 const workspacesRouter    = require('./modules/workspaces/workspaces.router');
@@ -43,12 +46,14 @@ const googleCalendarRouter = require('./modules/integrations/google-calendar.rou
 const mailIntegrationRouter = require('./modules/integrations/mail.router');
 const broadcastsRouter     = require('./modules/broadcasts/broadcasts.router');
 const permissionsRouter    = require('./modules/permissions/permissions.router');
+const notificationsRouter  = require('./modules/notifications/notifications.router');
+const pushRouter           = require('./modules/push/push.router');
 
 const app    = express();
 const server = http.createServer(app);
 const io     = new Server(server, {
   cors: {
-    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+    origin: corsOriginValidator,
     credentials: true,
   },
 });
@@ -66,9 +71,10 @@ app.use('/uploads', express.static(UPLOAD_DIR));
 // ── Security & parsing ─────────────────────────────────────────────────────
 app.use(helmet());
 app.use(cors({
-  origin:      process.env.FRONTEND_URL || 'http://localhost:3000',
+  origin:      corsOriginValidator,
   credentials: true,
 }));
+app.use(cookieParser());
 // Webhooks da Evolution API enviam mídia em base64 dentro do JSON — vídeos/áudios
 // próximos do limite de 16MB do WhatsApp passam de 20MB já em base64, excedendo
 // o limite padrão de 10mb e causando perda silenciosa dessas mensagens.
@@ -120,10 +126,12 @@ app.use('/api/v1/workspaces/:workspaceId/permission-profiles', requireNotTickets
 app.use('/api/v1/uploads',                                 uploadsRouter);
 app.use('/api/v1/integrations/google',                     googleCalendarRouter);
 app.use('/api/v1/integrations/mail',                       mailIntegrationRouter);
+app.use('/api/v1/push',                                    pushRouter);
 app.use('/api/v1/conversations/:conversationId/messages',  messagesRouter);
 app.use('/api/v1/webhooks',                                webhooksRouter);
 app.use('/api/v1/workspaces/:workspaceId/meta',            metaRouter);
 app.use('/api/v1/workspaces/:workspaceId/broadcasts',      requireNotTicketsOnly, broadcastsRouter);
+app.use('/api/v1/workspaces/:workspaceId/notifications',   requireNotTicketsOnly, notificationsRouter);
 
 // ── Health ─────────────────────────────────────────────────────────────────
 app.get('/health', (_req, res) => res.json({ ok: true, ts: new Date() }));
@@ -237,6 +245,7 @@ async function start() {
 
   await initDatabase();
   await ensureBucket();
+  await regenerateDomainsConfig();
   server.listen(PORT, () => {
     logger.info(`GTW Platform API on port ${PORT}`);
     logger.info('Integrations status', {
@@ -248,7 +257,7 @@ async function start() {
       google_client_id:  process.env.GOOGLE_CLIENT_ID  ? process.env.GOOGLE_CLIENT_ID.slice(0, 12) + '...' : '(não definido)',
       app_url:           process.env.APP_URL            || '(não definido)',
     });
-    startJobs();
+    startJobs(io);
   });
 }
 
