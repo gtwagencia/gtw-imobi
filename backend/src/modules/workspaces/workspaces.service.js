@@ -2,6 +2,7 @@
 
 const { query }   = require('../../config/database');
 const kanbanSvc   = require('../kanban/kanban.service');
+const permissionsSvc = require('../permissions/permissions.service');
 const bcrypt      = require('bcrypt');
 const crypto      = require('crypto');
 
@@ -56,6 +57,7 @@ async function create(orgId, { name, logoUrl, timezone }) {
   const workspace = r.rows[0];
 
   await kanbanSvc.seedDefaultStages(workspace.id);
+  await permissionsSvc.ensureDefaultProfiles(workspace.id);
 
   return workspace;
 }
@@ -90,6 +92,9 @@ async function update(workspaceId, body) {
     aiModel:              'ai_model',
     slaResponseMinutes:   'sla_response_minutes',
     aiIgnoreGroups:       'ai_ignore_groups',
+    aiBaseUrl:            'ai_base_url',
+    customAiApiKey:       'custom_ai_api_key',
+    aiToolsEnabled:       'ai_tools_enabled',
   };
 
   const fields = [];
@@ -117,7 +122,7 @@ async function update(workspaceId, body) {
 
 async function listMembers(workspaceId) {
   const r = await query(
-    `SELECT u.id AS user_id, u.name, u.email, u.avatar_url, wm.role, wm.created_at AS joined_at
+    `SELECT u.id AS user_id, u.name, u.email, u.avatar_url, wm.role, wm.creci, wm.phone, wm.created_at AS joined_at
      FROM workspace_memberships wm
      JOIN users u ON u.id = wm.user_id
      WHERE wm.workspace_id = $1
@@ -211,7 +216,27 @@ async function updateMemberRole(workspaceId, userId, role) {
   return r.rows[0];
 }
 
+async function updateMemberProfile(workspaceId, userId, { creci, phone }) {
+  const fields = [];
+  const vals   = [];
+  let   idx    = 1;
+
+  if (creci !== undefined) { fields.push(`creci = $${idx++}`); vals.push(creci || null); }
+  if (phone !== undefined) { fields.push(`phone = $${idx++}`); vals.push(phone || null); }
+
+  if (!fields.length) throw Object.assign(new Error('Nenhum campo para atualizar'), { status: 400 });
+
+  vals.push(workspaceId, userId);
+  const r = await query(
+    `UPDATE workspace_memberships SET ${fields.join(', ')}
+     WHERE workspace_id = $${idx} AND user_id = $${idx + 1} RETURNING *`,
+    vals
+  );
+  if (!r.rows.length) throw Object.assign(new Error('Membro não encontrado'), { status: 404 });
+  return r.rows[0];
+}
+
 module.exports = {
   listForOrg, create, getById, update,
-  listMembers, addMember, removeMember, updateMemberRole, resetMemberPassword,
+  listMembers, addMember, removeMember, updateMemberRole, updateMemberProfile, resetMemberPassword,
 };

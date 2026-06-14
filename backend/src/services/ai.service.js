@@ -4,6 +4,9 @@ const Anthropic = require('@anthropic-ai/sdk');
 const axios     = require('axios');
 const { query } = require('../config/database');
 const logger    = require('../utils/logger');
+const propertiesSvc = require('../modules/properties/properties.service');
+const messagesSvc   = require('../modules/messages/messages.service');
+const visitsSvc     = require('../modules/visits/visits.service');
 
 // ── Provider abstraction ────────────────────────────────────────────────────
 
@@ -14,24 +17,29 @@ const DEFAULT_MODELS = {
 };
 
 /**
- * Chama o LLM configurado no workspace (Anthropic ou OpenAI).
+ * Chama o LLM configurado no workspace (Anthropic, OpenAI ou um endpoint
+ * customizado compatível com a API da OpenAI, ex: Ollama).
  * @param {object} opts
- * @param {string}  opts.provider  - 'anthropic' | 'openai'
+ * @param {string}  opts.provider  - 'anthropic' | 'openai' | 'custom'
  * @param {string}  opts.apiKey
+ * @param {string}  [opts.baseUrl] - base URL para provider 'custom' (ex: http://servidor:11434/v1)
  * @param {string}  [opts.model]   - modelo específico; usa padrão se omitido
  * @param {string}  opts.system
  * @param {{ role: string, content: string }[]} opts.messages
  * @param {number}  [opts.maxTokens]
  * @returns {Promise<string>}
  */
-async function callLLM({ provider, apiKey, model, system, messages, maxTokens = 300 }) {
-  if (provider === 'openai') {
-    const resolvedModel = model || (maxTokens > 200 ? DEFAULT_MODELS.openai.smart : DEFAULT_MODELS.openai.fast);
+async function callLLM({ provider, apiKey, baseUrl, model, system, messages, maxTokens = 300 }) {
+  if (provider === 'openai' || provider === 'custom') {
+    const url = provider === 'custom'
+      ? `${(baseUrl || '').replace(/\/$/, '')}/chat/completions`
+      : 'https://api.openai.com/v1/chat/completions';
+    const resolvedModel = model || (provider === 'custom' ? undefined : (maxTokens > 200 ? DEFAULT_MODELS.openai.smart : DEFAULT_MODELS.openai.fast));
     const msgs = [{ role: 'system', content: system }, ...messages];
     const resp = await axios.post(
-      'https://api.openai.com/v1/chat/completions',
+      url,
       { model: resolvedModel, messages: msgs, max_tokens: maxTokens },
-      { headers: { Authorization: `Bearer ${apiKey}` }, timeout: 30000 }
+      { headers: { Authorization: `Bearer ${apiKey || 'ollama'}` }, timeout: 30000 }
     );
     return resp.data.choices[0]?.message?.content?.trim() || '';
   }
@@ -44,6 +52,70 @@ async function callLLM({ provider, apiKey, model, system, messages, maxTokens = 
   });
   return response.content[0]?.text?.trim() || '';
 }
+
+// ── Lais — persona padrão e ferramentas ─────────────────────────────────────
+
+const DEFAULT_LAIS_PERSONA = `Você é a Lais, assistente virtual de atendimento da imobiliária. Atenda leads do mercado imobiliário de forma simpática, objetiva e profissional, em português brasileiro.
+
+Você pode usar estas ferramentas quando fizer sentido:
+- buscar_imoveis: busca imóveis no catálogo a partir de critérios do cliente (finalidade, tipo, cidade, quartos, valor).
+- enviar_ficha_imovel: envia foto de capa + dados de um imóvel específico (pelo código).
+- propor_visita: registra uma proposta de visita a um imóvel numa data/horário sugeridos.
+
+Regras:
+- Nunca invente imóveis, preços, disponibilidade ou confirmações de visita — sempre use as ferramentas.
+- Seja breve (2-4 frases por resposta).
+- Ao propor uma visita, deixe claro que a equipe ainda vai confirmar o horário.
+- Se não conseguir ajudar, diga que um corretor da equipe vai continuar o atendimento.`;
+
+const LAIS_TOOL_DEFS = [
+  {
+    name: 'buscar_imoveis',
+    description: 'Busca imóveis disponíveis no catálogo da imobiliária pelos critérios informados.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        purpose:       { type: 'string', enum: ['venda', 'locacao', 'venda_locacao', 'temporada'] },
+        property_type: { type: 'string' },
+        city:          { type: 'string' },
+        bedrooms:      { type: 'integer' },
+        min_price:     { type: 'number' },
+        max_price:     { type: 'number' },
+      },
+    },
+  },
+  {
+    name: 'enviar_ficha_imovel',
+    description: 'Envia ao cliente, pelo WhatsApp, a foto de capa e os principais dados de um imóvel (pelo código, ex: IM-0001).',
+    input_schema: {
+      type: 'object',
+      properties: { property_code: { type: 'string' } },
+      required: ['property_code'],
+    },
+  },
+  {
+    name: 'propor_visita',
+    description: 'Registra uma proposta de visita a um imóvel numa data/horário sugeridos, para confirmação posterior pela equipe.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        property_code: { type: 'string' },
+        scheduled_at:  { type: 'string', description: 'Data/hora ISO 8601 sugerida' },
+        notes:         { type: 'string' },
+      },
+      required: ['property_code', 'scheduled_at'],
+    },
+  },
+];
+
+// Para Anthropic, LAIS_TOOL_DEFS já está no formato esperado por `tools`.
+// Para OpenAI/custom (function calling), converte para o formato `tools: [{type:'function', function}]`.
+const LAIS_TOOL_DEFS_OPENAI = LAIS_TOOL_DEFS.map(t => ({
+  type: 'function',
+  function: { name: t.name, description: t.description, parameters: t.input_schema },
+}));
+
+const MAX_LAIS_TOOL_ITERATIONS = 3;
 
 async function getConversationMessages(conversationId, includePrivate = false) {
   const r = await query(
@@ -151,7 +223,7 @@ async function buildAnthropicContent(messages) {
   return parts;
 }
 
-async function analyzeConversation(conversationId, apiKey, provider = 'anthropic', model = null, stageContext = null) {
+async function analyzeConversation(conversationId, apiKey, provider = 'anthropic', model = null, stageContext = null, baseUrl = null) {
   let messages;
   try {
     messages = await getConversationMessages(conversationId);
@@ -206,7 +278,7 @@ Responda SOMENTE com um JSON no formato:
     }
 
     const text = await callLLM({
-      provider, apiKey, model, system: systemPrompt, maxTokens: 600,
+      provider, apiKey, baseUrl, model, system: systemPrompt, maxTokens: 600,
       messages: [{ role: 'user', content: userContent }],
     });
     const jsonMatch = text.match(/\{[\s\S]*\}/);
@@ -218,7 +290,7 @@ Responda SOMENTE com um JSON no formato:
   }
 }
 
-async function generateFollowUp(conversationId, triggerType, apiKey, provider = 'anthropic', model = null) {
+async function generateFollowUp(conversationId, triggerType, apiKey, provider = 'anthropic', model = null, baseUrl = null) {
   const messages = await getConversationMessages(conversationId);
 
   const convRes = await query(
@@ -233,7 +305,7 @@ async function generateFollowUp(conversationId, triggerType, apiKey, provider = 
 
   try {
     return await callLLM({
-      provider, apiKey, model, maxTokens: 200,
+      provider, apiKey, baseUrl, model, maxTokens: 200,
       system: `Você é um assistente de vendas especializado em follow-up de leads no WhatsApp.
 Você deve criar mensagens de follow-up naturais, amigáveis e não invasivas em português brasileiro.
 A mensagem deve ser curta (2-4 frases), direta e despertar interesse sem ser insistente.
@@ -252,7 +324,7 @@ NÃO use emojis excessivos. Seja profissional mas caloroso.`,
 /**
  * Generate a chatbot response for the last inbound message.
  */
-async function generateChatbotResponse(conversationId, systemPrompt, apiKey, provider = 'anthropic', model = null) {
+async function generateChatbotResponse(conversationId, systemPrompt, apiKey, provider = 'anthropic', model = null, baseUrl = null) {
   const messages = await getConversationMessages(conversationId);
   if (!messages.length) return null;
 
@@ -273,7 +345,7 @@ async function generateChatbotResponse(conversationId, systemPrompt, apiKey, pro
 
   try {
     return await callLLM({
-      provider, apiKey, model, maxTokens: 300,
+      provider, apiKey, baseUrl, model, maxTokens: 300,
       system: systemPrompt || 'Você é um assistente de atendimento ao cliente. Responda de forma educada, clara e concisa em português brasileiro.',
       messages: history,
     }) || null;
@@ -283,11 +355,29 @@ async function generateChatbotResponse(conversationId, systemPrompt, apiKey, pro
   }
 }
 
+/**
+ * Constrói o histórico de mensagens (user/assistant alternado) usado tanto
+ * por generateChatbotResponse quanto pelos loops de tool-use da Lais.
+ */
+function buildChatHistory(messages) {
+  const history = [];
+  for (const m of messages.slice(-15)) {
+    const role = m.direction === 'inbound' ? 'user' : 'assistant';
+    if (history.length && history[history.length - 1].role === role) {
+      history[history.length - 1].content += '\n' + (m.content || '');
+    } else {
+      history.push({ role, content: m.content || '' });
+    }
+  }
+  return history;
+}
+
 async function analyzeDeal(dealId, workspaceId) {
   const r = await query(
     `SELECT d.id, d.conversation_id, d.contact_id, d.pipeline_id, d.ai_analyzed_at,
             ks.ai_prompt AS stage_ai_prompt,
-            w.anthropic_api_key, w.openai_api_key, w.ai_provider, w.ai_model, w.ai_analysis_enabled,
+            w.anthropic_api_key, w.openai_api_key, w.custom_ai_api_key, w.ai_base_url,
+            w.ai_provider, w.ai_model, w.ai_analysis_enabled,
             c.last_message_at, c.first_response_at
      FROM deals d
      JOIN workspaces w ON w.id = d.workspace_id
@@ -301,7 +391,7 @@ async function analyzeDeal(dealId, workspaceId) {
     return null;
   }
 
-  let { conversation_id, contact_id, pipeline_id, stage_ai_prompt, anthropic_api_key, openai_api_key, ai_provider, ai_model, ai_analysis_enabled, ai_analyzed_at, last_message_at, first_response_at } = r.rows[0];
+  let { conversation_id, contact_id, pipeline_id, stage_ai_prompt, anthropic_api_key, openai_api_key, custom_ai_api_key, ai_base_url, ai_provider, ai_model, ai_analysis_enabled, ai_analyzed_at, last_message_at, first_response_at } = r.rows[0];
 
   // Se já foi analisado antes, só re-analisa se:
   // - houve mensagem nos últimos 30 minutos, OU
@@ -316,12 +406,17 @@ async function analyzeDeal(dealId, workspaceId) {
     }
   }
   const provider = ai_provider || 'anthropic';
-  const apiKey   = provider === 'openai' ? openai_api_key : anthropic_api_key;
+  const apiKey   = provider === 'custom' ? custom_ai_api_key
+                 : provider === 'openai' ? openai_api_key
+                 : anthropic_api_key;
+  const baseUrl  = provider === 'custom' ? ai_base_url : null;
+  const canRun   = provider === 'custom' ? !!baseUrl : !!apiKey;
 
   logger.info('analyzeDeal: config check', {
     dealId, workspaceId, provider,
     ai_analysis_enabled,
     hasApiKey: !!apiKey,
+    hasBaseUrl: !!baseUrl,
     conversation_id,
     contact_id,
   });
@@ -330,8 +425,8 @@ async function analyzeDeal(dealId, workspaceId) {
     logger.warn('analyzeDeal: ai_analysis_enabled is false');
     return null;
   }
-  if (!apiKey) {
-    logger.warn('analyzeDeal: no api key configured for provider', { provider });
+  if (!canRun) {
+    logger.warn('analyzeDeal: no api key/base url configured for provider', { provider });
     return null;
   }
 
@@ -356,7 +451,7 @@ async function analyzeDeal(dealId, workspaceId) {
     return null;
   }
 
-  const result = await analyzeConversation(conversation_id, apiKey, provider, ai_model || null, stage_ai_prompt || null);
+  const result = await analyzeConversation(conversation_id, apiKey, provider, ai_model || null, stage_ai_prompt || null, baseUrl);
   if (!result) throw Object.assign(new Error('IA não retornou classificação (resposta inválida)'), { status: 400 });
 
   // Dynamic stage name lookup from the deal's pipeline
@@ -471,4 +566,177 @@ async function analyzeDeal(dealId, workspaceId) {
   return { ...result, dealId };
 }
 
-module.exports = { analyzeConversation, generateFollowUp, generateChatbotResponse, analyzeDeal };
+// ── Lais — execução de ferramentas e loops de tool-use ──────────────────────
+
+function formatBRL(v) {
+  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
+}
+
+function buildPropertyCaption(p) {
+  const price = [
+    p.sale_price ? `Venda: ${formatBRL(p.sale_price)}` : null,
+    p.rent_price ? `Aluguel: ${formatBRL(p.rent_price)}/mês` : null,
+  ].filter(Boolean).join(' · ');
+  const features = [
+    p.bedrooms      ? `${p.bedrooms} quarto(s)`    : null,
+    p.bathrooms     ? `${p.bathrooms} banheiro(s)` : null,
+    p.parking_spots ? `${p.parking_spots} vaga(s)` : null,
+    p.total_area    ? `${p.total_area}m²`          : null,
+  ].filter(Boolean).join(' · ');
+  return [
+    `*${p.code} — ${p.title}*`,
+    [p.neighborhood, p.city].filter(Boolean).join(', '),
+    price, features,
+  ].filter(Boolean).join('\n');
+}
+
+/**
+ * Executa uma ferramenta da Lais. ctx = { workspaceId, conversationId, contactId, io }
+ */
+async function executeLaisTool(name, input, ctx) {
+  try {
+    switch (name) {
+      case 'buscar_imoveis': {
+        const { data } = await propertiesSvc.list(ctx.workspaceId, {
+          purpose: input.purpose, type: input.property_type, city: input.city,
+          bedrooms: input.bedrooms, minPrice: input.min_price, maxPrice: input.max_price,
+          status: 'disponivel', limit: 5,
+        });
+        return {
+          count: data.length,
+          properties: data.map(p => ({
+            code: p.code, title: p.title, type: p.property_type, purpose: p.purpose,
+            city: p.city, neighborhood: p.neighborhood, bedrooms: p.bedrooms,
+            sale_price: p.sale_price, rent_price: p.rent_price,
+          })),
+        };
+      }
+      case 'enviar_ficha_imovel': {
+        const property = await propertiesSvc.getByCode(ctx.workspaceId, input.property_code);
+        if (!property) return { success: false, error: 'Imóvel não encontrado' };
+        const caption = buildPropertyCaption(property);
+        await messagesSvc.send(ctx.conversationId, null, property.cover_url
+          ? { content: caption, messageType: 'image', mediaUrl: property.cover_url }
+          : { content: caption, messageType: 'text' });
+        return { success: true };
+      }
+      case 'propor_visita': {
+        const property = await propertiesSvc.getByCode(ctx.workspaceId, input.property_code);
+        if (!property) return { success: false, error: 'Imóvel não encontrado' };
+        const when = new Date(input.scheduled_at);
+        if (isNaN(when.getTime())) return { success: false, error: 'Data/hora inválida' };
+        const visit = await visitsSvc.create(ctx.workspaceId, {
+          propertyId: property.id, contactId: ctx.contactId, conversationId: ctx.conversationId,
+          assigneeId: property.broker_id || null, scheduledAt: when, notes: input.notes || null,
+          createdByAi: true,
+        });
+        ctx.io?.to(`ws:${ctx.workspaceId}`).emit('visit:proposed', visit);
+        return { success: true, status: 'proposta' };
+      }
+      default:
+        return { success: false, error: 'Ferramenta desconhecida' };
+    }
+  } catch (err) {
+    logger.warn('Lais tool execution failed', { name, err: err.message });
+    return { success: false, error: 'Erro interno ao executar ação' };
+  }
+}
+
+/**
+ * Loop de tool-use usando a Tools API nativa da Anthropic.
+ */
+async function runAnthropicToolLoop({ apiKey, model, system, history, ctx }) {
+  const resolvedModel = model || DEFAULT_MODELS.anthropic.smart;
+  const client   = new Anthropic({ apiKey });
+  const messages = [...history];
+
+  for (let i = 0; i < MAX_LAIS_TOOL_ITERATIONS; i++) {
+    const response = await client.messages.create({
+      model: resolvedModel, max_tokens: 400, system, messages, tools: LAIS_TOOL_DEFS,
+    });
+
+    if (response.stop_reason !== 'tool_use') {
+      const text = response.content.filter(b => b.type === 'text').map(b => b.text).join('\n').trim();
+      return text || null;
+    }
+
+    messages.push({ role: 'assistant', content: response.content });
+    const toolResults = [];
+    for (const block of response.content) {
+      if (block.type !== 'tool_use') continue;
+      const result = await executeLaisTool(block.name, block.input || {}, ctx);
+      toolResults.push({ type: 'tool_result', tool_use_id: block.id, content: JSON.stringify(result) });
+    }
+    messages.push({ role: 'user', content: toolResults });
+  }
+
+  return null;
+}
+
+/**
+ * Loop de tool-use no formato function-calling da OpenAI, usado tanto para
+ * provider 'openai' quanto 'custom' (ex: Ollama com endpoint /v1/chat/completions).
+ */
+async function runOpenAICompatToolLoop({ apiKey, baseUrl, model, system, history, ctx }) {
+  const url = baseUrl
+    ? `${baseUrl.replace(/\/$/, '')}/chat/completions`
+    : 'https://api.openai.com/v1/chat/completions';
+  const resolvedModel = model || (baseUrl ? undefined : DEFAULT_MODELS.openai.smart);
+  const messages = [{ role: 'system', content: system }, ...history];
+
+  for (let i = 0; i < MAX_LAIS_TOOL_ITERATIONS; i++) {
+    const resp = await axios.post(
+      url,
+      { model: resolvedModel, messages, max_tokens: 400, tools: LAIS_TOOL_DEFS_OPENAI },
+      { headers: { Authorization: `Bearer ${apiKey || 'ollama'}` }, timeout: 30000 }
+    );
+    const message = resp.data.choices[0]?.message;
+    if (!message) return null;
+
+    if (!message.tool_calls?.length) {
+      return message.content?.trim() || null;
+    }
+
+    messages.push({ role: 'assistant', content: message.content || null, tool_calls: message.tool_calls });
+    for (const tc of message.tool_calls) {
+      let input = {};
+      try { input = JSON.parse(tc.function.arguments || '{}'); } catch {}
+      const result = await executeLaisTool(tc.function.name, input, ctx);
+      messages.push({ role: 'tool', tool_call_id: tc.id, content: JSON.stringify(result) });
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Gera a resposta do chatbot com acesso às ferramentas da Lais (busca de
+ * imóveis, envio de ficha, proposta de visita). ws = row de `workspaces`
+ * (anthropic_api_key, openai_api_key, custom_ai_api_key, ai_base_url,
+ * ai_provider, ai_model). ctx = { workspaceId, conversationId, contactId, io }.
+ */
+async function generateChatbotResponseWithTools(conversationId, systemPrompt, ws, ctx) {
+  const messages = await getConversationMessages(conversationId);
+  if (!messages.length) return null;
+
+  const history = buildChatHistory(messages);
+  if (!history.length || history[history.length - 1].role !== 'user') return null;
+
+  const provider = ws.ai_provider || 'anthropic';
+  try {
+    if (provider === 'anthropic') {
+      return await runAnthropicToolLoop({ apiKey: ws.anthropic_api_key, model: ws.ai_model, system: systemPrompt, history, ctx });
+    }
+    const apiKey  = provider === 'custom' ? ws.custom_ai_api_key : ws.openai_api_key;
+    const baseUrl = provider === 'custom' ? ws.ai_base_url : 'https://api.openai.com/v1';
+    return await runOpenAICompatToolLoop({ apiKey, baseUrl, model: ws.ai_model, system: systemPrompt, history, ctx });
+  } catch (err) {
+    logger.warn('Lais tool loop failed', { conversationId, err: err.message });
+    return null;
+  }
+}
+
+module.exports = {
+  analyzeConversation, generateFollowUp, generateChatbotResponse, analyzeDeal,
+  generateChatbotResponseWithTools, DEFAULT_LAIS_PERSONA,
+};

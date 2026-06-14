@@ -11,14 +11,18 @@ interface Member {
   name: string;
   email: string;
   avatar_url: string | null;
-  role: 'admin' | 'agent';
+  role: 'admin' | 'agent' | 'member' | 'tickets_only' | 'captador' | 'auxiliar_administrativo';
   department_name: string | null;
+  creci: string | null;
+  phone: string | null;
 }
 
 const ROLES = [
-  { value: 'admin',        label: 'Admin',          icon: Shield },
-  { value: 'agent',        label: 'Agente',         icon: User },
-  { value: 'tickets_only', label: 'Somente Tickets', icon: UserCheck },
+  { value: 'admin',                   label: 'Administrador',          icon: Shield },
+  { value: 'agent',                   label: 'Corretor',               icon: User },
+  { value: 'captador',                label: 'Captador',               icon: User },
+  { value: 'auxiliar_administrativo', label: 'Auxiliar Administrativo', icon: UserCheck },
+  { value: 'tickets_only',            label: 'Somente Tickets',        icon: UserCheck },
 ];
 
 export default function MembersPage() {
@@ -78,6 +82,15 @@ export default function MembersPage() {
     await api.put(
       `/orgs/${currentOrg.id}/workspaces/${currentWorkspace.id}/members/${userId}/role`,
       { role }
+    );
+    load();
+  }
+
+  async function handleProfileSave(userId: string, creci: string, phone: string) {
+    if (!currentWorkspace || !currentOrg) return;
+    await api.put(
+      `/orgs/${currentOrg.id}/workspaces/${currentWorkspace.id}/members/${userId}/profile`,
+      { creci: creci.trim() || null, phone: phone.trim() || null }
     );
     load();
   }
@@ -225,9 +238,25 @@ export default function MembersPage() {
                     <div className="text-xs text-gray-400">{m.department_name}</div>
                   )}
                 </div>
+                {isManager && (
+                  <>
+                    <input
+                      className="input py-1 px-2 text-xs w-28"
+                      placeholder="CRECI"
+                      defaultValue={m.creci || ''}
+                      onBlur={e => handleProfileSave(m.user_id, e.target.value, m.phone || '')}
+                    />
+                    <input
+                      className="input py-1 px-2 text-xs w-32"
+                      placeholder="Telefone"
+                      defaultValue={m.phone || ''}
+                      onBlur={e => handleProfileSave(m.user_id, m.creci || '', e.target.value)}
+                    />
+                  </>
+                )}
                 {isManager ? (
                   <select
-                    className="input py-1 px-2 text-xs w-28"
+                    className="input py-1 px-2 text-xs w-44"
                     value={m.role}
                     onChange={e => handleRoleChange(m.user_id, e.target.value)}
                   >
@@ -236,7 +265,9 @@ export default function MembersPage() {
                     ))}
                   </select>
                 ) : (
-                  <span className="text-xs text-gray-500 capitalize">{m.role}</span>
+                  <span className="text-xs text-gray-500">
+                    {ROLES.find(r => r.value === m.role)?.label || m.role}
+                  </span>
                 )}
                 {isManager && (
                   <>

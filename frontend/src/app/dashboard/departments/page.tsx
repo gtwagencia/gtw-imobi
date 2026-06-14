@@ -6,7 +6,7 @@ import Header from '@/components/layout/Header';
 import api from '@/lib/api';
 import {
   Plus, Trash2, Users, MessageSquare,
-  Check, X, Pencil, UserPlus, UserMinus, Loader,
+  Check, X, Pencil, UserPlus, UserMinus, Loader, Sparkles, Save,
 } from 'lucide-react';
 import clsx from 'clsx';
 
@@ -15,6 +15,7 @@ interface Department {
   name: string;
   color: string;
   description: string | null;
+  ai_persona: string | null;
   agent_count: number;
   conversation_count: number;
 }
@@ -55,6 +56,11 @@ export default function DepartmentsPage() {
   const [editingId,   setEditingId]   = useState<string | null>(null);
   const [editName,    setEditName]    = useState('');
 
+  // IA (Lais) persona
+  const [aiPersonaDraft, setAiPersonaDraft] = useState('');
+  const [savingPersona,  setSavingPersona]  = useState(false);
+  const [personaSaved,   setPersonaSaved]   = useState(false);
+
   const isAdmin = currentOrg?.role === 'owner' || currentOrg?.role === 'admin';
 
   const loadDepts = useCallback(async () => {
@@ -69,6 +75,7 @@ export default function DepartmentsPage() {
 
   async function selectDept(dept: Department) {
     setSelectedDept(dept);
+    setAiPersonaDraft(dept.ai_persona || '');
     setLoadingAgents(true);
     const [agentsRes, unassignedRes] = await Promise.all([
       api.get(`/workspaces/${currentWorkspace!.id}/departments/${dept.id}/agents`),
@@ -103,6 +110,22 @@ export default function DepartmentsPage() {
     await api.put(`/workspaces/${currentWorkspace.id}/departments/${deptId}`, { name: editName });
     setEditingId(null);
     loadDepts();
+  }
+
+  async function handleSavePersona() {
+    if (!currentWorkspace || !selectedDept) return;
+    setSavingPersona(true);
+    try {
+      const { data } = await api.put(`/workspaces/${currentWorkspace.id}/departments/${selectedDept.id}`, {
+        aiPersona: aiPersonaDraft || null,
+      });
+      setSelectedDept(data);
+      setDepartments(prev => prev.map(d => d.id === data.id ? { ...d, ai_persona: data.ai_persona } : d));
+      setPersonaSaved(true);
+      setTimeout(() => setPersonaSaved(false), 2000);
+    } finally {
+      setSavingPersona(false);
+    }
   }
 
   async function handleAssign(userId: string) {
@@ -274,6 +297,36 @@ export default function DepartmentsPage() {
                 {selectedDept.description && (
                   <span className="text-sm text-gray-400">{selectedDept.description}</span>
                 )}
+              </div>
+
+              {/* IA (Lais) — persona deste setor */}
+              <div className="card p-4 mb-6">
+                <h3 className="font-medium text-gray-900 text-sm flex items-center gap-1.5 mb-1">
+                  <Sparkles className="w-4 h-4 text-indigo-500" />
+                  IA (Lais) — persona deste setor
+                </h3>
+                <p className="text-xs text-gray-400 mb-2">
+                  Esse texto é somado à persona padrão da Lais para conversas deste setor
+                  (ex: foco em locação, tom de voz específico).
+                </p>
+                <textarea
+                  className="input text-sm min-h-[140px] resize-y"
+                  rows={6}
+                  value={aiPersonaDraft}
+                  onChange={(e) => setAiPersonaDraft(e.target.value)}
+                  placeholder="Ex: Foque em imóveis para locação residencial. Seja informal e use emojis com moderação."
+                />
+                <div className="flex items-center gap-3 mt-2">
+                  <button
+                    type="button"
+                    className="btn-primary text-xs"
+                    onClick={handleSavePersona}
+                    disabled={savingPersona}
+                  >
+                    {savingPersona ? <Loader className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                    {personaSaved ? 'Salvo!' : 'Salvar'}
+                  </button>
+                </div>
               </div>
 
               {/* Agents in this department */}

@@ -110,9 +110,9 @@ async function createPipeline(workspaceId, body) {
     const stagesToCreate = stages?.length ? stages : DEFAULT_STAGES;
     for (const [i, s] of stagesToCreate.entries()) {
       await client.query(
-        `INSERT INTO kanban_stages (workspace_id, pipeline_id, name, color, position, is_default, ai_prompt)
-         VALUES ($1,$2,$3,$4,$5,$6,$7)`,
-        [workspaceId, pipeline.id, s.name, s.color || '#6366f1', i, s.is_default ?? (i === 0), s.ai_prompt || null]
+        `INSERT INTO kanban_stages (workspace_id, pipeline_id, name, color, position, is_default, is_purchase, ai_prompt)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+        [workspaceId, pipeline.id, s.name, s.color || '#6366f1', i, s.is_default ?? (i === 0), s.is_purchase ?? false, s.ai_prompt || null]
       );
     }
 

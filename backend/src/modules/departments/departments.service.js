@@ -38,7 +38,7 @@ async function create(workspaceId, { name, color, description }) {
 }
 
 async function update(deptId, workspaceId, body) {
-  const map = { name: 'name', color: 'color', description: 'description' };
+  const map = { name: 'name', color: 'color', description: 'description', aiPersona: 'ai_persona' };
   const fields = []; const vals = []; let idx = 1;
 
   for (const [k, col] of Object.entries(map)) {
@@ -60,6 +60,46 @@ async function remove(deptId, workspaceId) {
   // Remove o dept_id dos agentes antes de deletar
   await query('UPDATE workspace_memberships SET department_id = NULL WHERE department_id = $1', [deptId]);
   await query('DELETE FROM departments WHERE id = $1 AND workspace_id = $2', [deptId, workspaceId]);
+}
+
+// ── Painel de KPIs por setor ───────────────────────────────────────────────
+
+async function getOverview(workspaceId) {
+  const r = await query(
+    `SELECT d.id, d.name, d.color,
+            (SELECT COUNT(*)::int FROM workspace_memberships wm
+              WHERE wm.department_id = d.id) AS agent_count,
+            (SELECT COUNT(*)::int FROM conversations c
+              WHERE c.department_id = d.id AND c.status = 'open') AS open_conversations,
+            (SELECT ROUND(AVG(c.response_time_seconds))::int FROM conversations c
+              WHERE c.department_id = d.id AND c.response_time_seconds IS NOT NULL) AS avg_response_seconds,
+            (SELECT COUNT(*)::int FROM deals dl
+              JOIN pipeline_departments pdep ON pdep.pipeline_id = dl.pipeline_id
+              WHERE pdep.department_id = d.id AND dl.closed_at IS NULL) AS active_deals,
+            (SELECT COALESCE(SUM(dl.value), 0) FROM deals dl
+              JOIN pipeline_departments pdep ON pdep.pipeline_id = dl.pipeline_id
+              WHERE pdep.department_id = d.id AND dl.closed_at IS NULL) AS pipeline_value,
+            (SELECT COALESCE(json_agg(json_build_object(
+                       'stage_name', ks.name, 'stage_color', ks.color, 'count', cnt
+                     ) ORDER BY ks_position), '[]')
+             FROM (
+               SELECT ks.id, ks.name, ks.color, ks.position AS ks_position,
+                      COUNT(dl.id)::int AS cnt
+               FROM kanban_stages ks
+               JOIN pipeline_departments pdep ON pdep.pipeline_id = ks.pipeline_id
+               LEFT JOIN deals dl ON dl.stage_id = ks.id AND dl.closed_at IS NULL
+               WHERE pdep.department_id = d.id
+               GROUP BY ks.id, ks.name, ks.color, ks.position
+             ) ks
+            ) AS deals_by_stage,
+            (SELECT pdep.pipeline_id FROM pipeline_departments pdep
+              WHERE pdep.department_id = d.id LIMIT 1) AS primary_pipeline_id
+     FROM departments d
+     WHERE d.workspace_id = $1
+     ORDER BY d.name`,
+    [workspaceId]
+  );
+  return r.rows;
 }
 
 // ── Agents in department ───────────────────────────────────────────────────
@@ -123,6 +163,7 @@ async function listUnassignedAgents(workspaceId) {
 
 module.exports = {
   list, getById, create, update, remove,
+  getOverview,
   listAgents, assignAgent, removeAgent,
   listUnassignedAgents,
 };

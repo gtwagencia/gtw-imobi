@@ -3,27 +3,30 @@
 const { Router } = require('express');
 const multer               = require('multer');
 const { authenticate }     = require('../../middleware/auth');
-const { workspaceContext } = require('../../middleware/workspaceContext');
+const { workspaceContext, requirePermission } = require('../../middleware/workspaceContext');
 const svc = require('./contacts.service');
 
 const router  = Router({ mergeParams: true });
 const upload  = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
-router.get('/', authenticate, workspaceContext, async (req, res, next) => {
+router.get('/', authenticate, workspaceContext, requirePermission('contacts'), async (req, res, next) => {
   try {
-    const { search, tags, page, limit } = req.query;
+    const { search, tags, contactType, brokerId, page, limit } = req.query;
     const tagsArr = tags ? tags.split(',').map(t => t.trim()).filter(Boolean) : undefined;
+    const contactTypeArr = contactType ? contactType.split(',').map(t => t.trim()).filter(Boolean) : undefined;
     const result = await svc.list(req.params.workspaceId, {
-      search: search?.slice(0, 200),
-      tags:   tagsArr,
-      page:   parseInt(page,  10) || 1,
-      limit:  Math.min(parseInt(limit, 10) || 50, 200),
+      search:      search?.slice(0, 200),
+      tags:        tagsArr,
+      contactType: contactTypeArr,
+      brokerId:    brokerId || undefined,
+      page:        parseInt(page,  10) || 1,
+      limit:       Math.min(parseInt(limit, 10) || 50, 200),
     });
     res.json(result);
   } catch (err) { next(err); }
 });
 
-router.post('/', authenticate, workspaceContext, async (req, res, next) => {
+router.post('/', authenticate, workspaceContext, requirePermission('contacts'), async (req, res, next) => {
   try {
     const { name } = req.body;
     if (!name) return res.status(400).json({ error: 'name é obrigatório' });
@@ -32,7 +35,7 @@ router.post('/', authenticate, workspaceContext, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-router.get('/:contactId', authenticate, workspaceContext, async (req, res, next) => {
+router.get('/:contactId', authenticate, workspaceContext, requirePermission('contacts'), async (req, res, next) => {
   try {
     const c = await svc.getById(req.params.contactId, req.params.workspaceId);
     if (!c) return res.status(404).json({ error: 'Contato não encontrado' });
@@ -40,21 +43,21 @@ router.get('/:contactId', authenticate, workspaceContext, async (req, res, next)
   } catch (err) { next(err); }
 });
 
-router.put('/:contactId', authenticate, workspaceContext, async (req, res, next) => {
+router.put('/:contactId', authenticate, workspaceContext, requirePermission('contacts'), async (req, res, next) => {
   try {
     const c = await svc.update(req.params.contactId, req.params.workspaceId, req.body);
     res.json(c);
   } catch (err) { next(err); }
 });
 
-router.delete('/:contactId', authenticate, workspaceContext, async (req, res, next) => {
+router.delete('/:contactId', authenticate, workspaceContext, requirePermission('contacts'), async (req, res, next) => {
   try {
     await svc.remove(req.params.contactId, req.params.workspaceId);
     res.json({ ok: true });
   } catch (err) { next(err); }
 });
 
-router.get('/:contactId/conversations', authenticate, workspaceContext, async (req, res, next) => {
+router.get('/:contactId/conversations', authenticate, workspaceContext, requirePermission('contacts'), async (req, res, next) => {
   try {
     const convs = await svc.listConversations(req.params.contactId, req.params.workspaceId);
     res.json(convs);
@@ -62,7 +65,7 @@ router.get('/:contactId/conversations', authenticate, workspaceContext, async (r
 });
 
 // POST /contacts/import — importação via CSV
-router.post('/import', authenticate, workspaceContext, upload.single('file'), async (req, res, next) => {
+router.post('/import', authenticate, workspaceContext, requirePermission('contacts'), upload.single('file'), async (req, res, next) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'Arquivo CSV obrigatório' });
     const csv        = req.file.buffer.toString('utf-8');

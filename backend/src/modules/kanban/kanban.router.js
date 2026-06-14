@@ -2,14 +2,14 @@
 
 const { Router } = require('express');
 const { authenticate }     = require('../../middleware/auth');
-const { workspaceContext } = require('../../middleware/workspaceContext');
+const { workspaceContext, requirePermission } = require('../../middleware/workspaceContext');
 const svc   = require('./kanban.service');
 const aiSvc = require('../../services/ai.service');
 
 const router = Router({ mergeParams: true });
 
 // ── Board ──────────────────────────────────────────────────────────────────
-router.get('/board', authenticate, workspaceContext, async (req, res, next) => {
+router.get('/board', authenticate, workspaceContext, requirePermission('kanban'), async (req, res, next) => {
   try {
     const { pipelineId, assigneeId, inboxId } = req.query;
     const board = await svc.getBoard(req.params.workspaceId, { pipelineId, assigneeId, inboxId });
@@ -18,13 +18,13 @@ router.get('/board', authenticate, workspaceContext, async (req, res, next) => {
 });
 
 // ── Stages ─────────────────────────────────────────────────────────────────
-router.get('/stages', authenticate, workspaceContext, async (req, res, next) => {
+router.get('/stages', authenticate, workspaceContext, requirePermission('kanban'), async (req, res, next) => {
   try {
     res.json(await svc.listStages(req.params.workspaceId));
   } catch (err) { next(err); }
 });
 
-router.post('/stages', authenticate, workspaceContext, async (req, res, next) => {
+router.post('/stages', authenticate, workspaceContext, requirePermission('kanban'), async (req, res, next) => {
   try {
     const { name } = req.body;
     if (!name) return res.status(400).json({ error: 'name é obrigatório' });
@@ -33,14 +33,14 @@ router.post('/stages', authenticate, workspaceContext, async (req, res, next) =>
   } catch (err) { next(err); }
 });
 
-router.put('/stages/:stageId', authenticate, workspaceContext, async (req, res, next) => {
+router.put('/stages/:stageId', authenticate, workspaceContext, requirePermission('kanban'), async (req, res, next) => {
   try {
     const stage = await svc.updateStage(req.params.stageId, req.params.workspaceId, req.body);
     res.json(stage);
   } catch (err) { next(err); }
 });
 
-router.delete('/stages/:stageId', authenticate, workspaceContext, async (req, res, next) => {
+router.delete('/stages/:stageId', authenticate, workspaceContext, requirePermission('kanban'), async (req, res, next) => {
   try {
     await svc.removeStage(req.params.stageId, req.params.workspaceId);
     res.json({ ok: true });
@@ -48,14 +48,23 @@ router.delete('/stages/:stageId', authenticate, workspaceContext, async (req, re
 });
 
 // ── Deals ──────────────────────────────────────────────────────────────────
-router.get('/deals', authenticate, workspaceContext, async (req, res, next) => {
+router.get('/deals', authenticate, workspaceContext, requirePermission('kanban'), async (req, res, next) => {
   try {
     const { stageId, assigneeId } = req.query;
     res.json(await svc.listDeals(req.params.workspaceId, { stageId, assigneeId }));
   } catch (err) { next(err); }
 });
 
-router.post('/deals', authenticate, workspaceContext, async (req, res, next) => {
+// GET /my-deals — deals atribuídos ao usuário logado, ordenados por etapa (visão mobile do corretor)
+router.get('/my-deals', authenticate, workspaceContext, requirePermission('kanban'), async (req, res, next) => {
+  try {
+    const deals = await svc.listDeals(req.params.workspaceId, { assigneeId: req.user.sub });
+    deals.sort((a, b) => (a.stage_position - b.stage_position) || (new Date(a.created_at) - new Date(b.created_at)));
+    res.json(deals);
+  } catch (err) { next(err); }
+});
+
+router.post('/deals', authenticate, workspaceContext, requirePermission('kanban'), async (req, res, next) => {
   try {
     const { contactId, stageId, title } = req.body;
     if (!contactId || !stageId || !title) {
@@ -67,7 +76,7 @@ router.post('/deals', authenticate, workspaceContext, async (req, res, next) => 
   } catch (err) { next(err); }
 });
 
-router.put('/deals/:dealId', authenticate, workspaceContext, async (req, res, next) => {
+router.put('/deals/:dealId', authenticate, workspaceContext, requirePermission('kanban'), async (req, res, next) => {
   try {
     const { query } = require('../../config/database');
 
@@ -106,7 +115,7 @@ router.put('/deals/:dealId', authenticate, workspaceContext, async (req, res, ne
   } catch (err) { next(err); }
 });
 
-router.delete('/deals/:dealId', authenticate, workspaceContext, async (req, res, next) => {
+router.delete('/deals/:dealId', authenticate, workspaceContext, requirePermission('kanban'), async (req, res, next) => {
   try {
     await svc.removeDeal(req.params.dealId, req.params.workspaceId);
     res.json({ ok: true });
@@ -114,7 +123,7 @@ router.delete('/deals/:dealId', authenticate, workspaceContext, async (req, res,
 });
 
 // POST /deals/:dealId/analyze — trigger AI analysis manually
-router.post('/deals/:dealId/analyze', authenticate, workspaceContext, async (req, res, next) => {
+router.post('/deals/:dealId/analyze', authenticate, workspaceContext, requirePermission('kanban'), async (req, res, next) => {
   try {
     const { dealId, workspaceId } = req.params;
     const result = await aiSvc.analyzeDeal(dealId, workspaceId);

@@ -12,11 +12,12 @@ const router = Router({ mergeParams: true });
 /** Strip raw API keys and replace with boolean flags for safe frontend consumption. */
 function sanitizeWorkspace(ws) {
   if (!ws) return ws;
-  const { anthropic_api_key, openai_api_key, meta_conversions_token, meta_access_token, ...rest } = ws;
+  const { anthropic_api_key, openai_api_key, custom_ai_api_key, meta_conversions_token, meta_access_token, ...rest } = ws;
   return {
     ...rest,
     has_anthropic_key:          !!anthropic_api_key,
     has_openai_key:             !!openai_api_key,
+    has_custom_ai_key:          !!custom_ai_api_key,
     has_meta_conversions_token: !!meta_conversions_token,
     has_meta_access_token:      !!meta_access_token,
   };
@@ -83,7 +84,7 @@ router.post('/:workspaceId/members', authenticate, orgContext, workspaceContext,
     }
     const { email, role, name } = req.body;
     if (!email) return res.status(400).json({ error: 'email é obrigatório' });
-    const VALID_ROLES = ['admin', 'agent', 'member', 'tickets_only'];
+    const VALID_ROLES = ['admin', 'agent', 'member', 'tickets_only', 'captador', 'auxiliar_administrativo'];
     if (role && !VALID_ROLES.includes(role)) {
       return res.status(400).json({ error: `role inválido. Use: ${VALID_ROLES.join(', ')}` });
     }
@@ -95,11 +96,24 @@ router.post('/:workspaceId/members', authenticate, orgContext, workspaceContext,
 router.put('/:workspaceId/members/:userId/role', authenticate, orgContext, workspaceContext, async (req, res, next) => {
   try {
     const { role } = req.body;
-    const VALID_ROLES = ['admin', 'agent', 'member', 'tickets_only'];
+    const VALID_ROLES = ['admin', 'agent', 'member', 'tickets_only', 'captador', 'auxiliar_administrativo'];
     if (!role || !VALID_ROLES.includes(role)) {
       return res.status(400).json({ error: `role inválido. Use: ${VALID_ROLES.join(', ')}` });
     }
     const member = await svc.updateMemberRole(req.params.workspaceId, req.params.userId, role);
+    res.json(member);
+  } catch (err) { next(err); }
+});
+
+router.put('/:workspaceId/members/:userId/profile', authenticate, orgContext, workspaceContext, async (req, res, next) => {
+  try {
+    const isSelf    = req.user.sub === req.params.userId;
+    const isManager = req.workspaceRole === 'admin' || ['owner', 'admin'].includes(req.orgRole) || req.user.isSuperAdmin;
+    if (!isSelf && !isManager) {
+      return res.status(403).json({ error: 'Acesso negado' });
+    }
+    const { creci, phone } = req.body;
+    const member = await svc.updateMemberProfile(req.params.workspaceId, req.params.userId, { creci, phone });
     res.json(member);
   } catch (err) { next(err); }
 });

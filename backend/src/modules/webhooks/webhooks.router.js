@@ -438,6 +438,58 @@ async function autoAssignAgent(workspaceId, inboxId, departmentId) {
   return null;
 }
 
+/**
+ * Dispara a resposta do chatbot (Lais) para uma conversa, resolvendo o
+ * provider/persona configurados no workspace e no departamento. Compartilhado
+ * pelos webhooks Evolution e WABA.
+ */
+async function dispatchChatbotResponse(inbox, conversation, contact, io) {
+  const wsRes = await query(
+    `SELECT w.anthropic_api_key, w.openai_api_key, w.custom_ai_api_key, w.ai_base_url,
+            w.ai_provider, w.ai_model, w.ai_ignore_groups, w.ai_tools_enabled,
+            d.ai_persona AS department_ai_persona
+     FROM workspaces w
+     LEFT JOIN departments d ON d.id = $2
+     WHERE w.id = $1`,
+    [inbox.workspace_id, conversation.department_id]
+  );
+  const ws       = wsRes.rows[0] || {};
+  const provider = ws.ai_provider || 'anthropic';
+  const apiKey   = provider === 'custom' ? (ws.custom_ai_api_key || 'ollama')
+                 : provider === 'openai' ? ws.openai_api_key
+                 : ws.anthropic_api_key;
+  const canRun   = provider === 'custom' ? !!ws.ai_base_url : !!apiKey;
+
+  // Respeita configuração de ignorar grupos no funil de IA
+  if (ws.ai_ignore_groups && conversation.is_group) return;
+  if (!canRun) return;
+
+  await query('UPDATE conversations SET bot_active = true WHERE id = $1', [conversation.id]);
+
+  const systemPrompt = [
+    aiSvc.DEFAULT_LAIS_PERSONA,
+    ws.department_ai_persona,
+    inbox.chatbot_prompt,
+  ].filter(Boolean).join('\n\n---\n\n');
+
+  const responsePromise = ws.ai_tools_enabled
+    ? aiSvc.generateChatbotResponseWithTools(conversation.id, systemPrompt, ws, {
+        workspaceId: inbox.workspace_id, conversationId: conversation.id,
+        contactId: contact.id, io,
+      })
+    : aiSvc.generateChatbotResponse(conversation.id, systemPrompt, apiKey, provider, ws.ai_model || null, ws.ai_base_url);
+
+  responsePromise.then(async (botReply) => {
+    if (!botReply) return;
+    const botMsg = await msgSvc.send(conversation.id, null, { content: botReply, messageType: 'text', isPrivate: false });
+    io?.to(`conv:${conversation.id}`).emit('message:new', botMsg);
+    io?.to(`ws:${inbox.workspace_id}`).emit('message:new', botMsg);
+    io?.to(`ws:${inbox.workspace_id}`).emit('conversation:updated', {
+      conversationId: conversation.id, lastMessageAt: new Date(), lastMessageText: botReply,
+    });
+  }).catch(err => logger.warn('Chatbot send failed', { err: err.message }));
+}
+
 // ── Main webhook endpoint ──────────────────────────────────────────────────
 
 router.post('/evolution/:inboxId', async (req, res) => {
@@ -834,36 +886,8 @@ router.post('/evolution/:inboxId', async (req, res) => {
         // ── Chatbot response ──────────────────────────────────────────
         const isNewOrBotActive = created || conversation.bot_active;
         if (inbox.chatbot_enabled && !conversation.assignee_id && isNewOrBotActive) {
-          const wsRes = await query(
-            'SELECT anthropic_api_key, openai_api_key, ai_provider, ai_model, ai_ignore_groups FROM workspaces WHERE id = $1',
-            [inbox.workspace_id]
-          );
-          const ws       = wsRes.rows[0] || {};
-          const provider = ws.ai_provider || 'anthropic';
-          const apiKey   = provider === 'openai' ? ws.openai_api_key : ws.anthropic_api_key;
-
-          // Respeita configuração de ignorar grupos no funil de IA
-          if (ws.ai_ignore_groups && conversation.is_group) {
-            // não executa IA em grupos
-          } else if (apiKey) {
-            await query('UPDATE conversations SET bot_active = true WHERE id = $1', [conversation.id]);
-
-            aiSvc.generateChatbotResponse(conversation.id, inbox.chatbot_prompt, apiKey, provider, ws.ai_model || null)
-              .then(async (botReply) => {
-                if (!botReply) return;
-                const botMsg = await msgSvc.send(conversation.id, null, {
-                  content: botReply, messageType: 'text', isPrivate: false,
-                });
-                io?.to(`conv:${conversation.id}`).emit('message:new', botMsg);
-                io?.to(`ws:${inbox.workspace_id}`).emit('message:new', botMsg);
-                io?.to(`ws:${inbox.workspace_id}`).emit('conversation:updated', {
-                  conversationId:  conversation.id,
-                  lastMessageAt:   new Date(),
-                  lastMessageText: botReply,
-                });
-              })
-              .catch(err => logger.warn('Chatbot send failed', { err: err.message }));
-          }
+          dispatchChatbotResponse(inbox, conversation, contact, io)
+            .catch(err => logger.warn('Chatbot dispatch failed', { err: err.message }));
         }
 
         // ── Broadcast ─────────────────────────────────────────────────
@@ -1081,24 +1105,8 @@ router.post('/waba', async (req, res) => {
       }
 
       if (inbox.chatbot_enabled && !conversation.assignee_id && (created || conversation.bot_active)) {
-        const wsRes = await query(
-          'SELECT anthropic_api_key, openai_api_key, ai_provider, ai_model FROM workspaces WHERE id = $1',
-          [inbox.workspace_id]
-        );
-        const ws       = wsRes.rows[0] || {};
-        const provider = ws.ai_provider || 'anthropic';
-        const apiKey   = provider === 'openai' ? ws.openai_api_key : ws.anthropic_api_key;
-        if (apiKey) {
-          await query('UPDATE conversations SET bot_active = true WHERE id = $1', [conversation.id]);
-          aiSvc.generateChatbotResponse(conversation.id, inbox.chatbot_prompt, apiKey, provider, ws.ai_model || null)
-            .then(async (botReply) => {
-              if (!botReply) return;
-              const botMsg = await msgSvc.send(conversation.id, null, { content: botReply, messageType: 'text' });
-              io?.to(`conv:${conversation.id}`).emit('message:new', botMsg);
-              io?.to(`ws:${inbox.workspace_id}`).emit('message:new', botMsg);
-            })
-            .catch(err => logger.warn('Chatbot send failed (WABA)', { err: err.message }));
-        }
+        dispatchChatbotResponse(inbox, conversation, contact, io)
+          .catch(err => logger.warn('Chatbot dispatch failed (WABA)', { err: err.message }));
       }
 
       io?.to(`conv:${conversation.id}`).emit('message:new', { ...message, contact_name: contact.name });

@@ -68,10 +68,26 @@ export interface Workspace {
   ai_model: string | null;
   has_anthropic_key: boolean;
   has_openai_key: boolean;
+  ai_base_url: string | null;
+  has_custom_ai_key: boolean;
+  ai_tools_enabled: boolean;
   sla_response_minutes: number | null;
   created_at: string;
   member_count?: number;
   inbox_count?: number;
+}
+
+export type PermissionModuleKey =
+  | 'conversations' | 'contacts' | 'properties' | 'kanban' | 'broadcasts'
+  | 'inboxes' | 'departments' | 'canned' | 'labels' | 'reports';
+
+export interface PermissionProfile {
+  id: string;
+  workspace_id: string;
+  slug: string;
+  name: string;
+  is_system: boolean;
+  permissions: Record<PermissionModuleKey, boolean>;
 }
 
 export interface Inbox {
@@ -92,6 +108,9 @@ export interface Inbox {
   conversation_count?: number;
 }
 
+export type ContactType = 'lead' | 'cliente' | 'proprietario' | 'inquilino';
+export type DocumentType = 'cpf' | 'cnpj';
+
 export interface Contact {
   id: string;
   workspace_id: string;
@@ -108,6 +127,97 @@ export interface Contact {
   created_at: string;
   conversation_count?: number;
   deal_count?: number;
+  // Fase 2 — perfil imobiliário
+  contact_type: ContactType[];
+  document_type: DocumentType | null;
+  document_number: string | null;
+  assigned_broker_id: string | null;
+  assigned_broker_name?: string | null;
+  assigned_broker_avatar?: string | null;
+}
+
+// ── Imóveis ───────────────────────────────────────────────────────────────────
+
+export type PropertyType = 'apartamento' | 'casa' | 'casa_condominio' | 'cobertura'
+  | 'kitnet_studio' | 'sobrado' | 'terreno_lote' | 'sala_comercial' | 'loja'
+  | 'galpao' | 'predio_comercial' | 'fazenda_sitio_chacara' | 'outro';
+export type PropertyPurpose = 'venda' | 'locacao' | 'venda_locacao' | 'temporada';
+export type PropertyStatus = 'disponivel' | 'reservado' | 'vendido' | 'alugado' | 'inativo';
+
+export interface PropertyMedia {
+  id: string;
+  property_id: string;
+  url: string;
+  media_type: 'image' | 'video' | 'floorplan' | 'document';
+  position: number;
+  is_cover: boolean;
+}
+
+export interface Property {
+  id: string;
+  workspace_id: string;
+  code: string;
+  title: string;
+  description: string | null;
+  property_type: PropertyType;
+  purpose: PropertyPurpose;
+  status: PropertyStatus;
+  zip_code: string | null;
+  street: string | null;
+  number: string | null;
+  complement: string | null;
+  neighborhood: string | null;
+  city: string | null;
+  state: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  hide_address: boolean;
+  sale_price: number | null;
+  rent_price: number | null;
+  condo_fee: number | null;
+  iptu: number | null;
+  total_area: number | null;
+  built_area: number | null;
+  bedrooms: number | null;
+  bathrooms: number | null;
+  suites: number | null;
+  parking_spots: number | null;
+  floor_number: number | null;
+  year_built: number | null;
+  amenities: string[];
+  owner_id: string | null;
+  broker_id: string | null;
+  scout_id: string | null;
+  owner_name?: string | null;
+  broker_name?: string | null;
+  scout_name?: string | null;
+  is_featured: boolean;
+  views_count: number;
+  published_at: string | null;
+  created_at: string;
+  updated_at: string;
+  media: PropertyMedia[];
+  cover_url?: string | null;
+}
+
+export interface PropertyVisit {
+  id: string;
+  workspace_id: string;
+  property_id: string;
+  property_code: string;
+  property_title: string;
+  property_cover_url: string | null;
+  contact_id: string | null;
+  contact_name: string | null;
+  contact_phone: string | null;
+  conversation_id: string | null;
+  assignee_id: string | null;
+  assignee_name: string | null;
+  scheduled_at: string;
+  status: 'proposta' | 'confirmada' | 'realizada' | 'cancelada';
+  notes: string | null;
+  created_by_ai: boolean;
+  created_at: string;
 }
 
 export interface Label {
@@ -254,6 +364,13 @@ export interface Deal {
   assignee_avatar: string | null;
   stage_name: string;
   stage_color: string;
+  stage_position: number;
+  stage_is_default: boolean;
+  // Imóvel vinculado
+  property_id: string | null;
+  property_code: string | null;
+  property_title: string | null;
+  property_cover_url: string | null;
   // From conversation join
   conv_status: string | null;
   conv_inbox_id: string | null;
@@ -265,6 +382,19 @@ export interface Deal {
   meta_ctwa_clid: string | null;
   meta_ad_name: string | null;
   meta_campaign_name: string | null;
+}
+
+export interface DepartmentOverview {
+  id: string;
+  name: string;
+  color: string;
+  agent_count: number;
+  open_conversations: number;
+  avg_response_seconds: number | null;
+  active_deals: number;
+  pipeline_value: number;
+  deals_by_stage: { stage_name: string; stage_color: string; count: number }[];
+  primary_pipeline_id: string | null;
 }
 
 export interface AgentReport {

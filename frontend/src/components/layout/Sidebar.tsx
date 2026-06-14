@@ -7,34 +7,60 @@ import { useWorkspaceStore } from '@/store/workspace';
 import clsx from 'clsx';
 import {
   MessageSquare, Users, Kanban, Inbox, Settings,
-  LogOut, ChevronDown, Building2, Home, User,
+  LogOut, ChevronDown, Building2, Home, User, Landmark,
   Check, Plus, ArrowLeftRight, LayoutList, BarChart2, BookMarked, Tag, Ticket, X, Send,
+  ShieldCheck, ListChecks, Gauge, CalendarCheck,
 } from 'lucide-react';
 import { useSidebar } from '@/store/sidebar';
 import { useEffect, useRef, useState } from 'react';
-import type { Workspace } from '@/types';
+import api from '@/lib/api';
+import type { Workspace, PermissionModuleKey } from '@/types';
 
 // adminOnly: visível apenas para owners/admins de org ou workspace admins
 // ticketsOnly: falso = oculto para perfil tickets_only
+// Itens com entrada em NAV_PERMISSION_KEY são controlados pelo perfil de
+// permissões do usuário (ver permission_profiles) em vez de adminOnly.
 const ALL_NAV_ITEMS = [
   { href: '/dashboard',               icon: Home,          label: 'Início',            ticketsOnly: true,  adminOnly: false },
   { href: '/dashboard/conversations', icon: MessageSquare, label: 'Conversas',         ticketsOnly: false, adminOnly: false },
   { href: '/dashboard/contacts',      icon: Users,         label: 'Contatos',          ticketsOnly: false, adminOnly: false },
-  { href: '/dashboard/broadcasts',    icon: Send,          label: 'Broadcasts',        ticketsOnly: false, adminOnly: true  },
-  { href: '/dashboard/kanban',        icon: Kanban,        label: 'Funil',             ticketsOnly: false, adminOnly: true  },
+  { href: '/dashboard/properties',    icon: Building2,     label: 'Imóveis',           ticketsOnly: false, adminOnly: false },
+  { href: '/dashboard/visitas',       icon: CalendarCheck, label: 'Visitas',           ticketsOnly: false, adminOnly: false },
+  { href: '/dashboard/broadcasts',    icon: Send,          label: 'Broadcasts',        ticketsOnly: false, adminOnly: false },
+  { href: '/dashboard/kanban',        icon: Kanban,        label: 'Funil',             ticketsOnly: false, adminOnly: false },
+  { href: '/dashboard/meus-leads',    icon: ListChecks,    label: 'Meus Leads',        ticketsOnly: false, adminOnly: false },
   { href: '/dashboard/tickets',       icon: Ticket,        label: 'Tickets',           ticketsOnly: true,  adminOnly: false },
-  { href: '/dashboard/inboxes',       icon: Inbox,         label: 'Inboxes',           ticketsOnly: false, adminOnly: true  },
+  { href: '/dashboard/inboxes',       icon: Inbox,         label: 'Inboxes',           ticketsOnly: false, adminOnly: false },
   { href: '/dashboard/members',       icon: Users,         label: 'Agentes',           ticketsOnly: false, adminOnly: true  },
-  { href: '/dashboard/departments',   icon: LayoutList,    label: 'Departamentos',     ticketsOnly: false, adminOnly: true  },
-  { href: '/dashboard/canned',        icon: BookMarked,    label: 'Respostas Prontas', ticketsOnly: false, adminOnly: true  },
-  { href: '/dashboard/labels',        icon: Tag,           label: 'Etiquetas',         ticketsOnly: false, adminOnly: true  },
-  { href: '/dashboard/reports',       icon: BarChart2,     label: 'Relatórios',        ticketsOnly: false, adminOnly: true  },
+  { href: '/dashboard/departments',   icon: LayoutList,    label: 'Departamentos',     ticketsOnly: false, adminOnly: false },
+  { href: '/dashboard/setores',       icon: Gauge,         label: 'Setores',           ticketsOnly: false, adminOnly: false },
+  { href: '/dashboard/canned',        icon: BookMarked,    label: 'Respostas Prontas', ticketsOnly: false, adminOnly: false },
+  { href: '/dashboard/labels',        icon: Tag,           label: 'Etiquetas',         ticketsOnly: false, adminOnly: false },
+  { href: '/dashboard/reports',       icon: BarChart2,     label: 'Relatórios',        ticketsOnly: false, adminOnly: false },
 ];
 
+// Mapa item da sidebar -> módulo configurável em /dashboard/permissions
+const NAV_PERMISSION_KEY: Record<string, PermissionModuleKey> = {
+  '/dashboard/conversations': 'conversations',
+  '/dashboard/contacts':      'contacts',
+  '/dashboard/properties':    'properties',
+  '/dashboard/visitas':       'properties',
+  '/dashboard/broadcasts':    'broadcasts',
+  '/dashboard/kanban':        'kanban',
+  '/dashboard/meus-leads':    'kanban',
+  '/dashboard/inboxes':       'inboxes',
+  '/dashboard/departments':   'departments',
+  '/dashboard/setores':       'departments',
+  '/dashboard/canned':        'canned',
+  '/dashboard/labels':        'labels',
+  '/dashboard/reports':       'reports',
+};
+
 const bottomItems = [
-  { href: '/dashboard/org',      icon: Building2, label: 'Organização',   ticketsOnly: false, adminOnly: true  },
-  { href: '/dashboard/settings', icon: Settings,  label: 'Configurações', ticketsOnly: false, adminOnly: true  },
-  { href: '/dashboard/profile',  icon: User,      label: 'Perfil',        ticketsOnly: true,  adminOnly: false },
+  { href: '/dashboard/org',         icon: Landmark,    label: 'Organização',   ticketsOnly: false, adminOnly: true  },
+  { href: '/dashboard/permissions', icon: ShieldCheck, label: 'Permissões',    ticketsOnly: false, adminOnly: true  },
+  { href: '/dashboard/settings',    icon: Settings,    label: 'Configurações', ticketsOnly: false, adminOnly: true  },
+  { href: '/dashboard/profile',     icon: User,        label: 'Perfil',        ticketsOnly: true,  adminOnly: false },
 ];
 
 export default function Sidebar() {
@@ -46,6 +72,7 @@ export default function Sidebar() {
 
   const [wsOpen, setWsOpen] = useState(false);
   const dropRef = useRef<HTMLDivElement>(null);
+  const [permissions, setPermissions] = useState<Record<PermissionModuleKey, boolean> | null>(null);
 
   // Um usuário é "admin" se for owner/admin da org, ou admin do workspace,
   // ou se não tiver workspace role definido (org admins não têm row na memberships).
@@ -58,6 +85,20 @@ export default function Sidebar() {
   useEffect(() => {
     if (currentOrg) fetchForOrg(currentOrg.id);
   }, [currentOrg, fetchForOrg]);
+
+  // Busca o perfil de permissões efetivo do usuário neste workspace, usado
+  // para decidir quais módulos aparecem no menu para perfis não-admin.
+  useEffect(() => {
+    if (!currentWorkspace || isAdmin || currentWorkspace.role === 'tickets_only') {
+      setPermissions(null);
+      return;
+    }
+    let cancelled = false;
+    api.get(`/workspaces/${currentWorkspace.id}/permission-profiles/me`)
+      .then(({ data }) => { if (!cancelled) setPermissions(data.permissions); })
+      .catch(() => { if (!cancelled) setPermissions(null); });
+    return () => { cancelled = true; };
+  }, [currentWorkspace, isAdmin]);
 
   useEffect(() => {
     function handler(e: MouseEvent) {
@@ -76,6 +117,17 @@ export default function Sidebar() {
 
   function isActive(href: string) {
     return href === '/dashboard' ? pathname === href : pathname.startsWith(href);
+  }
+
+  // Decide se um item do menu aparece para o usuário atual: admins veem tudo;
+  // itens mapeados em NAV_PERMISSION_KEY seguem o perfil de permissões; os
+  // demais adminOnly (Agentes, Organização, Configurações, Permissões) ficam
+  // ocultos para não-admins.
+  function canShow(item: { href: string; adminOnly: boolean }) {
+    if (isAdmin) return true;
+    const permKey = NAV_PERMISSION_KEY[item.href];
+    if (permKey) return !!permissions?.[permKey];
+    return !item.adminOnly;
   }
 
   return (
@@ -189,7 +241,7 @@ export default function Sidebar() {
       <nav className="flex-1 px-3 py-3 space-y-0.5 overflow-y-auto">
         {ALL_NAV_ITEMS
           .filter(item => currentWorkspace?.role !== 'tickets_only' || item.ticketsOnly)
-          .filter(item => !item.adminOnly || isAdmin)
+          .filter(canShow)
           .map(({ href, icon: Icon, label }) => (
           <Link
             key={href}
@@ -212,7 +264,7 @@ export default function Sidebar() {
       <div className="px-3 pb-2 space-y-0.5 border-t border-gray-800 pt-2">
         {bottomItems
           .filter(item => currentWorkspace?.role !== 'tickets_only' || item.ticketsOnly)
-          .filter(item => !item.adminOnly || isAdmin)
+          .filter(canShow)
           .map(({ href, icon: Icon, label }) => (
           <Link
             key={href}

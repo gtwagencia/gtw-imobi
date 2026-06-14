@@ -6,11 +6,11 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/store/auth';
 import Header from '@/components/layout/Header';
 import api from '@/lib/api';
-import type { KanbanStage, Deal, Pipeline, Inbox } from '@/types';
+import type { KanbanStage, Deal, Pipeline, Inbox, Property } from '@/types';
 import {
   GripVertical, MessageSquare, Clock, User, Brain,
   RefreshCw, AlertCircle, ChevronRight, ChevronDown,
-  Settings, Filter, Send,
+  Settings, Filter, Send, Building2,
 } from 'lucide-react';
 import clsx from 'clsx';
 import { formatDistanceToNow } from 'date-fns';
@@ -54,13 +54,16 @@ interface DealCardProps {
   onAnalyze: (dealId: string) => void;
   analyzing: boolean;
   workspaceId: string;
+  properties: Property[];
+  onPropertyChange: (dealId: string, propertyId: string | null) => void;
 }
 
-function DealCard({ deal, dragHandleProps, isDragging, onAnalyze, analyzing, workspaceId }: DealCardProps) {
+function DealCard({ deal, dragHandleProps, isDragging, onAnalyze, analyzing, workspaceId, properties, onPropertyChange }: DealCardProps) {
   const router = useRouter();
   const [summaryExpanded, setSummaryExpanded] = useState(false);
   const [sendingMeta, setSendingMeta] = useState(false);
   const [metaSent,    setMetaSent]    = useState(false);
+  const [editingProperty, setEditingProperty] = useState(false);
 
   async function handleSendPurchase(e: React.MouseEvent) {
     e.stopPropagation();
@@ -172,6 +175,47 @@ function DealCard({ deal, dragHandleProps, isDragging, onAnalyze, analyzing, wor
               </button>
             </div>
           )}
+
+          {/* Imóvel vinculado */}
+          <div className="mt-2">
+            {deal.property_id && !editingProperty ? (
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); setEditingProperty(true); }}
+                className="flex items-center gap-1.5 px-1.5 py-1 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors w-full text-left"
+                title="Alterar imóvel vinculado"
+              >
+                {deal.property_cover_url ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={deal.property_cover_url} alt="" className="w-6 h-6 rounded object-cover flex-shrink-0" />
+                ) : (
+                  <Building2 className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+                )}
+                <span className="text-xs text-gray-600 truncate">
+                  {deal.property_code} · {deal.property_title}
+                </span>
+              </button>
+            ) : (
+              <select
+                value={deal.property_id ?? ''}
+                autoFocus={editingProperty}
+                onClick={(e) => e.stopPropagation()}
+                onChange={(e) => { onPropertyChange(deal.id, e.target.value || null); setEditingProperty(false); }}
+                onBlur={() => setEditingProperty(false)}
+                className={clsx(
+                  'w-full text-xs rounded-lg px-1.5 py-1 focus:outline-none focus:ring-1 focus:ring-brand-500',
+                  deal.property_id
+                    ? 'border border-gray-200 text-gray-600'
+                    : 'border border-dashed border-gray-200 text-gray-400 hover:border-gray-300'
+                )}
+              >
+                <option value="">{deal.property_id ? 'Remover vínculo' : '+ Vincular imóvel'}</option>
+                {properties.map(p => (
+                  <option key={p.id} value={p.id}>{p.code} · {p.title}</option>
+                ))}
+              </select>
+            )}
+          </div>
         </div>
       </div>
 
@@ -387,6 +431,7 @@ export default function KanbanPage() {
   const [selectedPipelineId, setSelectedPipelineId] = useState<string>('');
   const [inboxes,            setInboxes]            = useState<Inbox[]>([]);
   const [members,            setMembers]            = useState<Member[]>([]);
+  const [properties,         setProperties]         = useState<Property[]>([]);
   const [filterAssigneeId,   setFilterAssigneeId]   = useState<string>('');
   const [filterInboxId,      setFilterInboxId]      = useState<string>('');
 
@@ -421,6 +466,8 @@ export default function KanbanPage() {
       .then(r => setInboxes(r.data)).catch(() => {});
     api.get<Member[]>(`/workspaces/${currentWorkspace.id}/members`)
       .then(r => setMembers(r.data)).catch(() => {});
+    api.get<{ data: Property[] }>(`/workspaces/${currentWorkspace.id}/properties`, { params: { limit: 200 } })
+      .then(r => setProperties(r.data.data)).catch(() => {});
   }, [currentWorkspace]);
 
   useEffect(() => { loadBoard(); }, [loadBoard]);
@@ -441,6 +488,22 @@ export default function KanbanPage() {
     await api.put(`/workspaces/${currentWorkspace!.id}/kanban/deals/${draggableId}`, {
       stageId: destination.droppableId,
     });
+  }
+
+  async function handlePropertyChange(dealId: string, propertyId: string | null) {
+    if (!currentWorkspace) return;
+    const property = propertyId ? properties.find(p => p.id === propertyId) : null;
+    setBoard(prev => prev.map(stage => ({
+      ...stage,
+      deals: stage.deals.map(d => d.id === dealId ? {
+        ...d,
+        property_id:         propertyId,
+        property_code:       property?.code ?? null,
+        property_title:      property?.title ?? null,
+        property_cover_url:  property?.cover_url ?? null,
+      } : d),
+    })));
+    await api.put(`/workspaces/${currentWorkspace.id}/kanban/deals/${dealId}`, { propertyId });
   }
 
   async function handleAnalyze(dealId: string) {
@@ -580,6 +643,8 @@ export default function KanbanPage() {
                                   onAnalyze={handleAnalyze}
                                   analyzing={analyzing === deal.id}
                                   workspaceId={currentWorkspace.id}
+                                  properties={properties}
+                                  onPropertyChange={handlePropertyChange}
                                 />
                               </div>
                             )}

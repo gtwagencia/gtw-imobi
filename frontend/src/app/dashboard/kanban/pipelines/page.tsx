@@ -8,9 +8,10 @@ import api from '@/lib/api';
 import type { Pipeline, PipelineStage, Inbox } from '@/types';
 import {
   Plus, Trash2, ChevronDown, ChevronRight, Save, X,
-  AlertCircle, Check, Star, Layers,
+  AlertCircle, Check, Star, Layers, Building2,
 } from 'lucide-react';
 import clsx from 'clsx';
+import { REAL_ESTATE_PIPELINE_TEMPLATE } from '@/lib/pipelineConstants';
 
 interface Department {
   id: string;
@@ -558,6 +559,16 @@ function NewPipelineForm({
     }));
   }
 
+  function useRealEstateTemplate() {
+    setForm(f => ({
+      ...f,
+      stages: REAL_ESTATE_PIPELINE_TEMPLATE.map(s => ({
+        name: s.name, color: s.color, isDefault: s.is_default,
+        isPurchase: s.is_purchase, aiPrompt: '', isNew: true,
+      })),
+    }));
+  }
+
   async function handleCreate() {
     if (!form.name.trim()) { setError('Nome é obrigatório'); return; }
     setSaving(true);
@@ -571,7 +582,7 @@ function NewPipelineForm({
         departmentIds: form.departmentIds,
         stages: form.stages.length > 0
           ? form.stages.map(s => ({
-              name: s.name, color: s.color, is_default: s.isDefault, ai_prompt: s.aiPrompt || null,
+              name: s.name, color: s.color, is_default: s.isDefault, is_purchase: s.isPurchase, ai_prompt: s.aiPrompt || null,
             }))
           : undefined,
       });
@@ -702,13 +713,24 @@ function NewPipelineForm({
               Etapas
               <span className="text-gray-400 font-normal ml-1">(deixe vazio para usar etapas padrão)</span>
             </label>
-            <button
-              type="button"
-              onClick={addStage}
-              className="flex items-center gap-1 text-xs text-brand-600 hover:text-brand-700"
-            >
-              <Plus className="w-3.5 h-3.5" /> Adicionar etapa
-            </button>
+            <div className="flex items-center gap-3">
+              {form.stages.length === 0 && (
+                <button
+                  type="button"
+                  onClick={useRealEstateTemplate}
+                  className="flex items-center gap-1 text-xs text-brand-600 hover:text-brand-700"
+                >
+                  <Building2 className="w-3.5 h-3.5" /> Usar modelo: Funil Imobiliário
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={addStage}
+                className="flex items-center gap-1 text-xs text-brand-600 hover:text-brand-700"
+              >
+                <Plus className="w-3.5 h-3.5" /> Adicionar etapa
+              </button>
+            </div>
           </div>
           {form.stages.length > 0 && (
             <div className="space-y-2">

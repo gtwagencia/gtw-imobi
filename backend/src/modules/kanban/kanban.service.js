@@ -106,6 +106,12 @@ async function listDeals(workspaceId, { stageId, assigneeId, pipelineId, inboxId
             u.avatar_url  AS assignee_avatar,
             ks.name       AS stage_name,
             ks.color      AS stage_color,
+            ks.position   AS stage_position,
+            ks.is_default AS stage_is_default,
+            p.code        AS property_code,
+            p.title       AS property_title,
+            (SELECT pm.url FROM property_media pm
+             WHERE pm.property_id = p.id AND pm.is_cover = true LIMIT 1) AS property_cover_url,
             conv.status         AS conv_status,
             conv.assignee_id    AS conv_assignee_id,
             conv.inbox_id       AS conv_inbox_id,
@@ -115,6 +121,7 @@ async function listDeals(workspaceId, { stageId, assigneeId, pipelineId, inboxId
      FROM deals d
      JOIN contacts c ON c.id = d.contact_id
      JOIN kanban_stages ks ON ks.id = d.stage_id
+     LEFT JOIN properties p ON p.id = d.property_id
      LEFT JOIN conversations conv ON conv.id = d.conversation_id
      LEFT JOIN users u ON u.id = COALESCE(d.assignee_id, conv.assignee_id)
      WHERE ${conds.join(' AND ')}
@@ -125,14 +132,14 @@ async function listDeals(workspaceId, { stageId, assigneeId, pipelineId, inboxId
 }
 
 async function createDeal(workspaceId, body) {
-  const { contactId, stageId, title, value, currency, priority, assigneeId, conversationId } = body;
+  const { contactId, stageId, title, value, currency, priority, assigneeId, conversationId, propertyId } = body;
 
   const r = await query(
-    `INSERT INTO deals (workspace_id, contact_id, stage_id, title, value, currency, priority, assignee_id, conversation_id)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
+    `INSERT INTO deals (workspace_id, contact_id, stage_id, title, value, currency, priority, assignee_id, conversation_id, property_id)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
     [workspaceId, contactId, stageId, title,
       value || 0, currency || 'BRL', priority || 'medium',
-      assigneeId || null, conversationId || null]
+      assigneeId || null, conversationId || null, propertyId || null]
   );
   return r.rows[0];
 }
@@ -188,6 +195,7 @@ async function updateDeal(dealId, workspaceId, body) {
     lostReason:       'lost_reason',
     closedAt:         'closed_at',
     conversationId:   'conversation_id',
+    propertyId:       'property_id',
     aiQualification:  'ai_qualification',
     aiSummary:        'ai_summary',
     aiAnalyzedAt:     'ai_analyzed_at',

@@ -1,6 +1,7 @@
 'use strict';
 
 const { query } = require('../config/database');
+const permissionsSvc = require('../modules/permissions/permissions.service');
 
 /**
  * Loads workspace + caller's role into req.workspace / req.workspaceRole.
@@ -85,4 +86,23 @@ async function requireNotTicketsOnly(req, res, next) {
   } catch (err) { next(err); }
 }
 
-module.exports = { workspaceContext, requireNotTicketsOnly };
+/**
+ * Bloqueia acesso a um módulo do menu para perfis sem permissão.
+ * Deve ser usado após workspaceContext (precisa de req.workspace/req.workspaceRole).
+ * Admins (workspaceRole === 'admin') sempre têm acesso total.
+ */
+function requirePermission(moduleKey) {
+  return async (req, res, next) => {
+    try {
+      if (req.workspaceRole === 'admin') return next();
+
+      const perms = await permissionsSvc.getEffectivePermissions(req.workspace.id, req.workspaceRole);
+      if (!perms[moduleKey]) {
+        return res.status(403).json({ error: 'Seu perfil não tem acesso a este módulo.' });
+      }
+      next();
+    } catch (err) { next(err); }
+  };
+}
+
+module.exports = { workspaceContext, requireNotTicketsOnly, requirePermission };

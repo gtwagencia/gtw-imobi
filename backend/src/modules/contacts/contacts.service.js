@@ -2,7 +2,7 @@
 
 const { query } = require('../../config/database');
 
-async function list(workspaceId, { search, tags, page = 1, limit = 50 } = {}) {
+async function list(workspaceId, { search, tags, contactType, brokerId, page = 1, limit = 50 } = {}) {
   const offset = (page - 1) * limit;
   const params = [workspaceId];
   let where = 'WHERE c.workspace_id = $1';
@@ -17,19 +17,32 @@ async function list(workspaceId, { search, tags, page = 1, limit = 50 } = {}) {
     where += ` AND c.tags && $${params.length}::text[]`;
   }
 
+  if (contactType?.length) {
+    params.push(contactType);
+    where += ` AND c.contact_type && $${params.length}::text[]`;
+  }
+
+  if (brokerId) {
+    params.push(brokerId);
+    where += ` AND c.assigned_broker_id = $${params.length}`;
+  }
+
   const countRes = await query(`SELECT COUNT(*) FROM contacts c ${where}`, params);
   const total    = parseInt(countRes.rows[0].count, 10);
 
   params.push(limit, offset);
   const r = await query(
     `SELECT c.*,
+            ab.name       AS assigned_broker_name,
+            ab.avatar_url AS assigned_broker_avatar,
             COUNT(DISTINCT conv.id)::int AS conversation_count,
             COUNT(DISTINCT d.id)::int    AS deal_count
      FROM contacts c
+     LEFT JOIN users ab ON ab.id = c.assigned_broker_id
      LEFT JOIN conversations conv ON conv.contact_id = c.id
      LEFT JOIN deals d ON d.contact_id = c.id
      ${where}
-     GROUP BY c.id
+     GROUP BY c.id, ab.name, ab.avatar_url
      ORDER BY c.name
      LIMIT $${params.length - 1} OFFSET $${params.length}`,
     params
@@ -40,7 +53,10 @@ async function list(workspaceId, { search, tags, page = 1, limit = 50 } = {}) {
 
 async function getById(contactId, workspaceId) {
   const r = await query(
-    'SELECT * FROM contacts WHERE id = $1 AND workspace_id = $2',
+    `SELECT c.*, ab.name AS assigned_broker_name, ab.avatar_url AS assigned_broker_avatar
+     FROM contacts c
+     LEFT JOIN users ab ON ab.id = c.assigned_broker_id
+     WHERE c.id = $1 AND c.workspace_id = $2`,
     [contactId, workspaceId]
   );
   return r.rows[0] || null;
@@ -52,6 +68,7 @@ async function create(workspaceId, body) {
     metaLeadId, metaCampaignId, metaAdsetId, metaAdId, metaFormId,
     utmSource, utmCampaign, utmMedium,
     tags, notes, customFields,
+    contactType, documentType, documentNumber, assignedBrokerId,
   } = body;
 
   const r = await query(
@@ -59,8 +76,9 @@ async function create(workspaceId, body) {
        (workspace_id, name, phone, email, avatar_url,
         meta_lead_id, meta_campaign_id, meta_adset_id, meta_ad_id, meta_form_id,
         utm_source, utm_campaign, utm_medium,
-        tags, notes, custom_fields)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
+        tags, notes, custom_fields,
+        contact_type, document_type, document_number, assigned_broker_id)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)
      ON CONFLICT (workspace_id, phone) DO UPDATE
        SET name = EXCLUDED.name, email = EXCLUDED.email,
            meta_lead_id = COALESCE(EXCLUDED.meta_lead_id, contacts.meta_lead_id),
@@ -70,7 +88,8 @@ async function create(workspaceId, body) {
       metaLeadId || null, metaCampaignId || null, metaAdsetId || null,
       metaAdId || null, metaFormId || null,
       utmSource || null, utmCampaign || null, utmMedium || null,
-      tags || [], notes || null, customFields || {}]
+      tags || [], notes || null, customFields || {},
+      contactType || [], documentType || null, documentNumber || null, assignedBrokerId || null]
   );
   return r.rows[0];
 }
@@ -79,6 +98,8 @@ async function update(contactId, workspaceId, body) {
   const map = {
     name: 'name', phone: 'phone', email: 'email', avatarUrl: 'avatar_url',
     tags: 'tags', notes: 'notes', customFields: 'custom_fields',
+    contactType: 'contact_type', documentType: 'document_type',
+    documentNumber: 'document_number', assignedBrokerId: 'assigned_broker_id',
   };
 
   const fields = [];
@@ -94,11 +115,11 @@ async function update(contactId, workspaceId, body) {
 
   const r = await query(
     `UPDATE contacts SET ${fields.join(', ')}
-     WHERE id = $${idx} AND workspace_id = $${idx + 1} RETURNING *`,
+     WHERE id = $${idx} AND workspace_id = $${idx + 1} RETURNING id`,
     vals
   );
   if (!r.rows.length) throw Object.assign(new Error('Contato não encontrado'), { status: 404 });
-  return r.rows[0];
+  return getById(contactId, workspaceId);
 }
 
 async function remove(contactId, workspaceId) {

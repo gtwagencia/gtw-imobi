@@ -5,7 +5,7 @@ import { useAuth } from '@/store/auth';
 import Header from '@/components/layout/Header';
 import api from '@/lib/api';
 import type { BusinessHours, BusinessHoursDay } from '@/types';
-import { Save, Eye, EyeOff, Brain, Clock, MessageSquare, CheckCircle } from 'lucide-react';
+import { Save, Eye, EyeOff, Brain, Clock, MessageSquare, CheckCircle, Sparkles } from 'lucide-react';
 import clsx from 'clsx';
 
 // ── Default business hours ───────────────────────────────────────────────────
@@ -59,6 +59,9 @@ export default function SettingsPage() {
     openaiApiKey:         '',
     aiProvider:           'anthropic',
     aiModel:              '',
+    aiBaseUrl:            '',
+    customAiApiKey:       '',
+    aiToolsEnabled:       false,
   });
 
   const [businessHours, setBusinessHours] = useState<BusinessHours>(DEFAULT_BUSINESS_HOURS);
@@ -84,6 +87,9 @@ export default function SettingsPage() {
         openaiApiKey:         '',
         aiProvider:           currentWorkspace.ai_provider || 'anthropic',
         aiModel:              currentWorkspace.ai_model    || '',
+        aiBaseUrl:            currentWorkspace.ai_base_url || '',
+        customAiApiKey:       '',
+        aiToolsEnabled:       currentWorkspace.ai_tools_enabled ?? false,
       });
       setBusinessHours(currentWorkspace.business_hours ?? DEFAULT_BUSINESS_HOURS);
     }
@@ -110,6 +116,7 @@ export default function SettingsPage() {
       if (!payload.metaConversionsToken) delete payload.metaConversionsToken;
       if (!payload.anthropicApiKey)      delete payload.anthropicApiKey;
       if (!payload.openaiApiKey)         delete payload.openaiApiKey;
+      if (!payload.customAiApiKey)       delete payload.customAiApiKey;
 
       const { data } = await api.put(
         `/orgs/${currentWorkspace.org_id}/workspaces/${currentWorkspace.id}`,
@@ -259,6 +266,7 @@ export default function SettingsPage() {
                   {[
                     { value: 'anthropic', label: 'Claude (Anthropic)' },
                     { value: 'openai',    label: 'ChatGPT (OpenAI)' },
+                    { value: 'custom',    label: 'Personalizado (Ollama / outro)' },
                   ].map((opt) => (
                     <label key={opt.value} className="flex items-center gap-2 cursor-pointer">
                       <input
@@ -278,46 +286,93 @@ export default function SettingsPage() {
               {/* Model selector */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Modelo</label>
-                <select
-                  className="input"
-                  value={form.aiModel}
-                  onChange={(e) => setForm({ ...form, aiModel: e.target.value })}
-                >
-                  <option value="">Padrão automático</option>
-                  {form.aiProvider === 'openai' ? (
-                    <>
-                      <optgroup label="GPT-4o">
-                        <option value="gpt-4o">gpt-4o (mais poderoso)</option>
-                        <option value="gpt-4o-mini">gpt-4o-mini (rápido e barato)</option>
-                      </optgroup>
-                      <optgroup label="GPT-4.1">
-                        <option value="gpt-4.1">gpt-4.1</option>
-                        <option value="gpt-4.1-mini">gpt-4.1-mini</option>
-                        <option value="gpt-4.1-nano">gpt-4.1-nano (mais barato)</option>
-                      </optgroup>
-                      <optgroup label="o-series (raciocínio)">
-                        <option value="o3-mini">o3-mini</option>
-                        <option value="o4-mini">o4-mini</option>
-                      </optgroup>
-                    </>
-                  ) : (
-                    <>
-                      <optgroup label="Claude Sonnet">
-                        <option value="claude-sonnet-4-6">claude-sonnet-4-6 (recomendado)</option>
-                      </optgroup>
-                      <optgroup label="Claude Haiku (rápido)">
-                        <option value="claude-haiku-4-5-20251001">claude-haiku-4-5 (rápido e barato)</option>
-                      </optgroup>
-                      <optgroup label="Claude Opus">
-                        <option value="claude-opus-4-6">claude-opus-4-6 (mais poderoso)</option>
-                      </optgroup>
-                    </>
-                  )}
-                </select>
+                {form.aiProvider === 'custom' ? (
+                  <input
+                    className="input"
+                    value={form.aiModel}
+                    onChange={(e) => setForm({ ...form, aiModel: e.target.value })}
+                    placeholder="ex: llama3.1:8b, qwen2.5:14b"
+                  />
+                ) : (
+                  <select
+                    className="input"
+                    value={form.aiModel}
+                    onChange={(e) => setForm({ ...form, aiModel: e.target.value })}
+                  >
+                    <option value="">Padrão automático</option>
+                    {form.aiProvider === 'openai' ? (
+                      <>
+                        <optgroup label="GPT-4o">
+                          <option value="gpt-4o">gpt-4o (mais poderoso)</option>
+                          <option value="gpt-4o-mini">gpt-4o-mini (rápido e barato)</option>
+                        </optgroup>
+                        <optgroup label="GPT-4.1">
+                          <option value="gpt-4.1">gpt-4.1</option>
+                          <option value="gpt-4.1-mini">gpt-4.1-mini</option>
+                          <option value="gpt-4.1-nano">gpt-4.1-nano (mais barato)</option>
+                        </optgroup>
+                        <optgroup label="o-series (raciocínio)">
+                          <option value="o3-mini">o3-mini</option>
+                          <option value="o4-mini">o4-mini</option>
+                        </optgroup>
+                      </>
+                    ) : (
+                      <>
+                        <optgroup label="Claude Sonnet">
+                          <option value="claude-sonnet-4-6">claude-sonnet-4-6 (recomendado)</option>
+                        </optgroup>
+                        <optgroup label="Claude Haiku (rápido)">
+                          <option value="claude-haiku-4-5-20251001">claude-haiku-4-5 (rápido e barato)</option>
+                        </optgroup>
+                        <optgroup label="Claude Opus">
+                          <option value="claude-opus-4-6">claude-opus-4-6 (mais poderoso)</option>
+                        </optgroup>
+                      </>
+                    )}
+                  </select>
+                )}
                 <p className="text-xs text-gray-400 mt-1">
-                  "Padrão automático" usa modelos balanceados por tipo de tarefa.
+                  {form.aiProvider === 'custom'
+                    ? 'Nome exato do modelo disponível no servidor (obrigatório).'
+                    : '"Padrão automático" usa modelos balanceados por tipo de tarefa.'}
                 </p>
               </div>
+
+              {/* Custom provider (Ollama / OpenAI-compatible) */}
+              {form.aiProvider === 'custom' && (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Base URL</label>
+                    <input
+                      className="input font-mono text-xs"
+                      value={form.aiBaseUrl}
+                      onChange={(e) => setForm({ ...form, aiBaseUrl: e.target.value })}
+                      placeholder="http://servidor:11434/v1"
+                    />
+                    <p className="text-xs text-gray-400 mt-1">
+                      Endpoint compatível com a API da OpenAI (ex: Ollama em <code>/v1</code>).
+                    </p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Chave de API (opcional)
+                    </label>
+                    {currentWorkspace.has_custom_ai_key && !form.customAiApiKey && (
+                      <div className="flex items-center gap-1.5 text-xs text-green-600 mb-1">
+                        <CheckCircle className="w-3.5 h-3.5" />
+                        Chave salva — deixe em branco para manter
+                      </div>
+                    )}
+                    <input
+                      className="input font-mono text-xs"
+                      type={showTokens ? 'text' : 'password'}
+                      value={form.customAiApiKey}
+                      onChange={(e) => setForm({ ...form, customAiApiKey: e.target.value })}
+                      placeholder={currentWorkspace.has_custom_ai_key ? '••••••••••••• (manter atual)' : 'Deixe em branco se o servidor não exigir chave'}
+                    />
+                  </div>
+                </>
+              )}
 
               {/* Anthropic API Key */}
               <div>
@@ -434,6 +489,36 @@ export default function SettingsPage() {
                   </div>
                   <div className="text-xs text-gray-500">
                     Envia mensagens automáticas após 30 min, 1 dia e 3 dias sem resposta
+                  </div>
+                </div>
+              </label>
+
+              {/* Lais tools toggle */}
+              <label className="flex items-center gap-3 cursor-pointer">
+                <div className="relative flex-shrink-0">
+                  <input
+                    type="checkbox"
+                    className="sr-only"
+                    checked={form.aiToolsEnabled}
+                    onChange={(e) => setForm({ ...form, aiToolsEnabled: e.target.checked })}
+                  />
+                  <div className={clsx(
+                    'w-10 h-5 rounded-full transition-colors',
+                    form.aiToolsEnabled ? 'bg-indigo-500' : 'bg-gray-200'
+                  )} />
+                  <div className={clsx(
+                    'absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform',
+                    form.aiToolsEnabled && 'translate-x-5'
+                  )} />
+                </div>
+                <div>
+                  <div className="text-sm font-medium text-gray-900 flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-indigo-500" />
+                    Lais pode buscar imóveis, enviar fichas e propor visitas
+                  </div>
+                  <div className="text-xs text-gray-500">
+                    Durante a conversa, a IA pode consultar o catálogo, enviar a ficha de um imóvel
+                    (foto + dados) e registrar uma proposta de visita para a equipe confirmar.
                   </div>
                 </div>
               </label>

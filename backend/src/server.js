@@ -22,6 +22,8 @@ const orgsRouter          = require('./modules/organizations/organizations.route
 const workspacesRouter    = require('./modules/workspaces/workspaces.router');
 const inboxesRouter       = require('./modules/inboxes/inboxes.router');
 const contactsRouter      = require('./modules/contacts/contacts.router');
+const propertiesRouter    = require('./modules/properties/properties.router');
+const visitsRouter        = require('./modules/visits/visits.router');
 const conversationsRouter = require('./modules/conversations/conversations.router');
 const messagesRouter      = require('./modules/messages/messages.router');
 const webhooksRouter      = require('./modules/webhooks/webhooks.router');
@@ -38,6 +40,7 @@ const ticketsRouter       = require('./modules/tickets/tickets.router');
 const googleCalendarRouter = require('./modules/integrations/google-calendar.router');
 const mailIntegrationRouter = require('./modules/integrations/mail.router');
 const broadcastsRouter     = require('./modules/broadcasts/broadcasts.router');
+const permissionsRouter    = require('./modules/permissions/permissions.router');
 
 const app    = express();
 const server = http.createServer(app);
@@ -90,6 +93,8 @@ app.use('/api/v1/orgs/:orgId/workspaces',                  workspacesRouter);
 // Rotas bloqueadas para tickets_only — o middleware verifica o role após workspaceContext
 app.use('/api/v1/workspaces/:workspaceId/inboxes',         requireNotTicketsOnly, inboxesRouter);
 app.use('/api/v1/workspaces/:workspaceId/contacts',        requireNotTicketsOnly, contactsRouter);
+app.use('/api/v1/workspaces/:workspaceId/properties',      requireNotTicketsOnly, propertiesRouter);
+app.use('/api/v1/workspaces/:workspaceId/visits',          requireNotTicketsOnly, visitsRouter);
 app.use('/api/v1/workspaces/:workspaceId/conversations',   requireNotTicketsOnly, conversationsRouter);
 app.use('/api/v1/workspaces/:workspaceId/kanban',          requireNotTicketsOnly, kanbanRouter);
 app.use('/api/v1/workspaces/:workspaceId/tickets',         ticketsRouter);   // permitido
@@ -99,6 +104,7 @@ app.use('/api/v1/workspaces/:workspaceId/canned',          requireNotTicketsOnly
 app.use('/api/v1/workspaces/:workspaceId/labels',          requireNotTicketsOnly, labelsRouter);
 app.use('/api/v1/workspaces/:workspaceId/reports',         requireNotTicketsOnly, reportsRouter);
 app.use('/api/v1/workspaces/:workspaceId/templates',       requireNotTicketsOnly, templatesRouter);
+app.use('/api/v1/workspaces/:workspaceId/permission-profiles', requireNotTicketsOnly, permissionsRouter);
 app.use('/api/v1/uploads',                                 uploadsRouter);
 app.use('/api/v1/integrations/google',                     googleCalendarRouter);
 app.use('/api/v1/integrations/mail',                       mailIntegrationRouter);

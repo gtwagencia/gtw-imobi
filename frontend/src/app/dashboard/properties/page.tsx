@@ -1,0 +1,273 @@
+'use client';
+
+import { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/store/auth';
+import Header from '@/components/layout/Header';
+import api from '@/lib/api';
+import type { Property, PropertyType, PropertyPurpose, PropertyStatus } from '@/types';
+import {
+  PROPERTY_TYPE_LABELS, PURPOSE_LABELS, STATUS_LABELS, STATUS_COLORS,
+  formatArea, propertyPriceLabel,
+} from '@/lib/propertyConstants';
+import {
+  Search, Plus, Building2, BedDouble, Bath, Car, Ruler,
+  ChevronLeft, ChevronRight, SlidersHorizontal, Star,
+} from 'lucide-react';
+import clsx from 'clsx';
+
+const LIMIT = 24;
+
+export default function PropertiesPage() {
+  const { currentWorkspace } = useAuth();
+  const router = useRouter();
+
+  const [properties, setProperties] = useState<Property[]>([]);
+  const [total,      setTotal]      = useState(0);
+  const [page,       setPage]       = useState(1);
+  const [loading,    setLoading]    = useState(true);
+  const [showFilters, setShowFilters] = useState(false);
+
+  const [search,    setSearch]    = useState('');
+  const [type,      setType]      = useState<PropertyType | ''>('');
+  const [purpose,   setPurpose]   = useState<PropertyPurpose | ''>('');
+  const [status,    setStatus]    = useState<PropertyStatus | ''>('');
+  const [city,      setCity]      = useState('');
+  const [minPrice,  setMinPrice]  = useState('');
+  const [maxPrice,  setMaxPrice]  = useState('');
+  const [bedrooms,  setBedrooms]  = useState('');
+
+  const load = useCallback(async () => {
+    if (!currentWorkspace) return;
+    setLoading(true);
+    try {
+      const { data } = await api.get(`/workspaces/${currentWorkspace.id}/properties`, {
+        params: {
+          search: search || undefined,
+          type: type || undefined,
+          purpose: purpose || undefined,
+          status: status || undefined,
+          city: city || undefined,
+          minPrice: minPrice || undefined,
+          maxPrice: maxPrice || undefined,
+          bedrooms: bedrooms || undefined,
+          page,
+          limit: LIMIT,
+        },
+      });
+      setProperties(data.data);
+      setTotal(data.total);
+    } finally {
+      setLoading(false);
+    }
+  }, [currentWorkspace, search, type, purpose, status, city, minPrice, maxPrice, bedrooms, page]);
+
+  useEffect(() => { load(); }, [load]);
+
+  // Debounce search/filters
+  useEffect(() => {
+    const t = setTimeout(() => { setPage(1); load(); }, 300);
+    return () => clearTimeout(t);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search, type, purpose, status, city, minPrice, maxPrice, bedrooms]);
+
+  const activeFilterCount = [type, purpose, status, city, minPrice, maxPrice, bedrooms].filter(Boolean).length;
+
+  function clearFilters() {
+    setType(''); setPurpose(''); setStatus(''); setCity('');
+    setMinPrice(''); setMaxPrice(''); setBedrooms('');
+  }
+
+  if (!currentWorkspace) {
+    return (
+      <>
+        <Header title="Imóveis" />
+        <div className="flex-1 flex items-center justify-center text-gray-400">
+          Selecione um workspace
+        </div>
+      </>
+    );
+  }
+
+  return (
+    <>
+      <Header
+        title={`Imóveis (${total})`}
+        actions={
+          <button className="btn-primary text-sm" onClick={() => router.push('/dashboard/properties/new')}>
+            <Plus className="w-4 h-4" />
+            Novo imóvel
+          </button>
+        }
+      />
+
+      <div className="flex-1 overflow-y-auto p-6">
+        {/* Search + filter toggle */}
+        <div className="flex flex-wrap items-center gap-2 mb-4">
+          <div className="relative flex-1 max-w-sm">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <input
+              className="input pl-9"
+              placeholder="Buscar por título, código, bairro ou cidade..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+          <button
+            className={clsx('btn-secondary text-sm', activeFilterCount > 0 && 'border-brand-300 text-brand-700')}
+            onClick={() => setShowFilters(v => !v)}
+          >
+            <SlidersHorizontal className="w-4 h-4" />
+            Filtros{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
+          </button>
+          {activeFilterCount > 0 && (
+            <button className="text-sm text-gray-400 hover:text-gray-600" onClick={clearFilters}>
+              Limpar filtros
+            </button>
+          )}
+        </div>
+
+        {/* Filter bar */}
+        {showFilters && (
+          <div className="card p-4 mb-4 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Tipo</label>
+              <select className="input" value={type} onChange={e => setType(e.target.value as PropertyType | '')}>
+                <option value="">Todos</option>
+                {Object.entries(PROPERTY_TYPE_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Finalidade</label>
+              <select className="input" value={purpose} onChange={e => setPurpose(e.target.value as PropertyPurpose | '')}>
+                <option value="">Todas</option>
+                {Object.entries(PURPOSE_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Status</label>
+              <select className="input" value={status} onChange={e => setStatus(e.target.value as PropertyStatus | '')}>
+                <option value="">Todos</option>
+                {Object.entries(STATUS_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Cidade</label>
+              <input className="input" value={city} onChange={e => setCity(e.target.value)} placeholder="Cidade" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Preço mín.</label>
+              <input className="input" type="number" min="0" value={minPrice} onChange={e => setMinPrice(e.target.value)} placeholder="R$" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Preço máx.</label>
+              <input className="input" type="number" min="0" value={maxPrice} onChange={e => setMaxPrice(e.target.value)} placeholder="R$" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Quartos (mín.)</label>
+              <input className="input" type="number" min="0" value={bedrooms} onChange={e => setBedrooms(e.target.value)} placeholder="0" />
+            </div>
+          </div>
+        )}
+
+        {/* Grid */}
+        {loading ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div key={i} className="card overflow-hidden">
+                <div className="h-40 bg-gray-100 animate-pulse" />
+                <div className="p-4 space-y-2">
+                  <div className="h-4 bg-gray-100 animate-pulse rounded w-3/4" />
+                  <div className="h-3 bg-gray-100 animate-pulse rounded w-1/2" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : properties.length === 0 ? (
+          <div className="text-center py-20 text-gray-400">
+            <Building2 className="w-12 h-12 mx-auto mb-3 opacity-30" />
+            <p>Nenhum imóvel encontrado</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {properties.map((p) => (
+              <button
+                key={p.id}
+                onClick={() => router.push(`/dashboard/properties/${p.id}`)}
+                className="card overflow-hidden text-left hover:shadow-lg hover:-translate-y-0.5 transition-all group"
+              >
+                <div className="relative h-40 bg-gray-100 flex items-center justify-center overflow-hidden">
+                  {p.cover_url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={p.cover_url} alt={p.title} className="w-full h-full object-cover" />
+                  ) : (
+                    <Building2 className="w-10 h-10 text-gray-300" />
+                  )}
+                  <span className={clsx('absolute top-2 left-2 text-xs font-medium px-2 py-1 rounded-full', STATUS_COLORS[p.status])}>
+                    {STATUS_LABELS[p.status]}
+                  </span>
+                  {p.is_featured && (
+                    <span className="absolute top-2 right-2 bg-amber-400 text-white rounded-full p-1">
+                      <Star className="w-3.5 h-3.5" fill="currentColor" />
+                    </span>
+                  )}
+                </div>
+                <div className="p-4">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs font-mono text-gray-400">{p.code}</span>
+                    <span className="text-xs text-gray-400">{PROPERTY_TYPE_LABELS[p.property_type]}</span>
+                  </div>
+                  <h3 className="font-semibold text-gray-900 line-clamp-2 mb-1 group-hover:text-brand-600 transition-colors">
+                    {p.title}
+                  </h3>
+                  <p className="text-sm text-gray-500 mb-2 truncate">
+                    {[p.neighborhood, p.city].filter(Boolean).join(', ') || '—'}
+                  </p>
+                  <p className="font-semibold text-brand-700 mb-2">
+                    {propertyPriceLabel(p)}
+                  </p>
+                  <div className="flex items-center gap-3 text-xs text-gray-500">
+                    {p.bedrooms != null && (
+                      <span className="flex items-center gap-1"><BedDouble className="w-3.5 h-3.5" />{p.bedrooms}</span>
+                    )}
+                    {p.bathrooms != null && (
+                      <span className="flex items-center gap-1"><Bath className="w-3.5 h-3.5" />{p.bathrooms}</span>
+                    )}
+                    {p.parking_spots != null && (
+                      <span className="flex items-center gap-1"><Car className="w-3.5 h-3.5" />{p.parking_spots}</span>
+                    )}
+                    {(p.total_area != null || p.built_area != null) && (
+                      <span className="flex items-center gap-1"><Ruler className="w-3.5 h-3.5" />{formatArea(p.built_area ?? p.total_area)}</span>
+                    )}
+                  </div>
+                  {p.broker_name && (
+                    <div className="mt-2 pt-2 border-t border-gray-100 text-xs text-gray-400">
+                      Corretor: <span className="text-gray-600">{p.broker_name}</span>
+                    </div>
+                  )}
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Pagination */}
+        {total > LIMIT && (
+          <div className="flex justify-center gap-2 mt-6">
+            <button className="btn-secondary" disabled={page === 1} onClick={() => setPage(p => p - 1)}>
+              <ChevronLeft className="w-4 h-4" />
+              Anterior
+            </button>
+            <span className="flex items-center text-sm text-gray-600">
+              {page} / {Math.ceil(total / LIMIT)}
+            </span>
+            <button className="btn-secondary" disabled={page >= Math.ceil(total / LIMIT)} onClick={() => setPage(p => p + 1)}>
+              Próxima
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+      </div>
+    </>
+  );
+}

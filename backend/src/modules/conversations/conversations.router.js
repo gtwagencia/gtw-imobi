@@ -2,7 +2,7 @@
 
 const { Router } = require('express');
 const { authenticate }     = require('../../middleware/auth');
-const { workspaceContext } = require('../../middleware/workspaceContext');
+const { workspaceContext, requirePermission } = require('../../middleware/workspaceContext');
 const svc = require('./conversations.service');
 
 const router = Router({ mergeParams: true });
@@ -16,7 +16,7 @@ function getCaller(req) {
   };
 }
 
-router.get('/', authenticate, workspaceContext, async (req, res, next) => {
+router.get('/', authenticate, workspaceContext, requirePermission('conversations'), async (req, res, next) => {
   try {
     const { status, inboxId, assigneeId, departmentId, contactId, labelId,
             isGroup, metaSource, metaCampaign, page, limit } = req.query;
@@ -32,7 +32,7 @@ router.get('/', authenticate, workspaceContext, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-router.get('/meta/campaigns', authenticate, workspaceContext, async (req, res, next) => {
+router.get('/meta/campaigns', authenticate, workspaceContext, requirePermission('conversations'), async (req, res, next) => {
   try {
     const campaigns = await svc.listCampaigns(req.params.workspaceId);
     res.json(campaigns);
@@ -40,7 +40,7 @@ router.get('/meta/campaigns', authenticate, workspaceContext, async (req, res, n
 });
 
 // POST / — cria conversa outbound para um contato existente
-router.post('/', authenticate, workspaceContext, async (req, res, next) => {
+router.post('/', authenticate, workspaceContext, requirePermission('conversations'), async (req, res, next) => {
   try {
     const { inboxId, contactId, firstMessage } = req.body;
     if (!inboxId || !contactId) {
@@ -75,7 +75,7 @@ router.post('/', authenticate, workspaceContext, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-router.get('/:conversationId', authenticate, workspaceContext, async (req, res, next) => {
+router.get('/:conversationId', authenticate, workspaceContext, requirePermission('conversations'), async (req, res, next) => {
   try {
     const conv = await svc.getById(
       req.params.conversationId, req.params.workspaceId, getCaller(req)
@@ -85,7 +85,7 @@ router.get('/:conversationId', authenticate, workspaceContext, async (req, res, 
   } catch (err) { next(err); }
 });
 
-router.put('/:conversationId', authenticate, workspaceContext, async (req, res, next) => {
+router.put('/:conversationId', authenticate, workspaceContext, requirePermission('conversations'), async (req, res, next) => {
   try {
     const caller = getCaller(req);
     if (caller.workspaceRole === 'agent' && !caller.isSuperAdmin
@@ -105,7 +105,7 @@ router.put('/:conversationId', authenticate, workspaceContext, async (req, res, 
 });
 
 // CSAT endpoint — requer autenticação e verifica ownership
-router.post('/:conversationId/csat', authenticate, workspaceContext, async (req, res, next) => {
+router.post('/:conversationId/csat', authenticate, workspaceContext, requirePermission('conversations'), async (req, res, next) => {
   try {
     const { rating, comment } = req.body;
     if (!rating || rating < 1 || rating > 5) {
@@ -123,7 +123,7 @@ router.post('/:conversationId/csat', authenticate, workspaceContext, async (req,
   } catch (err) { next(err); }
 });
 
-router.post('/:conversationId/read', authenticate, workspaceContext, async (req, res, next) => {
+router.post('/:conversationId/read', authenticate, workspaceContext, requirePermission('conversations'), async (req, res, next) => {
   try {
     await svc.markRead(req.params.conversationId, req.params.workspaceId);
     req.app.get('io')

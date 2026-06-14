@@ -5,11 +5,12 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/store/auth';
 import Header from '@/components/layout/Header';
 import api from '@/lib/api';
-import type { Contact } from '@/types';
+import type { Contact, ContactType, DocumentType } from '@/types';
 import { Search, Plus, Mail, X, MessageSquare, ExternalLink, ChevronLeft, ChevronRight, Pencil, Upload, CheckCircle, AlertCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import clsx from 'clsx';
+import { CONTACT_TYPE_LABELS, CONTACT_TYPE_COLORS, DOCUMENT_TYPE_LABELS } from '@/lib/contactConstants';
 
 interface ContactFormData {
   name: string;
@@ -17,11 +18,16 @@ interface ContactFormData {
   email: string;
   notes: string;
   tags: string; // comma-separated
+  contactType: ContactType[];
+  documentType: DocumentType | '';
+  documentNumber: string;
+  assignedBrokerId: string;
 }
 
-function ContactForm({ contact, workspaceId, onSave, onClose }: {
+function ContactForm({ contact, workspaceId, orgId, onSave, onClose }: {
   contact?: Contact;
   workspaceId: string;
+  orgId: string;
   onSave: (c: Contact) => void;
   onClose: () => void;
 }) {
@@ -31,9 +37,29 @@ function ContactForm({ contact, workspaceId, onSave, onClose }: {
     email: contact?.email || '',
     notes: contact?.notes || '',
     tags:  contact?.tags?.join(', ') || '',
+    contactType:      contact?.contact_type    || [],
+    documentType:     contact?.document_type   || '',
+    documentNumber:   contact?.document_number || '',
+    assignedBrokerId: contact?.assigned_broker_id || '',
   });
+  const [members, setMembers] = useState<{ user_id: string; name: string; creci?: string | null }[]>([]);
   const [saving, setSaving] = useState(false);
   const [error,  setError]  = useState('');
+
+  useEffect(() => {
+    api.get(`/orgs/${orgId}/workspaces/${workspaceId}/members`)
+      .then(({ data }) => setMembers(data))
+      .catch(() => {});
+  }, [workspaceId, orgId]);
+
+  function toggleContactType(type: ContactType) {
+    setForm(prev => ({
+      ...prev,
+      contactType: prev.contactType.includes(type)
+        ? prev.contactType.filter(t => t !== type)
+        : [...prev.contactType, type],
+    }));
+  }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -47,6 +73,10 @@ function ContactForm({ contact, workspaceId, onSave, onClose }: {
         email: form.email.trim() || undefined,
         notes: form.notes.trim() || undefined,
         tags:  form.tags ? form.tags.split(',').map(t => t.trim()).filter(Boolean) : [],
+        contactType:      form.contactType,
+        documentType:     form.documentType || null,
+        documentNumber:   form.documentNumber.trim() || null,
+        assignedBrokerId: form.assignedBrokerId || null,
       };
       const { data } = contact
         ? await api.put(`/workspaces/${workspaceId}/contacts/${contact.id}`, payload)
@@ -83,6 +113,50 @@ function ContactForm({ contact, workspaceId, onSave, onClose }: {
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1">Tags <span className="text-gray-400">(separadas por vírgula)</span></label>
             <input className="input" value={form.tags} onChange={e => setForm(p => ({ ...p, tags: e.target.value }))} placeholder="lead, premium, urgente" />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Tipo de contato</label>
+            <div className="flex flex-wrap gap-2">
+              {(Object.keys(CONTACT_TYPE_LABELS) as ContactType[]).map(type => (
+                <button
+                  key={type}
+                  type="button"
+                  onClick={() => toggleContactType(type)}
+                  className={clsx(
+                    'px-3 py-1.5 rounded-full text-xs font-medium border transition-colors',
+                    form.contactType.includes(type)
+                      ? 'bg-brand-600 text-white border-brand-600'
+                      : 'bg-white text-gray-600 border-gray-200 hover:border-brand-300'
+                  )}
+                >
+                  {CONTACT_TYPE_LABELS[type]}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Documento</label>
+              <select className="input" value={form.documentType} onChange={e => setForm(p => ({ ...p, documentType: e.target.value as DocumentType | '' }))}>
+                <option value="">—</option>
+                {(Object.keys(DOCUMENT_TYPE_LABELS) as DocumentType[]).map(type => (
+                  <option key={type} value={type}>{DOCUMENT_TYPE_LABELS[type]}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Número</label>
+              <input className="input" value={form.documentNumber} onChange={e => setForm(p => ({ ...p, documentNumber: e.target.value }))} placeholder="000.000.000-00" />
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Corretor responsável</label>
+            <select className="input" value={form.assignedBrokerId} onChange={e => setForm(p => ({ ...p, assignedBrokerId: e.target.value }))}>
+              <option value="">—</option>
+              {members.map(m => (
+                <option key={m.user_id} value={m.user_id}>{m.name}{m.creci ? ` (CRECI ${m.creci})` : ''}</option>
+              ))}
+            </select>
           </div>
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1">Notas</label>
@@ -173,11 +247,30 @@ function ContactPanel({ contact, workspaceId, onClose, onEdit }: {
                 <span className="truncate">{contact.email}</span>
               </div>
             )}
+            {contact.contact_type?.length > 0 && (
+              <div className="flex flex-wrap gap-1 pt-1">
+                {contact.contact_type.map(type => (
+                  <span key={type} className={clsx('text-xs px-1.5 py-0.5 rounded-full font-medium', CONTACT_TYPE_COLORS[type])}>
+                    {CONTACT_TYPE_LABELS[type]}
+                  </span>
+                ))}
+              </div>
+            )}
             {contact.tags?.length > 0 && (
               <div className="flex flex-wrap gap-1 pt-1">
                 {contact.tags.map(tag => (
                   <span key={tag} className="badge-blue text-xs">{tag}</span>
                 ))}
+              </div>
+            )}
+            {contact.document_type && contact.document_number && (
+              <div className="text-xs text-gray-500 pt-1">
+                {DOCUMENT_TYPE_LABELS[contact.document_type]}: {contact.document_number}
+              </div>
+            )}
+            {contact.assigned_broker_name && (
+              <div className="text-xs text-gray-500 pt-1">
+                Corretor responsável: {contact.assigned_broker_name}
               </div>
             )}
             {contact.notes && (
@@ -255,10 +348,11 @@ function ContactPanel({ contact, workspaceId, onClose, onEdit }: {
 interface ImportResult { imported: number; updated: number; errors: { line: number; error: string }[]; }
 
 export default function ContactsPage() {
-  const { currentWorkspace } = useAuth();
+  const { currentWorkspace, currentOrg } = useAuth();
   const [contacts,     setContacts]     = useState<Contact[]>([]);
   const [total,        setTotal]        = useState(0);
   const [search,       setSearch]       = useState('');
+  const [contactTypeFilter, setContactTypeFilter] = useState<ContactType[]>([]);
   const [page,         setPage]         = useState(1);
   const [loading,      setLoading]      = useState(true);
   const [selected,     setSelected]     = useState<Contact | null>(null);
@@ -273,14 +367,25 @@ export default function ContactsPage() {
     setLoading(true);
     try {
       const { data } = await api.get(`/workspaces/${currentWorkspace.id}/contacts`, {
-        params: { search: search || undefined, page, limit: 50 },
+        params: {
+          search:      search || undefined,
+          contactType: contactTypeFilter.length ? contactTypeFilter.join(',') : undefined,
+          page, limit: 50,
+        },
       });
       setContacts(data.data);
       setTotal(data.total);
     } finally {
       setLoading(false);
     }
-  }, [currentWorkspace, search, page]);
+  }, [currentWorkspace, search, contactTypeFilter, page]);
+
+  function toggleContactTypeFilter(type: ContactType) {
+    setPage(1);
+    setContactTypeFilter(prev =>
+      prev.includes(type) ? prev.filter(t => t !== type) : [...prev, type]
+    );
+  }
 
   useEffect(() => { load(); }, [load]);
 
@@ -388,6 +493,25 @@ export default function ContactsPage() {
             </div>
           )}
 
+          {/* Filter by contact type */}
+          <div className="mb-4 flex flex-wrap gap-2">
+            {(Object.keys(CONTACT_TYPE_LABELS) as ContactType[]).map(type => (
+              <button
+                key={type}
+                type="button"
+                onClick={() => toggleContactTypeFilter(type)}
+                className={clsx(
+                  'px-3 py-1.5 rounded-full text-xs font-medium border transition-colors',
+                  contactTypeFilter.includes(type)
+                    ? 'bg-brand-600 text-white border-brand-600'
+                    : 'bg-white text-gray-600 border-gray-200 hover:border-brand-300'
+                )}
+              >
+                {CONTACT_TYPE_LABELS[type]}
+              </button>
+            ))}
+          </div>
+
           {/* Search bar */}
           <div className="mb-4 relative max-w-sm">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -406,6 +530,7 @@ export default function ContactsPage() {
                 <tr>
                   <th className="text-left px-4 py-3 font-medium text-gray-600">Contato</th>
                   <th className="text-left px-4 py-3 font-medium text-gray-600 hidden md:table-cell">Telefone</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600 hidden lg:table-cell">Tipo</th>
                   <th className="text-left px-4 py-3 font-medium text-gray-600 hidden lg:table-cell">Tags</th>
                   <th className="text-left px-4 py-3 font-medium text-gray-600 hidden lg:table-cell">UTM</th>
                   <th className="text-left px-4 py-3 font-medium text-gray-600 hidden xl:table-cell">Criado em</th>
@@ -417,7 +542,7 @@ export default function ContactsPage() {
                 {loading ? (
                   Array.from({ length: 8 }).map((_, i) => (
                     <tr key={i}>
-                      {Array.from({ length: 6 }).map((__, j) => (
+                      {Array.from({ length: 7 }).map((__, j) => (
                         <td key={j} className="px-4 py-3">
                           <div className="h-4 bg-gray-100 animate-pulse rounded w-3/4" />
                         </td>
@@ -426,7 +551,7 @@ export default function ContactsPage() {
                   ))
                 ) : contacts.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-4 py-12 text-center text-gray-400">
+                    <td colSpan={7} className="px-4 py-12 text-center text-gray-400">
                       Nenhum contato encontrado
                     </td>
                   </tr>
@@ -457,6 +582,15 @@ export default function ContactsPage() {
                       </td>
                       <td className="px-4 py-3 text-gray-600 hidden md:table-cell">
                         {c.phone || '—'}
+                      </td>
+                      <td className="px-4 py-3 hidden lg:table-cell">
+                        <div className="flex flex-wrap gap-1">
+                          {c.contact_type?.map((type) => (
+                            <span key={type} className={clsx('text-xs px-1.5 py-0.5 rounded-full font-medium', CONTACT_TYPE_COLORS[type])}>
+                              {CONTACT_TYPE_LABELS[type]}
+                            </span>
+                          ))}
+                        </div>
                       </td>
                       <td className="px-4 py-3 hidden lg:table-cell">
                         <div className="flex flex-wrap gap-1">
@@ -528,6 +662,7 @@ export default function ContactsPage() {
           <ContactForm
             contact={editing}
             workspaceId={currentWorkspace.id}
+            orgId={currentOrg!.id}
             onClose={() => { setFormOpen(false); setEditing(undefined); }}
             onSave={(saved) => {
               setFormOpen(false);
