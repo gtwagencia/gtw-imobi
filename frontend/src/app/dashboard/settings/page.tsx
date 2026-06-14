@@ -3,9 +3,9 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/store/auth';
 import Header from '@/components/layout/Header';
-import api from '@/lib/api';
+import api, { API_URL } from '@/lib/api';
 import type { BusinessHours, BusinessHoursDay } from '@/types';
-import { Save, Eye, EyeOff, Brain, Clock, MessageSquare, CheckCircle, Sparkles } from 'lucide-react';
+import { Save, Eye, EyeOff, Brain, Clock, MessageSquare, CheckCircle, Sparkles, Globe, Copy, Check, RefreshCw } from 'lucide-react';
 import clsx from 'clsx';
 
 // ── Default business hours ───────────────────────────────────────────────────
@@ -46,6 +46,7 @@ export default function SettingsPage() {
   const [form, setForm] = useState({
     name:                 '',
     timezone:             'America/Sao_Paulo',
+    businessModel:        'imobiliaria' as 'imobiliaria' | 'construtora',
     metaPixelId:          '',
     metaAdAccountId:      '',
     metaAccessToken:      '',
@@ -68,12 +69,15 @@ export default function SettingsPage() {
   const [showTokens,    setShowTokens]    = useState(false);
   const [saving,        setSaving]        = useState(false);
   const [saved,         setSaved]         = useState(false);
+  const [copiedField,   setCopiedField]   = useState<string | null>(null);
+  const [regeneratingToken, setRegeneratingToken] = useState(false);
 
   useEffect(() => {
     if (currentWorkspace) {
       setForm({
         name:                 currentWorkspace.name,
         timezone:             currentWorkspace.timezone,
+        businessModel:        currentWorkspace.business_model || 'imobiliaria',
         metaPixelId:          currentWorkspace.meta_pixel_id || '',
         metaAdAccountId:      currentWorkspace.meta_ad_account_id || '',
         metaAccessToken:      '',
@@ -130,6 +134,26 @@ export default function SettingsPage() {
     }
   }
 
+  async function copy(text: string, field: string) {
+    await navigator.clipboard.writeText(text);
+    setCopiedField(field);
+    setTimeout(() => setCopiedField(null), 1500);
+  }
+
+  async function handleRegenerateToken() {
+    if (!currentWorkspace) return;
+    if (!confirm('Gerar um novo token de integração? As URLs atuais deixarão de funcionar até que você atualize a configuração no site.')) return;
+    setRegeneratingToken(true);
+    try {
+      const { data } = await api.post(
+        `/orgs/${currentWorkspace.org_id}/workspaces/${currentWorkspace.id}/site-integration/regenerate-token`
+      );
+      setWorkspace(data);
+    } finally {
+      setRegeneratingToken(false);
+    }
+  }
+
   if (!currentWorkspace) {
     return (
       <>
@@ -138,6 +162,9 @@ export default function SettingsPage() {
       </>
     );
   }
+
+  const feedUrl  = `${API_URL}/feeds/${currentWorkspace.id}/properties.xml?token=${currentWorkspace.site_integration_token}`;
+  const leadsUrl = `${API_URL}/webhooks/site-leads/${currentWorkspace.id}?token=${currentWorkspace.site_integration_token}`;
 
   return (
     <>
@@ -172,6 +199,52 @@ export default function SettingsPage() {
                   <option value="America/Fortaleza">America/Fortaleza</option>
                   <option value="America/Recife">America/Recife</option>
                 </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Tipo de negócio</label>
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <label className={clsx(
+                    'flex-1 flex items-start gap-2 border rounded-lg p-3 cursor-pointer transition-colors',
+                    form.businessModel === 'imobiliaria' ? 'border-indigo-400 bg-indigo-50' : 'border-gray-200 hover:bg-gray-50'
+                  )}>
+                    <input
+                      type="radio"
+                      name="businessModel"
+                      value="imobiliaria"
+                      checked={form.businessModel === 'imobiliaria'}
+                      onChange={() => setForm({ ...form, businessModel: 'imobiliaria' })}
+                      className="mt-0.5 text-indigo-600"
+                    />
+                    <div>
+                      <div className="text-sm font-medium text-gray-900">Imobiliária</div>
+                      <div className="text-xs text-gray-500">
+                        Trabalha com leads de imóveis de terceiros e/ou empreendimentos de diversas construtoras
+                      </div>
+                    </div>
+                  </label>
+                  <label className={clsx(
+                    'flex-1 flex items-start gap-2 border rounded-lg p-3 cursor-pointer transition-colors',
+                    form.businessModel === 'construtora' ? 'border-indigo-400 bg-indigo-50' : 'border-gray-200 hover:bg-gray-50'
+                  )}>
+                    <input
+                      type="radio"
+                      name="businessModel"
+                      value="construtora"
+                      checked={form.businessModel === 'construtora'}
+                      onChange={() => setForm({ ...form, businessModel: 'construtora' })}
+                      className="mt-0.5 text-indigo-600"
+                    />
+                    <div>
+                      <div className="text-sm font-medium text-gray-900">Construtora / Incorporadora</div>
+                      <div className="text-xs text-gray-500">
+                        Trabalha com seus próprios empreendimentos e unidades lançadas pela própria empresa
+                      </div>
+                    </div>
+                  </label>
+                </div>
+                <p className="text-xs text-gray-400 mt-1">
+                  Usado pela IA (Lais) para adaptar o tom e o foco das conversas com os contatos.
+                </p>
               </div>
             </div>
           </div>
@@ -243,6 +316,70 @@ export default function SettingsPage() {
                 />
                 <p className="text-xs text-gray-400 mt-1">
                   Usado para enviar eventos Lead e Purchase à Meta Conversions API automaticamente.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* ── Integração com o Site ──────────────────────────────── */}
+          <div className="card p-6">
+            <h2 className="font-semibold text-gray-900 mb-1 flex items-center gap-2">
+              <Globe className="w-4 h-4 text-blue-500" />
+              Integração com o Site
+            </h2>
+            <p className="text-sm text-gray-500 mb-4">
+              URLs para conectar o site ao catálogo de imóveis e receber leads dos formulários de contato.
+            </p>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Feed XML de imóveis</label>
+                <p className="text-xs text-gray-400 mb-1">
+                  O site consulta esta URL periodicamente para sincronizar o catálogo de imóveis disponíveis.
+                </p>
+                <div className="flex items-center gap-2">
+                  <input
+                    className="input font-mono text-xs"
+                    readOnly
+                    value={feedUrl}
+                    onClick={(e) => e.currentTarget.select()}
+                  />
+                  <button type="button" className="btn-ghost px-2 flex-shrink-0" onClick={() => copy(feedUrl, 'feed')} title="Copiar">
+                    {copiedField === 'feed' ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Webhook de leads do site</label>
+                <p className="text-xs text-gray-400 mb-1">
+                  O site envia um POST para esta URL com os dados de cada lead enviado pelos formulários de contato dos imóveis.
+                </p>
+                <div className="flex items-center gap-2">
+                  <input
+                    className="input font-mono text-xs"
+                    readOnly
+                    value={leadsUrl}
+                    onClick={(e) => e.currentTarget.select()}
+                  />
+                  <button type="button" className="btn-ghost px-2 flex-shrink-0" onClick={() => copy(leadsUrl, 'leads')} title="Copiar">
+                    {copiedField === 'leads' ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+
+              <div className="pt-2 border-t border-gray-100">
+                <button
+                  type="button"
+                  className="btn-ghost text-xs text-red-600"
+                  onClick={handleRegenerateToken}
+                  disabled={regeneratingToken}
+                >
+                  <RefreshCw className={clsx('w-3.5 h-3.5', regeneratingToken && 'animate-spin')} />
+                  {regeneratingToken ? 'Gerando novo token...' : 'Gerar novo token'}
+                </button>
+                <p className="text-xs text-gray-400 mt-1">
+                  Gera um novo token e invalida as URLs acima — atualize a configuração no site em seguida.
                 </p>
               </div>
             </div>

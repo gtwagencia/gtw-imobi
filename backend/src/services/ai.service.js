@@ -5,6 +5,7 @@ const axios     = require('axios');
 const { query } = require('../config/database');
 const logger    = require('../utils/logger');
 const propertiesSvc = require('../modules/properties/properties.service');
+const developmentsSvc = require('../modules/developments/developments.service');
 const messagesSvc   = require('../modules/messages/messages.service');
 const visitsSvc     = require('../modules/visits/visits.service');
 
@@ -59,14 +60,68 @@ const DEFAULT_LAIS_PERSONA = `Você é a Lais, assistente virtual de atendimento
 
 Você pode usar estas ferramentas quando fizer sentido:
 - buscar_imoveis: busca imóveis no catálogo a partir de critérios do cliente (finalidade, tipo, cidade, quartos, valor).
+- buscar_empreendimentos: busca empreendimentos/lançamentos a partir de critérios do cliente (cidade, status da obra).
 - enviar_ficha_imovel: envia foto de capa + dados de um imóvel específico (pelo código).
+- enviar_ficha_empreendimento: envia foto de capa + dados de um empreendimento específico (pelo código).
 - propor_visita: registra uma proposta de visita a um imóvel numa data/horário sugeridos.
+- transferir_para_setor: transfere a conversa para um setor específico da equipe.
 
 Regras:
-- Nunca invente imóveis, preços, disponibilidade ou confirmações de visita — sempre use as ferramentas.
+- Nunca invente imóveis, empreendimentos, preços, disponibilidade ou confirmações de visita — sempre use as ferramentas.
 - Seja breve (2-4 frases por resposta).
 - Ao propor uma visita, deixe claro que a equipe ainda vai confirmar o horário.
 - Se não conseguir ajudar, diga que um corretor da equipe vai continuar o atendimento.`;
+
+/**
+ * Monta a persona da Lais dinamicamente a partir do modelo de negócio do
+ * workspace (imobiliária x construtora/incorporadora) e da lista de setores
+ * disponíveis para transferência automática. Usada por dispatchChatbotResponse.
+ *
+ * @param {object} opts
+ * @param {'imobiliaria'|'construtora'} [opts.businessModel]
+ * @param {{ name: string, ai_routing_description?: string|null }[]} [opts.departments]
+ */
+function buildLaisPersona({ businessModel, departments } = {}) {
+  const isConstrutora = businessModel === 'construtora';
+
+  const intro = isConstrutora
+    ? `Você é a Lais, assistente virtual de atendimento da construtora/incorporadora. Atenda leads interessados nos empreendimentos da empresa de forma simpática, objetiva e profissional, em português brasileiro. Esta empresa trabalha apenas com empreendimentos e unidades próprias — não atende imóveis de terceiros.`
+    : `Você é a Lais, assistente virtual de atendimento da imobiliária. Atenda leads do mercado imobiliário de forma simpática, objetiva e profissional, em português brasileiro. Esta imobiliária trabalha tanto com imóveis de terceiros quanto com unidades de empreendimentos/lançamentos.`;
+
+  const toolsBlock = isConstrutora
+    ? `Você pode usar estas ferramentas quando fizer sentido:
+- buscar_empreendimentos: busca os empreendimentos/lançamentos da construtora a partir de critérios do cliente (cidade, status da obra).
+- enviar_ficha_empreendimento: envia foto de capa + dados de um empreendimento específico (pelo código) e suas unidades disponíveis.
+- propor_visita: registra uma proposta de visita ao plantão de vendas/unidade numa data/horário sugeridos.
+- transferir_para_setor: transfere a conversa para um setor específico da equipe (quando o assunto não é sobre empreendimentos).`
+    : `Você pode usar estas ferramentas quando fizer sentido:
+- buscar_imoveis: busca imóveis no catálogo (próprios ou de terceiros) a partir de critérios do cliente (finalidade, tipo, cidade, quartos, valor).
+- buscar_empreendimentos: busca empreendimentos/lançamentos a partir de critérios do cliente (cidade, status da obra).
+- enviar_ficha_imovel: envia foto de capa + dados de um imóvel específico (pelo código).
+- enviar_ficha_empreendimento: envia foto de capa + dados de um empreendimento específico (pelo código).
+- propor_visita: registra uma proposta de visita a um imóvel/empreendimento numa data/horário sugeridos.
+- transferir_para_setor: transfere a conversa para um setor específico da equipe (quando o assunto não é sobre imóveis/empreendimentos).`;
+
+  const departmentList = (departments || []).filter(d => d?.name);
+  const routingBlock = `IDENTIFICAÇÃO DE INTENÇÃO — muito importante:
+Logo no início da conversa (ou sempre que o assunto mudar), identifique o que o cliente quer:
+1. Falar sobre um imóvel/empreendimento específico, ou buscar opções (já mencionou um código, endereço, nome de lançamento, ou está procurando algo para comprar/alugar) → continue o atendimento normalmente usando as ferramentas de busca/ficha/visita.
+2. Falar sobre outro assunto, com um setor específico da empresa (financeiro, jurídico, locação de imóveis já alugados, suporte, RH etc.) → use a ferramenta transferir_para_setor com o nome exato do setor.
+${departmentList.length
+    ? `\nSetores disponíveis para transferência:\n${departmentList.map(d => `- ${d.name}${d.ai_routing_description ? `: ${d.ai_routing_description}` : ''}`).join('\n')}`
+    : '\nSe não houver um setor configurado que se encaixe, continue o atendimento você mesma e avise que um atendente vai dar continuidade.'}
+
+Se não tiver certeza do que o cliente quer, faça uma pergunta curta para esclarecer antes de agir.`;
+
+  const rules = `Regras:
+- Nunca invente imóveis, empreendimentos, preços, disponibilidade ou confirmações de visita — sempre use as ferramentas.
+- Seja breve (2-4 frases por resposta).
+- Ao propor uma visita, deixe claro que a equipe ainda vai confirmar o horário.
+- Ao transferir para um setor, avise o cliente de forma natural que vai conectar com a equipe responsável.
+- Se não conseguir ajudar, diga que alguém da equipe vai continuar o atendimento.`;
+
+  return [intro, toolsBlock, routingBlock, rules].join('\n\n');
+}
 
 const LAIS_TOOL_DEFS = [
   {
@@ -94,6 +149,26 @@ const LAIS_TOOL_DEFS = [
     },
   },
   {
+    name: 'buscar_empreendimentos',
+    description: 'Busca empreendimentos/lançamentos disponíveis pelos critérios informados (cidade, status da obra).',
+    input_schema: {
+      type: 'object',
+      properties: {
+        city:                { type: 'string' },
+        construction_status: { type: 'string', enum: ['lancamento', 'em_obras', 'pronto'] },
+      },
+    },
+  },
+  {
+    name: 'enviar_ficha_empreendimento',
+    description: 'Envia ao cliente, pelo WhatsApp, a foto de capa e os principais dados de um empreendimento (pelo código, ex: EMP-0001), incluindo unidades disponíveis.',
+    input_schema: {
+      type: 'object',
+      properties: { development_code: { type: 'string' } },
+      required: ['development_code'],
+    },
+  },
+  {
     name: 'propor_visita',
     description: 'Registra uma proposta de visita a um imóvel numa data/horário sugeridos, para confirmação posterior pela equipe.',
     input_schema: {
@@ -104,6 +179,18 @@ const LAIS_TOOL_DEFS = [
         notes:         { type: 'string' },
       },
       required: ['property_code', 'scheduled_at'],
+    },
+  },
+  {
+    name: 'transferir_para_setor',
+    description: 'Transfere a conversa para um setor/departamento específico da equipe quando o assunto não é sobre buscar/conhecer imóveis ou empreendimentos (ex: financeiro, jurídico, locação, suporte). Use o nome exato do setor conforme informado no contexto.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        setor:  { type: 'string', description: 'Nome exato do setor/departamento para transferir' },
+        motivo: { type: 'string', description: 'Breve motivo da transferência' },
+      },
+      required: ['setor'],
     },
   },
 ];
@@ -590,6 +677,21 @@ function buildPropertyCaption(p) {
   ].filter(Boolean).join('\n');
 }
 
+const CONSTRUCTION_STATUS_LABELS = {
+  lancamento: 'Lançamento', em_obras: 'Em obras', pronto: 'Pronto para morar',
+};
+
+function buildDevelopmentCaption(d) {
+  const availableUnits = (d.units || []).filter(u => u.status === 'disponivel');
+  return [
+    `*${d.code} — ${d.name}*`,
+    [d.neighborhood, d.city].filter(Boolean).join(', '),
+    d.builder_name ? `Construtora: ${d.builder_name}` : null,
+    `Status: ${CONSTRUCTION_STATUS_LABELS[d.construction_status] || d.construction_status}`,
+    availableUnits.length ? `Unidades disponíveis: ${availableUnits.length}` : null,
+  ].filter(Boolean).join('\n');
+}
+
 /**
  * Executa uma ferramenta da Lais. ctx = { workspaceId, conversationId, contactId, io }
  */
@@ -632,6 +734,67 @@ async function executeLaisTool(name, input, ctx) {
         });
         ctx.io?.to(`ws:${ctx.workspaceId}`).emit('visit:proposed', visit);
         return { success: true, status: 'proposta' };
+      }
+      case 'buscar_empreendimentos': {
+        const { data } = await developmentsSvc.list(ctx.workspaceId, {
+          city: input.city, constructionStatus: input.construction_status, limit: 5,
+        });
+        return {
+          count: data.length,
+          developments: data.map(d => ({
+            code: d.code, name: d.name, builder: d.builder_name,
+            construction_status: d.construction_status,
+            city: d.city, neighborhood: d.neighborhood, units_count: d.units_count,
+          })),
+        };
+      }
+      case 'enviar_ficha_empreendimento': {
+        const development = await developmentsSvc.getByCode(ctx.workspaceId, input.development_code);
+        if (!development) return { success: false, error: 'Empreendimento não encontrado' };
+        const caption = buildDevelopmentCaption(development);
+        await messagesSvc.send(ctx.conversationId, null, development.cover_url
+          ? { content: caption, messageType: 'image', mediaUrl: development.cover_url }
+          : { content: caption, messageType: 'text' });
+        return { success: true };
+      }
+      case 'transferir_para_setor': {
+        const departments = ctx.departments || [];
+        if (!departments.length) {
+          return { success: false, error: 'Nenhum setor configurado para transferência' };
+        }
+        const wanted = String(input.setor || '').toLowerCase().trim();
+        const target = departments.find(d => d.name.toLowerCase() === wanted)
+          || departments.find(d => d.name.toLowerCase().includes(wanted) || wanted.includes(d.name.toLowerCase()));
+        if (!target) {
+          return { success: false, error: 'Setor não encontrado', setores_disponiveis: departments.map(d => d.name) };
+        }
+
+        await query('UPDATE conversations SET department_id = $1 WHERE id = $2', [target.id, ctx.conversationId]);
+
+        // Auto-assign: agente do setor com menos conversas abertas (somente se ainda sem responsável)
+        let agentId = null;
+        const agentRes = await query(
+          `SELECT wm.user_id, COUNT(c.id)::int AS open_count
+           FROM workspace_memberships wm
+           LEFT JOIN conversations c ON c.assignee_id = wm.user_id AND c.workspace_id = $1 AND c.status = 'open'
+           WHERE wm.workspace_id = $1 AND wm.role IN ('agent','member') AND wm.department_id = $2
+           GROUP BY wm.user_id ORDER BY open_count ASC, RANDOM() LIMIT 1`,
+          [ctx.workspaceId, target.id]
+        );
+        if (agentRes.rows.length) {
+          agentId = agentRes.rows[0].user_id;
+          const assigned = await query(
+            'UPDATE conversations SET assignee_id = $1 WHERE id = $2 AND assignee_id IS NULL RETURNING id',
+            [agentId, ctx.conversationId]
+          );
+          if (!assigned.rows.length) agentId = null;
+        }
+
+        const payload = { conversationId: ctx.conversationId, departmentId: target.id, assigneeId: agentId };
+        ctx.io?.to(`ws:${ctx.workspaceId}`).emit('conversation:updated', payload);
+        ctx.io?.to(`conv:${ctx.conversationId}`).emit('conversation:updated', payload);
+
+        return { success: true, setor: target.name };
       }
       default:
         return { success: false, error: 'Ferramenta desconhecida' };
@@ -738,5 +901,5 @@ async function generateChatbotResponseWithTools(conversationId, systemPrompt, ws
 
 module.exports = {
   analyzeConversation, generateFollowUp, generateChatbotResponse, analyzeDeal,
-  generateChatbotResponseWithTools, DEFAULT_LAIS_PERSONA,
+  generateChatbotResponseWithTools, DEFAULT_LAIS_PERSONA, buildLaisPersona,
 };

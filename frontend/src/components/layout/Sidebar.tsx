@@ -9,7 +9,7 @@ import {
   MessageSquare, Users, Kanban, Inbox, Settings,
   LogOut, ChevronDown, Building2, Home, User, Landmark,
   Check, Plus, ArrowLeftRight, LayoutList, BarChart2, BookMarked, Tag, Ticket, X, Send,
-  ShieldCheck, ListChecks, Gauge, CalendarCheck,
+  ShieldCheck, ListChecks, Gauge, CalendarCheck, Construction,
 } from 'lucide-react';
 import { useSidebar } from '@/store/sidebar';
 import { useEffect, useRef, useState } from 'react';
@@ -25,6 +25,7 @@ const ALL_NAV_ITEMS = [
   { href: '/dashboard/conversations', icon: MessageSquare, label: 'Conversas',         ticketsOnly: false, adminOnly: false },
   { href: '/dashboard/contacts',      icon: Users,         label: 'Contatos',          ticketsOnly: false, adminOnly: false },
   { href: '/dashboard/properties',    icon: Building2,     label: 'Imóveis',           ticketsOnly: false, adminOnly: false },
+  { href: '/dashboard/developments',  icon: Construction,  label: 'Empreendimentos',   ticketsOnly: false, adminOnly: false },
   { href: '/dashboard/visitas',       icon: CalendarCheck, label: 'Visitas',           ticketsOnly: false, adminOnly: false },
   { href: '/dashboard/broadcasts',    icon: Send,          label: 'Broadcasts',        ticketsOnly: false, adminOnly: false },
   { href: '/dashboard/kanban',        icon: Kanban,        label: 'Funil',             ticketsOnly: false, adminOnly: false },
@@ -44,6 +45,7 @@ const NAV_PERMISSION_KEY: Record<string, PermissionModuleKey> = {
   '/dashboard/conversations': 'conversations',
   '/dashboard/contacts':      'contacts',
   '/dashboard/properties':    'properties',
+  '/dashboard/developments':  'properties',
   '/dashboard/visitas':       'properties',
   '/dashboard/broadcasts':    'broadcasts',
   '/dashboard/kanban':        'kanban',

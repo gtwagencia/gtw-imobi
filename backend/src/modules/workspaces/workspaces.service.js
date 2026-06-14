@@ -95,6 +95,7 @@ async function update(workspaceId, body) {
     aiBaseUrl:            'ai_base_url',
     customAiApiKey:       'custom_ai_api_key',
     aiToolsEnabled:       'ai_tools_enabled',
+    businessModel:        'business_model',
   };
 
   const fields = [];
@@ -114,6 +115,21 @@ async function update(workspaceId, body) {
   const r = await query(
     `UPDATE workspaces SET ${fields.join(', ')} WHERE id = $${idx} RETURNING *`,
     vals
+  );
+  return r.rows[0];
+}
+
+// ── Integração com o site ───────────────────────────────────────────────────
+
+/**
+ * Gera um novo token de integração (feed XML + webhook de leads do site),
+ * invalidando o anterior.
+ */
+async function regenerateSiteToken(workspaceId) {
+  const token = crypto.randomBytes(24).toString('hex');
+  const r = await query(
+    'UPDATE workspaces SET site_integration_token = $1 WHERE id = $2 RETURNING *',
+    [token, workspaceId]
   );
   return r.rows[0];
 }
@@ -237,6 +253,6 @@ async function updateMemberProfile(workspaceId, userId, { creci, phone }) {
 }
 
 module.exports = {
-  listForOrg, create, getById, update,
+  listForOrg, create, getById, update, regenerateSiteToken,
   listMembers, addMember, removeMember, updateMemberRole, updateMemberProfile, resetMemberPassword,
 };

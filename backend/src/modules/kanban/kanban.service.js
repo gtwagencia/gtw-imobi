@@ -184,6 +184,40 @@ async function createDealFromConversation(workspaceId, { contactId, contactName,
   return r.rows[0];
 }
 
+/**
+ * Cria um deal a partir de um lead recebido pelo site (gtw-imoview): formulário
+ * de contato de um imóvel, sem conversa de WhatsApp associada.
+ */
+async function createSiteLead(workspaceId, { contactId, contactName, propertyId, leadMessage, leadSource }) {
+  const pipelineSvc = require('../pipelines/pipelines.service');
+  const pipelineId  = await pipelineSvc.getDefaultPipeline(workspaceId);
+
+  const stageRes = await query(
+    `SELECT id FROM kanban_stages
+     WHERE workspace_id = $1 AND is_default = true
+       ${pipelineId ? 'AND pipeline_id = $2' : ''}
+     ORDER BY position LIMIT 1`,
+    pipelineId ? [workspaceId, pipelineId] : [workspaceId]
+  );
+  let stageId = stageRes.rows[0]?.id;
+  if (!stageId) {
+    const fallback = await query(
+      `SELECT id FROM kanban_stages WHERE workspace_id = $1 ${pipelineId ? 'AND pipeline_id = $2' : ''} ORDER BY position LIMIT 1`,
+      pipelineId ? [workspaceId, pipelineId] : [workspaceId]
+    );
+    if (!fallback.rows.length) return null;
+    stageId = fallback.rows[0].id;
+  }
+
+  const r = await query(
+    `INSERT INTO deals (workspace_id, contact_id, stage_id, pipeline_id, title, property_id, lead_message, lead_source, meta_source)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
+    [workspaceId, contactId, stageId, pipelineId || null, contactName || 'Novo Lead (Site)', propertyId || null,
+     leadMessage || null, leadSource || 'site_form', 'organic']
+  );
+  return r.rows[0];
+}
+
 async function updateDeal(dealId, workspaceId, body) {
   const map = {
     stageId:          'stage_id',
@@ -285,6 +319,6 @@ async function moveToAttending(conversationId) {
 module.exports = {
   seedDefaultStages,
   listStages, createStage, updateStage, removeStage,
-  listDeals, createDeal, createDealFromConversation, updateDeal, removeDeal,
+  listDeals, createDeal, createDealFromConversation, createSiteLead, updateDeal, removeDeal,
   getBoard, moveToAttending,
 };

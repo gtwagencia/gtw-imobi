@@ -38,7 +38,7 @@ async function create(workspaceId, { name, color, description }) {
 }
 
 async function update(deptId, workspaceId, body) {
-  const map = { name: 'name', color: 'color', description: 'description', aiPersona: 'ai_persona' };
+  const map = { name: 'name', color: 'color', description: 'description', aiPersona: 'ai_persona', aiRoutingDescription: 'ai_routing_description' };
   const fields = []; const vals = []; let idx = 1;
 
   for (const [k, col] of Object.entries(map)) {

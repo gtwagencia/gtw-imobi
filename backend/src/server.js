@@ -23,6 +23,8 @@ const workspacesRouter    = require('./modules/workspaces/workspaces.router');
 const inboxesRouter       = require('./modules/inboxes/inboxes.router');
 const contactsRouter      = require('./modules/contacts/contacts.router');
 const propertiesRouter    = require('./modules/properties/properties.router');
+const propertiesFeedRouter = require('./modules/properties/properties-feed.router');
+const developmentsRouter  = require('./modules/developments/developments.router');
 const visitsRouter        = require('./modules/visits/visits.router');
 const conversationsRouter = require('./modules/conversations/conversations.router');
 const messagesRouter      = require('./modules/messages/messages.router');
@@ -94,6 +96,9 @@ app.use('/api/v1/orgs/:orgId/workspaces',                  workspacesRouter);
 app.use('/api/v1/workspaces/:workspaceId/inboxes',         requireNotTicketsOnly, inboxesRouter);
 app.use('/api/v1/workspaces/:workspaceId/contacts',        requireNotTicketsOnly, contactsRouter);
 app.use('/api/v1/workspaces/:workspaceId/properties',      requireNotTicketsOnly, propertiesRouter);
+app.use('/api/v1/workspaces/:workspaceId/developments',    requireNotTicketsOnly, developmentsRouter);
+// Feed XML público (token-based) — consumido pelo gtw-imoview, sem autenticação JWT
+app.use('/api/v1/feeds',                                   propertiesFeedRouter);
 app.use('/api/v1/workspaces/:workspaceId/visits',          requireNotTicketsOnly, visitsRouter);
 app.use('/api/v1/workspaces/:workspaceId/conversations',   requireNotTicketsOnly, conversationsRouter);
 app.use('/api/v1/workspaces/:workspaceId/kanban',          requireNotTicketsOnly, kanbanRouter);

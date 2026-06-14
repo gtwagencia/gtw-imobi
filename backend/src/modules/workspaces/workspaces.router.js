@@ -68,6 +68,17 @@ router.put('/:workspaceId', authenticate, orgContext, workspaceContext, async (r
   } catch (err) { next(err); }
 });
 
+// POST /orgs/:orgId/workspaces/:workspaceId/site-integration/regenerate-token
+router.post('/:workspaceId/site-integration/regenerate-token', authenticate, orgContext, workspaceContext, async (req, res, next) => {
+  try {
+    if (!['admin', 'owner'].includes(req.orgRole) && !req.user.isSuperAdmin) {
+      return res.status(403).json({ error: 'Acesso negado' });
+    }
+    const ws = await svc.regenerateSiteToken(req.params.workspaceId);
+    res.json(sanitizeWorkspace(ws));
+  } catch (err) { next(err); }
+});
+
 // ── Members ────────────────────────────────────────────────────────────────
 
 router.get('/:workspaceId/members', authenticate, orgContext, workspaceContext, async (req, res, next) => {

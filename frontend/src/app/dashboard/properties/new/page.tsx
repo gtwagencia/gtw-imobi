@@ -1,6 +1,6 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/store/auth';
 import Header from '@/components/layout/Header';
 import PropertyForm from '@/components/properties/PropertyForm';
@@ -10,6 +10,8 @@ import { ArrowLeft } from 'lucide-react';
 export default function NewPropertyPage() {
   const { currentOrg, currentWorkspace } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const developmentId = searchParams.get('developmentId') || undefined;
 
   if (!currentOrg || !currentWorkspace) {
     return (
@@ -39,6 +41,7 @@ export default function NewPropertyPage() {
           <PropertyForm
             workspaceId={currentWorkspace.id}
             orgId={currentOrg.id}
+            initialDevelopmentId={developmentId}
             onSave={(created: Property) => router.push(`/dashboard/properties/${created.id}`)}
           />
         </div>

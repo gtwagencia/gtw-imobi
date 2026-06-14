@@ -16,6 +16,7 @@ interface Department {
   color: string;
   description: string | null;
   ai_persona: string | null;
+  ai_routing_description: string | null;
   agent_count: number;
   conversation_count: number;
 }
@@ -61,6 +62,11 @@ export default function DepartmentsPage() {
   const [savingPersona,  setSavingPersona]  = useState(false);
   const [personaSaved,   setPersonaSaved]   = useState(false);
 
+  // IA (Lais) — roteamento automático para este setor
+  const [routingDraft, setRoutingDraft] = useState('');
+  const [savingRouting, setSavingRouting] = useState(false);
+  const [routingSaved,  setRoutingSaved]  = useState(false);
+
   const isAdmin = currentOrg?.role === 'owner' || currentOrg?.role === 'admin';
 
   const loadDepts = useCallback(async () => {
@@ -76,6 +82,7 @@ export default function DepartmentsPage() {
   async function selectDept(dept: Department) {
     setSelectedDept(dept);
     setAiPersonaDraft(dept.ai_persona || '');
+    setRoutingDraft(dept.ai_routing_description || '');
     setLoadingAgents(true);
     const [agentsRes, unassignedRes] = await Promise.all([
       api.get(`/workspaces/${currentWorkspace!.id}/departments/${dept.id}/agents`),
@@ -125,6 +132,22 @@ export default function DepartmentsPage() {
       setTimeout(() => setPersonaSaved(false), 2000);
     } finally {
       setSavingPersona(false);
+    }
+  }
+
+  async function handleSaveRouting() {
+    if (!currentWorkspace || !selectedDept) return;
+    setSavingRouting(true);
+    try {
+      const { data } = await api.put(`/workspaces/${currentWorkspace.id}/departments/${selectedDept.id}`, {
+        aiRoutingDescription: routingDraft || null,
+      });
+      setSelectedDept(data);
+      setDepartments(prev => prev.map(d => d.id === data.id ? { ...d, ai_routing_description: data.ai_routing_description } : d));
+      setRoutingSaved(true);
+      setTimeout(() => setRoutingSaved(false), 2000);
+    } finally {
+      setSavingRouting(false);
     }
   }
 
@@ -325,6 +348,37 @@ export default function DepartmentsPage() {
                   >
                     {savingPersona ? <Loader className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
                     {personaSaved ? 'Salvo!' : 'Salvar'}
+                  </button>
+                </div>
+              </div>
+
+              {/* IA (Lais) — roteamento automático para este setor */}
+              <div className="card p-4 mb-6">
+                <h3 className="font-medium text-gray-900 text-sm flex items-center gap-1.5 mb-1">
+                  <Sparkles className="w-4 h-4 text-indigo-500" />
+                  IA (Lais) — quando transferir para este setor
+                </h3>
+                <p className="text-xs text-gray-400 mb-2">
+                  Descreva os assuntos que devem ser direcionados para este setor. A Lais usa esse
+                  texto para identificar a intenção do contato e transferir a conversa automaticamente
+                  (ex: &quot;Financeiro: 2ª via de boleto, pagamentos, inadimplência, distrato&quot;).
+                </p>
+                <textarea
+                  className="input text-sm min-h-[100px] resize-y"
+                  rows={4}
+                  value={routingDraft}
+                  onChange={(e) => setRoutingDraft(e.target.value)}
+                  placeholder="Ex: Dúvidas sobre pagamento de boleto, segunda via, inadimplência, distrato e questões financeiras em geral."
+                />
+                <div className="flex items-center gap-3 mt-2">
+                  <button
+                    type="button"
+                    className="btn-primary text-xs"
+                    onClick={handleSaveRouting}
+                    disabled={savingRouting}
+                  >
+                    {savingRouting ? <Loader className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                    {routingSaved ? 'Salvo!' : 'Salvar'}
                   </button>
                 </div>
               </div>

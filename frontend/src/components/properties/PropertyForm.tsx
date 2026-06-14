@@ -2,10 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import api from '@/lib/api';
-import type { Property, PropertyType, PropertyPurpose, PropertyStatus, Contact } from '@/types';
+import type { Property, PropertyType, PropertyPurpose, PropertyStatus, Contact, Development } from '@/types';
 import {
   PROPERTY_TYPE_LABELS, PURPOSE_LABELS, STATUS_LABELS, AMENITIES_LIST, BRAZIL_STATES,
 } from '@/lib/propertyConstants';
+import LocationPicker from './LocationPicker';
 import { Plus, X } from 'lucide-react';
 import clsx from 'clsx';
 
@@ -20,6 +21,7 @@ interface PropertyFormProps {
   property?: Property;
   workspaceId: string;
   orgId: string;
+  initialDevelopmentId?: string;
   onSave: (p: Property) => void;
 }
 
@@ -36,6 +38,8 @@ interface FormState {
   neighborhood: string;
   city: string;
   state: string;
+  latitude: string;
+  longitude: string;
   hideAddress: boolean;
   salePrice: string;
   rentPrice: string;
@@ -54,10 +58,11 @@ interface FormState {
   ownerName: string;
   brokerId: string;
   scoutId: string;
+  developmentId: string;
   isFeatured: boolean;
 }
 
-function toFormState(p?: Property): FormState {
+function toFormState(p?: Property, initialDevelopmentId?: string): FormState {
   return {
     title:        p?.title || '',
     description:  p?.description || '',
@@ -71,6 +76,8 @@ function toFormState(p?: Property): FormState {
     neighborhood: p?.neighborhood || '',
     city:         p?.city || '',
     state:        p?.state || '',
+    latitude:     p?.latitude  != null ? String(p.latitude)  : '',
+    longitude:    p?.longitude != null ? String(p.longitude) : '',
     hideAddress:  p?.hide_address || false,
     salePrice:    p?.sale_price   != null ? String(p.sale_price)   : '',
     rentPrice:    p?.rent_price   != null ? String(p.rent_price)   : '',
@@ -89,6 +96,7 @@ function toFormState(p?: Property): FormState {
     ownerName:    p?.owner_name || '',
     brokerId:     p?.broker_id || '',
     scoutId:      p?.scout_id  || '',
+    developmentId: p?.development_id || initialDevelopmentId || '',
     isFeatured:   p?.is_featured || false,
   };
 }
@@ -96,15 +104,16 @@ function toFormState(p?: Property): FormState {
 const num = (v: string) => (v.trim() === '' ? null : Number(v));
 const int = (v: string) => (v.trim() === '' ? null : parseInt(v, 10));
 
-export default function PropertyForm({ property, workspaceId, orgId, onSave }: PropertyFormProps) {
-  const [form,     setForm]     = useState<FormState>(() => toFormState(property));
+export default function PropertyForm({ property, workspaceId, orgId, initialDevelopmentId, onSave }: PropertyFormProps) {
+  const [form,     setForm]     = useState<FormState>(() => toFormState(property, initialDevelopmentId));
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [members,  setMembers]  = useState<Member[]>([]);
+  const [developments, setDevelopments] = useState<Development[]>([]);
   const [customAmenity, setCustomAmenity] = useState('');
   const [saving, setSaving] = useState(false);
   const [error,  setError]  = useState('');
 
-  useEffect(() => { setForm(toFormState(property)); }, [property]);
+  useEffect(() => { setForm(toFormState(property, initialDevelopmentId)); }, [property, initialDevelopmentId]);
 
   useEffect(() => {
     api.get(`/workspaces/${workspaceId}/contacts`, { params: { limit: 200 } })
@@ -112,6 +121,9 @@ export default function PropertyForm({ property, workspaceId, orgId, onSave }: P
       .catch(() => {});
     api.get(`/orgs/${orgId}/workspaces/${workspaceId}/members`)
       .then(({ data }) => setMembers(data))
+      .catch(() => {});
+    api.get(`/workspaces/${workspaceId}/developments`, { params: { limit: 200 } })
+      .then(({ data }) => setDevelopments(data.data))
       .catch(() => {});
   }, [workspaceId, orgId]);
 
@@ -158,6 +170,8 @@ export default function PropertyForm({ property, workspaceId, orgId, onSave }: P
         neighborhood: form.neighborhood.trim() || null,
         city:         form.city.trim() || null,
         state:        form.state || null,
+        latitude:     num(form.latitude),
+        longitude:    num(form.longitude),
         hideAddress:  form.hideAddress,
         salePrice:    num(form.salePrice),
         rentPrice:    num(form.rentPrice),
@@ -175,6 +189,7 @@ export default function PropertyForm({ property, workspaceId, orgId, onSave }: P
         ownerId:      form.ownerId || null,
         brokerId:     form.brokerId || null,
         scoutId:      form.scoutId || null,
+        developmentId: form.developmentId || null,
         isFeatured:   form.isFeatured,
       };
 
@@ -286,7 +301,41 @@ export default function PropertyForm({ property, workspaceId, orgId, onSave }: P
             <label htmlFor="hideAddress" className="text-sm text-gray-700">Ocultar endereço exato em divulgações públicas (mostrar apenas bairro/cidade)</label>
           </div>
         </div>
+
+        <div className="mt-4 pt-4 border-t border-gray-100">
+          <label className="block text-xs font-medium text-gray-600 mb-2">Localização no mapa</label>
+          <LocationPicker
+            latitude={form.latitude.trim() === '' ? null : Number(form.latitude)}
+            longitude={form.longitude.trim() === '' ? null : Number(form.longitude)}
+            address={[
+              [form.street, form.number].filter(Boolean).join(', '),
+              form.neighborhood,
+              [form.city, form.state].filter(Boolean).join(' - '),
+              'Brasil',
+            ].filter(Boolean).join(', ')}
+            onChange={(lat, lng) => {
+              set('latitude',  lat == null ? '' : String(lat));
+              set('longitude', lng == null ? '' : String(lng));
+            }}
+          />
+        </div>
       </div>
+
+      {/* Empreendimento */}
+      {developments.length > 0 && (
+        <div className="card p-5">
+          <h3 className="font-semibold text-gray-900 mb-1">Empreendimento</h3>
+          <p className="text-xs text-gray-400 mb-3">Vincule esta unidade a um empreendimento/lançamento cadastrado, se aplicável.</p>
+          <div className="max-w-md">
+            <select className="input" value={form.developmentId} onChange={e => set('developmentId', e.target.value)}>
+              <option value="">— Imóvel de terceiro (sem vínculo) —</option>
+              {developments.map(d => (
+                <option key={d.id} value={d.id}>{d.code} — {d.name}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+      )}
 
       {/* Valores */}
       <div className="card p-5">

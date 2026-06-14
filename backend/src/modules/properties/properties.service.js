@@ -112,6 +112,38 @@ async function getById(propertyId, workspaceId) {
   return { ...r.rows[0], media: media.rows };
 }
 
+// ── Feed (integração com o site) ─────────────────────────────────────────
+
+/**
+ * Imóveis disponíveis para publicação no feed XML do site, com fotos.
+ */
+async function listForFeed(workspaceId) {
+  const r = await query(
+    `SELECT p.*, owner.name AS owner_name, broker.name AS broker_name
+     FROM properties p
+     LEFT JOIN contacts owner ON owner.id = p.owner_id
+     LEFT JOIN users broker   ON broker.id = p.broker_id
+     WHERE p.workspace_id = $1 AND p.status = 'disponivel'
+     ORDER BY p.created_at DESC`,
+    [workspaceId]
+  );
+  if (!r.rows.length) return [];
+
+  const ids = r.rows.map(p => p.id);
+  const mediaRes = await query(
+    `SELECT * FROM property_media
+     WHERE property_id = ANY($1) AND media_type = 'image'
+     ORDER BY property_id, position ASC`,
+    [ids]
+  );
+  const mediaByProperty = {};
+  for (const m of mediaRes.rows) {
+    (mediaByProperty[m.property_id] ||= []).push(m);
+  }
+
+  return r.rows.map(p => ({ ...p, media: mediaByProperty[p.id] || [] }));
+}
+
 // ── Get by code ───────────────────────────────────────────────────────────
 
 async function getByCode(workspaceId, code) {
@@ -137,7 +169,7 @@ async function create(workspaceId, body) {
     salePrice, rentPrice, condoFee, iptu,
     totalArea, builtArea, bedrooms, bathrooms, suites, parkingSpots, floorNumber, yearBuilt,
     amenities,
-    ownerId, brokerId, scoutId,
+    ownerId, brokerId, scoutId, developmentId,
     isFeatured,
   } = body;
 
@@ -148,13 +180,13 @@ async function create(workspaceId, body) {
        zip_code, street, number, complement, neighborhood, city, state, latitude, longitude, hide_address,
        sale_price, rent_price, condo_fee, iptu,
        total_area, built_area, bedrooms, bathrooms, suites, parking_spots, floor_number, year_built,
-       amenities, owner_id, broker_id, scout_id, is_featured
+       amenities, owner_id, broker_id, scout_id, development_id, is_featured
      ) VALUES (
        $1,$2,$3,$4, $5,$6,$7,
        $8,$9,$10,$11,$12,$13,$14,$15,$16,$17,
        $18,$19,$20,$21,
        $22,$23,$24,$25,$26,$27,$28,$29,
-       $30,$31,$32,$33,$34
+       $30,$31,$32,$33,$34,$35
      ) RETURNING *`,
     [
       workspaceId, code, title, description || null,
@@ -162,7 +194,7 @@ async function create(workspaceId, body) {
       zipCode || null, street || null, number || null, complement || null, neighborhood || null, city || null, state || null, latitude ?? null, longitude ?? null, hideAddress || false,
       salePrice ?? null, rentPrice ?? null, condoFee ?? null, iptu ?? null,
       totalArea ?? null, builtArea ?? null, bedrooms ?? null, bathrooms ?? null, suites ?? null, parkingSpots ?? null, floorNumber ?? null, yearBuilt ?? null,
-      amenities || [], ownerId || null, brokerId || null, scoutId || null, isFeatured || false,
+      amenities || [], ownerId || null, brokerId || null, scoutId || null, developmentId || null, isFeatured || false,
     ]
   );
   return r.rows[0];
@@ -181,7 +213,7 @@ const UPDATE_FIELD_MAP = {
   bedrooms: 'bedrooms', bathrooms: 'bathrooms', suites: 'suites',
   parkingSpots: 'parking_spots', floorNumber: 'floor_number', yearBuilt: 'year_built',
   amenities: 'amenities',
-  ownerId: 'owner_id', brokerId: 'broker_id', scoutId: 'scout_id',
+  ownerId: 'owner_id', brokerId: 'broker_id', scoutId: 'scout_id', developmentId: 'development_id',
   isFeatured: 'is_featured', publishedAt: 'published_at',
 };
 
@@ -281,7 +313,18 @@ async function setCover(mediaId, propertyId, workspaceId) {
   await query('UPDATE property_media SET is_cover = true WHERE id = $1', [mediaId]);
 }
 
+async function setShowOnSite(mediaId, propertyId, workspaceId, showOnSite) {
+  await assertPropertyExists(propertyId, workspaceId);
+
+  const r = await query(
+    'UPDATE property_media SET show_on_site = $1 WHERE id = $2 AND property_id = $3 RETURNING id',
+    [showOnSite, mediaId, propertyId]
+  );
+  if (!r.rows.length) throw Object.assign(new Error('Mídia não encontrada'), { status: 404 });
+}
+
 module.exports = {
   list, getById, getByCode, create, update, remove,
-  addMedia, removeMedia, reorderMedia, setCover,
+  addMedia, removeMedia, reorderMedia, setCover, setShowOnSite,
+  listForFeed,
 };

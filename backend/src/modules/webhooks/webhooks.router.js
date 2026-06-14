@@ -446,7 +446,7 @@ async function autoAssignAgent(workspaceId, inboxId, departmentId) {
 async function dispatchChatbotResponse(inbox, conversation, contact, io) {
   const wsRes = await query(
     `SELECT w.anthropic_api_key, w.openai_api_key, w.custom_ai_api_key, w.ai_base_url,
-            w.ai_provider, w.ai_model, w.ai_ignore_groups, w.ai_tools_enabled,
+            w.ai_provider, w.ai_model, w.ai_ignore_groups, w.ai_tools_enabled, w.business_model,
             d.ai_persona AS department_ai_persona
      FROM workspaces w
      LEFT JOIN departments d ON d.id = $2
@@ -466,8 +466,14 @@ async function dispatchChatbotResponse(inbox, conversation, contact, io) {
 
   await query('UPDATE conversations SET bot_active = true WHERE id = $1', [conversation.id]);
 
+  // Setores disponíveis para a Lais transferir a conversa automaticamente
+  const deptRes = await query(
+    `SELECT id, name, ai_routing_description FROM departments WHERE workspace_id = $1 ORDER BY name`,
+    [inbox.workspace_id]
+  );
+
   const systemPrompt = [
-    aiSvc.DEFAULT_LAIS_PERSONA,
+    aiSvc.buildLaisPersona({ businessModel: ws.business_model, departments: deptRes.rows }),
     ws.department_ai_persona,
     inbox.chatbot_prompt,
   ].filter(Boolean).join('\n\n---\n\n');
@@ -475,7 +481,7 @@ async function dispatchChatbotResponse(inbox, conversation, contact, io) {
   const responsePromise = ws.ai_tools_enabled
     ? aiSvc.generateChatbotResponseWithTools(conversation.id, systemPrompt, ws, {
         workspaceId: inbox.workspace_id, conversationId: conversation.id,
-        contactId: contact.id, io,
+        contactId: contact.id, inboxId: inbox.id, departments: deptRes.rows, io,
       })
     : aiSvc.generateChatbotResponse(conversation.id, systemPrompt, apiKey, provider, ws.ai_model || null, ws.ai_base_url);
 
@@ -1118,6 +1124,58 @@ router.post('/waba', async (req, res) => {
     }
   } catch (err) {
     logger.error('WABA webhook processing error', { err: err.message });
+  }
+});
+
+// ════════════════════════════════════════════════════════════════════════
+// Leads do site (gtw-imoview) — formulário de contato dos imóveis
+// POST /api/v1/webhooks/site-leads/:workspaceId
+// ════════════════════════════════════════════════════════════════════════
+
+router.post('/site-leads/:workspaceId', async (req, res) => {
+  try {
+    const { workspaceId } = req.params;
+    const token = req.query.token || req.headers['x-site-token'];
+
+    const wsRes = await query('SELECT site_integration_token FROM workspaces WHERE id = $1', [workspaceId]);
+    const expected = wsRes.rows[0]?.site_integration_token;
+    if (!expected || !token || token !== expected) {
+      return res.status(403).json({ error: 'Token inválido' });
+    }
+
+    const { name, phone, email, message, propertyCode, source } = req.body || {};
+    if (!name && !phone && !email) {
+      return res.status(400).json({ error: 'Informe ao menos nome, telefone ou email' });
+    }
+
+    const propertiesSvc = require('../properties/properties.service');
+    const property = propertyCode ? await propertiesSvc.getByCode(workspaceId, propertyCode) : null;
+
+    const contact = await contactSvc.create(workspaceId, {
+      name: name || 'Lead do site',
+      phone: normalizePhone(phone),
+      email: email || null,
+      utmSource: source || 'site',
+    });
+
+    const dealTitle = property ? `${contact.name} — ${property.title}` : contact.name;
+
+    const deal = await kanbanSvc.createSiteLead(workspaceId, {
+      contactId: contact.id,
+      contactName: dealTitle,
+      propertyId: property?.id || null,
+      leadMessage: message || null,
+      leadSource: source || 'site_form',
+    });
+
+    if (deal) {
+      req.app.get('io')?.to(`ws:${workspaceId}`).emit('deal:created', deal);
+    }
+
+    res.json({ ok: true, contactId: contact.id, dealId: deal?.id || null });
+  } catch (err) {
+    logger.error('Site lead webhook error', { err: err.message });
+    res.status(500).json({ error: 'Erro ao processar lead' });
   }
 });
 

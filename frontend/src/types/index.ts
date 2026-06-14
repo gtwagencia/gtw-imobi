@@ -71,7 +71,9 @@ export interface Workspace {
   ai_base_url: string | null;
   has_custom_ai_key: boolean;
   ai_tools_enabled: boolean;
+  business_model: 'imobiliaria' | 'construtora';
   sla_response_minutes: number | null;
+  site_integration_token: string | null;
   created_at: string;
   member_count?: number;
   inbox_count?: number;
@@ -151,6 +153,7 @@ export interface PropertyMedia {
   media_type: 'image' | 'video' | 'floorplan' | 'document';
   position: number;
   is_cover: boolean;
+  show_on_site: boolean;
 }
 
 export interface Property {
@@ -188,6 +191,7 @@ export interface Property {
   owner_id: string | null;
   broker_id: string | null;
   scout_id: string | null;
+  development_id: string | null;
   owner_name?: string | null;
   broker_name?: string | null;
   scout_name?: string | null;
@@ -198,6 +202,62 @@ export interface Property {
   updated_at: string;
   media: PropertyMedia[];
   cover_url?: string | null;
+}
+
+// ── Empreendimentos ───────────────────────────────────────────────────────────
+
+export type DevelopmentConstructionStatus = 'lancamento' | 'em_obras' | 'pronto';
+
+export interface DevelopmentMedia {
+  id: string;
+  development_id: string;
+  url: string;
+  media_type: 'image' | 'video' | 'floorplan' | 'document';
+  position: number;
+  is_cover: boolean;
+  show_on_site: boolean;
+}
+
+export interface DevelopmentUnit {
+  id: string;
+  code: string;
+  title: string;
+  property_type: PropertyType;
+  purpose: PropertyPurpose;
+  status: PropertyStatus;
+  sale_price: number | null;
+  rent_price: number | null;
+  bedrooms: number | null;
+  cover_url: string | null;
+}
+
+export interface Development {
+  id: string;
+  workspace_id: string;
+  code: string;
+  name: string;
+  description: string | null;
+  builder_name: string | null;
+  construction_status: DevelopmentConstructionStatus;
+  delivery_date: string | null;
+  zip_code: string | null;
+  street: string | null;
+  number: string | null;
+  complement: string | null;
+  neighborhood: string | null;
+  city: string | null;
+  state: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  amenities: string[];
+  is_featured: boolean;
+  published_at: string | null;
+  created_at: string;
+  updated_at: string;
+  media: DevelopmentMedia[];
+  units: DevelopmentUnit[];
+  cover_url?: string | null;
+  units_count?: number;
 }
 
 export interface PropertyVisit {

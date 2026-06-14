@@ -1,4 +1,4 @@
-import type { PropertyType, PropertyPurpose, PropertyStatus } from '@/types';
+import type { PropertyType, PropertyPurpose, PropertyStatus, DevelopmentConstructionStatus } from '@/types';
 
 export const PROPERTY_TYPE_LABELS: Record<PropertyType, string> = {
   apartamento:           'Apartamento',
@@ -39,11 +39,41 @@ export const STATUS_COLORS: Record<PropertyStatus, string> = {
   inativo:    'bg-gray-100 text-gray-500',
 };
 
+export const CONSTRUCTION_STATUS_LABELS: Record<DevelopmentConstructionStatus, string> = {
+  lancamento: 'Lançamento',
+  em_obras:   'Em obras',
+  pronto:     'Pronto para morar',
+};
+
+export const CONSTRUCTION_STATUS_COLORS: Record<DevelopmentConstructionStatus, string> = {
+  lancamento: 'bg-purple-100 text-purple-700',
+  em_obras:   'bg-yellow-100 text-yellow-700',
+  pronto:     'bg-green-100 text-green-700',
+};
+
 export const AMENITIES_LIST = [
-  'Piscina', 'Churrasqueira', 'Academia', 'Portaria 24h', 'Elevador',
-  'Salão de festas', 'Playground', 'Quadra esportiva', 'Sacada/Varanda',
-  'Mobiliado', 'Aceita pet', 'Ar condicionado', 'Armários planejados',
-  'Vista para o mar', 'Energia solar', 'Área de serviço', 'Closet', 'Jardim',
+  // Lazer e área comum
+  'Piscina', 'Piscina aquecida', 'Academia', 'Churrasqueira', 'Área gourmet',
+  'Varanda gourmet', 'Salão de festas', 'Playground', 'Quadra esportiva',
+  'Sauna', 'Espaço pet', 'Coworking', 'Brinquedoteca', 'Espaço cinema/jogos',
+
+  // Segurança e portaria
+  'Portaria 24h', 'Portão eletrônico', 'Câmeras de segurança', 'Interfone', 'Gerador',
+
+  // Estrutura do imóvel
+  'Elevador', 'Sacada/Varanda', 'Closet', 'Lareira', 'Hidromassagem/Banheira',
+  'Armários planejados', 'Área de serviço', 'Depósito/Despensa', 'Lavanderia',
+  'Quintal', 'Jardim',
+
+  // Mobília
+  'Mobiliado', 'Semi-mobiliado', 'Não mobiliado',
+
+  // Conforto e sustentabilidade
+  'Ar condicionado', 'Energia solar', 'Aquecimento solar', 'Aceita pet',
+
+  // Vista e localização
+  'Vista para o mar', 'Vista para montanha', 'Vista panorâmica',
+  'Próximo a transporte público', 'Bicicletário',
 ];
 
 export const BRAZIL_STATES = [
