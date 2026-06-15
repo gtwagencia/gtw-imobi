@@ -90,7 +90,7 @@ export default function VisitasPage() {
     <>
       <Header title="Visitas" />
 
-      <div className="flex-1 overflow-y-auto p-4">
+      <div className="flex-1 overflow-y-auto p-4 md:p-6">
         <div className="max-w-2xl mx-auto space-y-5">
           {loading ? (
             Array.from({ length: 3 }).map((_, i) => (

@@ -129,7 +129,7 @@ export default function TicketCalendarPage() {
         }
       />
 
-      <div className="flex-1 overflow-auto p-6 bg-gray-50">
+      <div className="flex-1 overflow-auto p-4 md:p-6 bg-gray-50">
         <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
           {/* Weekday headers */}
           <div className="grid grid-cols-7 border-b border-gray-100">

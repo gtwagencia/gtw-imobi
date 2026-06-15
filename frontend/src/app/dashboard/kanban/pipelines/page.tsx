@@ -848,7 +848,7 @@ export default function PipelinesPage() {
       />
 
       <div className="flex-1 overflow-y-auto bg-gray-50">
-      <div className="max-w-4xl mx-auto px-6 py-8 space-y-5">
+      <div className="max-w-4xl mx-auto px-4 md:px-6 py-8 space-y-5">
         {loading ? (
           <div className="space-y-3">
             {Array.from({ length: 3 }).map((_, i) => (

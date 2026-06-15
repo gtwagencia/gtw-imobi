@@ -127,7 +127,7 @@ export default function TicketsReportsPage() {
     <>
       <Header title="Relatório de Tickets" />
 
-      <div className="flex-1 overflow-auto p-6 bg-gray-50">
+      <div className="flex-1 overflow-auto p-4 md:p-6 bg-gray-50">
 
         {/* ── Filters ──────────────────────────────────────────── */}
         <div className="bg-white rounded-2xl border border-gray-200 p-5 mb-6">

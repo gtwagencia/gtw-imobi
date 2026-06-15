@@ -216,7 +216,7 @@ export default function MyTasksPage() {
         }
       />
 
-      <div className="flex-1 overflow-auto p-6 bg-gray-50">
+      <div className="flex-1 overflow-auto p-4 md:p-6 bg-gray-50">
         {loading ? (
           <div className="space-y-2">
             {[1,2,3,4].map(i => <div key={i} className="bg-gray-200 rounded-xl h-20 animate-pulse" />)}

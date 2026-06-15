@@ -1243,7 +1243,7 @@ export default function BoardPage() {
         }
       />
 
-      <div className="flex-1 overflow-x-auto p-6 bg-gray-50">
+      <div className="flex-1 overflow-x-auto p-4 md:p-6 bg-gray-50">
         <DragDropContext onDragEnd={onDragEnd}>
           <Droppable droppableId="board-columns" direction="horizontal" type="COLUMN">
             {(colsProvided) => (

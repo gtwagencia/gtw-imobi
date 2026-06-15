@@ -268,7 +268,7 @@ export default function TicketsPage() {
         }
       />
 
-      <div className="flex-1 overflow-auto p-6 bg-gray-50">
+      <div className="flex-1 overflow-auto p-4 md:p-6 bg-gray-50">
         {loading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {[1,2,3].map(i => <div key={i} className="bg-gray-200 rounded-xl h-40 animate-pulse" />)}
