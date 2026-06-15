@@ -6,7 +6,7 @@ import { useAuth } from '@/store/auth';
 import Header from '@/components/layout/Header';
 import api from '@/lib/api';
 import type { Contact, ContactType, DocumentType } from '@/types';
-import { Search, Plus, Mail, X, MessageSquare, ExternalLink, ChevronLeft, ChevronRight, Pencil, Upload, CheckCircle, AlertCircle, Users, GitMerge } from 'lucide-react';
+import { Search, Plus, Mail, X, MessageSquare, ExternalLink, ChevronLeft, ChevronRight, Pencil, Upload, CheckCircle, AlertCircle, Users, GitMerge, Copy, Check, Loader2, KeyRound } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import clsx from 'clsx';
@@ -206,11 +206,45 @@ function ContactPanel({ contact, workspaceId, onClose, onEdit }: {
   const [convs,    setConvs]    = useState<ConvSummary[]>([]);
   const [loading,  setLoading]  = useState(true);
 
+  const [portalToken,   setPortalToken]   = useState<string | null>(contact.portal_token);
+  const [portalWorking, setPortalWorking] = useState(false);
+  const [portalCopied,  setPortalCopied]  = useState(false);
+
   useEffect(() => {
     api.get(`/workspaces/${workspaceId}/contacts/${contact.id}/conversations`)
       .then(({ data }) => setConvs(data))
       .finally(() => setLoading(false));
   }, [contact.id, workspaceId]);
+
+  useEffect(() => { setPortalToken(contact.portal_token); }, [contact.id, contact.portal_token]);
+
+  async function handleGeneratePortalAccess() {
+    setPortalWorking(true);
+    try {
+      const { data } = await api.post<{ token: string }>(`/workspaces/${workspaceId}/contacts/${contact.id}/portal-access`, {});
+      setPortalToken(data.token);
+    } finally {
+      setPortalWorking(false);
+    }
+  }
+
+  async function handleRevokePortalAccess() {
+    if (!confirm('Revogar o acesso ao portal do cliente? O link atual deixará de funcionar.')) return;
+    setPortalWorking(true);
+    try {
+      await api.delete(`/workspaces/${workspaceId}/contacts/${contact.id}/portal-access`);
+      setPortalToken(null);
+    } finally {
+      setPortalWorking(false);
+    }
+  }
+
+  async function handleCopyPortalLink() {
+    if (!portalToken) return;
+    await navigator.clipboard.writeText(`${window.location.origin}/portal/${portalToken}`);
+    setPortalCopied(true);
+    setTimeout(() => setPortalCopied(false), 2000);
+  }
 
   return (
     <div className="w-80 border-l border-gray-200 bg-white flex flex-col h-full overflow-hidden flex-shrink-0">
@@ -282,6 +316,47 @@ function ContactPanel({ contact, workspaceId, onClose, onEdit }: {
             <div className="mt-3 text-xs text-gray-400">
               <span className="font-medium">UTM:</span> {contact.utm_source} / {contact.utm_campaign}
             </div>
+          )}
+        </div>
+
+        {/* Portal do cliente */}
+        <div className="p-4 border-b border-gray-100">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+              Portal do cliente
+            </span>
+          </div>
+          {portalToken ? (
+            <div className="space-y-2">
+              <div className="flex items-center gap-1.5">
+                <input
+                  className="input text-xs flex-1 min-w-0 text-gray-500"
+                  readOnly
+                  value={`${typeof window !== 'undefined' ? window.location.origin : ''}/portal/${portalToken}`}
+                  onFocus={(e) => e.target.select()}
+                />
+                <button className="btn-ghost px-2 flex-shrink-0" onClick={handleCopyPortalLink} title="Copiar link">
+                  {portalCopied ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
+                </button>
+              </div>
+              <button
+                className="btn-ghost text-xs text-red-500 hover:bg-red-50"
+                onClick={handleRevokePortalAccess}
+                disabled={portalWorking}
+              >
+                {portalWorking ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
+                Revogar acesso
+              </button>
+            </div>
+          ) : (
+            <button
+              className="btn-secondary text-xs"
+              onClick={handleGeneratePortalAccess}
+              disabled={portalWorking}
+            >
+              {portalWorking ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <KeyRound className="w-3.5 h-3.5" />}
+              Gerar acesso ao portal
+            </button>
           )}
         </div>
 

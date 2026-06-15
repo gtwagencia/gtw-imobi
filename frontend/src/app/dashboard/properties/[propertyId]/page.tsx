@@ -6,6 +6,11 @@ import { useAuth } from '@/store/auth';
 import Header from '@/components/layout/Header';
 import PropertyForm from '@/components/properties/PropertyForm';
 import MediaGallery, { GalleryMediaItem } from '@/components/properties/MediaGallery';
+import DocumentVault from '@/components/properties/DocumentVault';
+import CmaPanel from '@/components/properties/CmaPanel';
+import SignQrCode from '@/components/properties/SignQrCode';
+import SaleConditionsPanel from '@/components/properties/SaleConditionsPanel';
+import ProposalsPanel from '@/components/properties/ProposalsPanel';
 import api from '@/lib/api';
 import type { Property, PropertyMedia } from '@/types';
 import { STATUS_COLORS, STATUS_LABELS } from '@/lib/propertyConstants';
@@ -174,6 +179,27 @@ export default function PropertyDetailPage() {
             orgId={currentOrg.id}
             onSave={(saved) => setProperty(prev => prev ? { ...prev, ...saved, media: prev.media } : prev)}
           />
+
+          {/* Avaliação de preço (IA) */}
+          <CmaPanel
+            workspaceId={currentWorkspace.id}
+            property={property}
+            onUpdate={(updated) => setProperty(prev => prev ? { ...prev, ...updated, media: prev.media } : prev)}
+          />
+
+          {/* Cofre de documentos */}
+          <DocumentVault workspaceId={currentWorkspace.id} propertyId={property.id} />
+
+          {/* QR Code para placa "vende-se" */}
+          <SignQrCode workspaceId={currentWorkspace.id} propertyId={property.id} />
+
+          {/* Condições de venda/pagamento (unidades de empreendimento) */}
+          {property.development_id && (
+            <SaleConditionsPanel workspaceId={currentWorkspace.id} propertyId={property.id} purpose={property.purpose} />
+          )}
+
+          {/* Propostas/contratos (PDF + assinatura eletrônica) */}
+          <ProposalsPanel workspaceId={currentWorkspace.id} propertyId={property.id} />
         </div>
       </div>
     </>

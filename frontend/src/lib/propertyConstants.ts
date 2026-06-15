@@ -1,4 +1,4 @@
-import type { PropertyType, PropertyPurpose, PropertyStatus, DevelopmentConstructionStatus } from '@/types';
+import type { PropertyType, PropertyPurpose, PropertyStatus, DevelopmentConstructionStatus, PropertyDocumentCategory, ConstructionStageStatus, CommissionStatus, PropertyExchangeStatus, ProposalStatus } from '@/types';
 
 export const PROPERTY_TYPE_LABELS: Record<PropertyType, string> = {
   apartamento:           'Apartamento',
@@ -39,6 +39,18 @@ export const STATUS_COLORS: Record<PropertyStatus, string> = {
   inativo:    'bg-gray-100 text-gray-500',
 };
 
+export const DOCUMENT_CATEGORY_LABELS: Record<PropertyDocumentCategory, string> = {
+  matricula:          'Matrícula',
+  escritura:          'Escritura',
+  iptu:               'IPTU',
+  habite_se:          'Habite-se',
+  contrato:           'Contrato',
+  certidao_negativa:  'Certidão negativa',
+  laudo_avaliacao:    'Laudo de avaliação',
+  planta:             'Planta',
+  outro:              'Outro',
+};
+
 export const CONSTRUCTION_STATUS_LABELS: Record<DevelopmentConstructionStatus, string> = {
   lancamento: 'Lançamento',
   em_obras:   'Em obras',
@@ -49,6 +61,56 @@ export const CONSTRUCTION_STATUS_COLORS: Record<DevelopmentConstructionStatus, s
   lancamento: 'bg-purple-100 text-purple-700',
   em_obras:   'bg-yellow-100 text-yellow-700',
   pronto:     'bg-green-100 text-green-700',
+};
+
+export const CONSTRUCTION_STAGE_STATUS_LABELS: Record<ConstructionStageStatus, string> = {
+  pendente:     'Pendente',
+  em_andamento: 'Em andamento',
+  concluida:    'Concluída',
+};
+
+export const CONSTRUCTION_STAGE_STATUS_COLORS: Record<ConstructionStageStatus, string> = {
+  pendente:     'bg-gray-100 text-gray-500',
+  em_andamento: 'bg-yellow-100 text-yellow-700',
+  concluida:    'bg-green-100 text-green-700',
+};
+
+export const COMMISSION_STATUS_LABELS: Record<CommissionStatus, string> = {
+  pendente: 'Pendente',
+  pago:     'Pago',
+};
+
+export const COMMISSION_STATUS_COLORS: Record<CommissionStatus, string> = {
+  pendente: 'bg-yellow-100 text-yellow-700',
+  pago:     'bg-green-100 text-green-700',
+};
+
+export const EXCHANGE_STATUS_LABELS: Record<PropertyExchangeStatus, string> = {
+  pendente:  'Pendente',
+  aceita:    'Aceita',
+  recebida:  'Recebida',
+  revendida: 'Revendida',
+};
+
+export const EXCHANGE_STATUS_COLORS: Record<PropertyExchangeStatus, string> = {
+  pendente:  'bg-gray-100 text-gray-500',
+  aceita:    'bg-blue-100 text-blue-700',
+  recebida:  'bg-yellow-100 text-yellow-700',
+  revendida: 'bg-green-100 text-green-700',
+};
+
+export const PROPOSAL_STATUS_LABELS: Record<ProposalStatus, string> = {
+  rascunho:  'Rascunho',
+  enviada:   'Enviada',
+  assinada:  'Assinada',
+  cancelada: 'Cancelada',
+};
+
+export const PROPOSAL_STATUS_COLORS: Record<ProposalStatus, string> = {
+  rascunho:  'bg-gray-100 text-gray-500',
+  enviada:   'bg-blue-100 text-blue-700',
+  assinada:  'bg-green-100 text-green-700',
+  cancelada: 'bg-red-100 text-red-600',
 };
 
 export const AMENITIES_LIST = [

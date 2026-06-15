@@ -9,7 +9,7 @@ import {
   MessageSquare, Users, Kanban, Inbox, Settings,
   LogOut, ChevronDown, Building2, Home, User, Landmark,
   Check, Plus, ArrowLeftRight, LayoutList, BarChart2, BookMarked, Tag, Ticket, X, Send,
-  ShieldCheck, ListChecks, Gauge, CalendarCheck, Construction,
+  ShieldCheck, ListChecks, Gauge, CalendarCheck, Construction, Handshake,
 } from 'lucide-react';
 import { useSidebar } from '@/store/sidebar';
 import { useEffect, useRef, useState } from 'react';
@@ -26,6 +26,7 @@ const ALL_NAV_ITEMS = [
   { href: '/dashboard/contacts',      icon: Users,         label: 'Contatos',          ticketsOnly: false, adminOnly: false },
   { href: '/dashboard/properties',    icon: Building2,     label: 'Imóveis',           ticketsOnly: false, adminOnly: false },
   { href: '/dashboard/developments',  icon: Construction,  label: 'Empreendimentos',   ticketsOnly: false, adminOnly: false },
+  { href: '/dashboard/partner-brokers', icon: Handshake,   label: 'Corretores Parceiros', ticketsOnly: false, adminOnly: false },
   { href: '/dashboard/visitas',       icon: CalendarCheck, label: 'Visitas',           ticketsOnly: false, adminOnly: false },
   { href: '/dashboard/broadcasts',    icon: Send,          label: 'Broadcasts',        ticketsOnly: false, adminOnly: false },
   { href: '/dashboard/kanban',        icon: Kanban,        label: 'Funil',             ticketsOnly: false, adminOnly: false },
@@ -40,12 +41,34 @@ const ALL_NAV_ITEMS = [
   { href: '/dashboard/reports',       icon: BarChart2,     label: 'Relatórios',        ticketsOnly: false, adminOnly: false },
 ];
 
+// Mapa item da sidebar -> módulo habilitável por workspace em /dashboard/settings.
+// Itens sem entrada aqui são considerados sempre disponíveis (núcleo da plataforma).
+const NAV_MODULE_KEY: Record<string, string> = {
+  '/dashboard/conversations': 'crm',
+  '/dashboard/contacts':      'crm',
+  '/dashboard/properties':    'properties',
+  '/dashboard/developments':  'developments',
+  '/dashboard/partner-brokers': 'developments',
+  '/dashboard/visitas':       'visits',
+  '/dashboard/broadcasts':    'crm',
+  '/dashboard/kanban':        'crm',
+  '/dashboard/meus-leads':    'crm',
+  '/dashboard/tickets':       'tickets',
+  '/dashboard/inboxes':       'crm',
+  '/dashboard/departments':   'crm',
+  '/dashboard/setores':       'crm',
+  '/dashboard/canned':        'crm',
+  '/dashboard/labels':        'crm',
+  '/dashboard/reports':       'reports',
+};
+
 // Mapa item da sidebar -> módulo configurável em /dashboard/permissions
 const NAV_PERMISSION_KEY: Record<string, PermissionModuleKey> = {
   '/dashboard/conversations': 'conversations',
   '/dashboard/contacts':      'contacts',
   '/dashboard/properties':    'properties',
   '/dashboard/developments':  'properties',
+  '/dashboard/partner-brokers': 'properties',
   '/dashboard/visitas':       'properties',
   '/dashboard/broadcasts':    'broadcasts',
   '/dashboard/kanban':        'kanban',
@@ -130,6 +153,16 @@ export default function Sidebar() {
     const permKey = NAV_PERMISSION_KEY[item.href];
     if (permKey) return !!permissions?.[permKey];
     return !item.adminOnly;
+  }
+
+  // Módulo desativado pela agência para este workspace: some do menu para
+  // todos os usuários, independente do perfil/permissões.
+  function moduleEnabled(item: { href: string }) {
+    const modKey = NAV_MODULE_KEY[item.href];
+    if (!modKey) return true;
+    const enabled = currentWorkspace?.enabled_modules;
+    if (!enabled) return true; // ainda não carregado: não esconde
+    return enabled.includes(modKey);
   }
 
   return (
@@ -243,6 +276,7 @@ export default function Sidebar() {
       <nav className="flex-1 px-3 py-3 space-y-0.5 overflow-y-auto">
         {ALL_NAV_ITEMS
           .filter(item => currentWorkspace?.role !== 'tickets_only' || item.ticketsOnly)
+          .filter(moduleEnabled)
           .filter(canShow)
           .map(({ href, icon: Icon, label }) => (
           <Link

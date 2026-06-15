@@ -7,6 +7,7 @@ const traefikSvc  = require('../../services/traefik.service');
 const bcrypt      = require('bcrypt');
 const crypto      = require('crypto');
 const dns         = require('dns').promises;
+const { ALL_MODULE_KEYS, presetFor } = require('../../config/workspaceModules');
 
 const BCRYPT_ROUNDS = parseInt(process.env.BCRYPT_ROUNDS || '12', 10);
 
@@ -56,7 +57,7 @@ async function listForOrg(orgId, userId, isSuperAdmin, orgRole) {
 
 // ── Create workspace ───────────────────────────────────────────────────────
 
-async function create(orgId, { name, logoUrl, timezone }) {
+async function create(orgId, { name, logoUrl, timezone, businessModel }) {
   const slug = name
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
@@ -64,11 +65,12 @@ async function create(orgId, { name, logoUrl, timezone }) {
     .slice(0, 50);
 
   const slugUnique = `${slug}-${Date.now().toString(36)}`;
+  const model      = businessModel === 'construtora' ? 'construtora' : 'imobiliaria';
 
   const r = await query(
-    `INSERT INTO workspaces (org_id, name, slug, logo_url, timezone)
-     VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-    [orgId, name, slugUnique, logoUrl || null, timezone || 'America/Sao_Paulo']
+    `INSERT INTO workspaces (org_id, name, slug, logo_url, timezone, business_model, enabled_modules)
+     VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+    [orgId, name, slugUnique, logoUrl || null, timezone || 'America/Sao_Paulo', model, presetFor(model)]
   );
   const workspace = r.rows[0];
 
@@ -114,6 +116,7 @@ async function update(workspaceId, body) {
     aiToolsEnabled:       'ai_tools_enabled',
     businessModel:        'business_model',
     aiAgentName:          'ai_agent_name',
+    defaultCommissionPct: 'default_commission_pct',
   };
 
   const fields = [];
@@ -327,7 +330,29 @@ async function updateMemberProfile(workspaceId, userId, { creci, phone }) {
   return r.rows[0];
 }
 
+// ── Módulos habilitados ──────────────────────────────────────────────────
+
+async function getModules(workspaceId) {
+  const r = await query('SELECT enabled_modules FROM workspaces WHERE id = $1', [workspaceId]);
+  if (!r.rows.length) throw Object.assign(new Error('Workspace não encontrado'), { status: 404 });
+  return r.rows[0].enabled_modules || [];
+}
+
+async function updateModules(workspaceId, enabled) {
+  if (!Array.isArray(enabled)) {
+    throw Object.assign(new Error('enabled deve ser uma lista de módulos'), { status: 400 });
+  }
+  const sanitized = [...new Set(enabled.filter(key => ALL_MODULE_KEYS.includes(key)))];
+  const r = await query(
+    'UPDATE workspaces SET enabled_modules = $1 WHERE id = $2 RETURNING enabled_modules',
+    [sanitized, workspaceId]
+  );
+  if (!r.rows.length) throw Object.assign(new Error('Workspace não encontrado'), { status: 404 });
+  return r.rows[0].enabled_modules;
+}
+
 module.exports = {
   listForOrg, create, getById, update, regenerateSiteToken, verifyCustomDomain,
   listMembers, addMember, removeMember, updateMemberRole, updateMemberProfile, resetMemberPassword,
+  getModules, updateModules,
 };

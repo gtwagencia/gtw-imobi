@@ -75,11 +75,13 @@ export interface Workspace {
   business_model: 'imobiliaria' | 'construtora';
   sla_response_minutes: number | null;
   lead_stale_hours: number;
+  default_commission_pct: number | null;
   site_integration_token: string | null;
   ai_agent_name: string;
   custom_domain: string | null;
   custom_domain_status: 'none' | 'pending' | 'verified' | 'error';
   custom_domain_verification_token: string | null;
+  enabled_modules: string[];
   created_at: string;
   member_count?: number;
   inbox_count?: number;
@@ -142,6 +144,8 @@ export interface Contact {
   assigned_broker_id: string | null;
   assigned_broker_name?: string | null;
   assigned_broker_avatar?: string | null;
+  // Portal do cliente
+  portal_token: string | null;
 }
 
 // ── Imóveis ───────────────────────────────────────────────────────────────────
@@ -204,10 +208,222 @@ export interface Property {
   is_featured: boolean;
   views_count: number;
   published_at: string | null;
+  block_label: string | null;
+  lot_label: string | null;
+  map_shape: { x: number; y: number } | null;
+  reserved_until: string | null;
+  reserved_by: string | null;
+  cma_price_min: number | null;
+  cma_price_max: number | null;
+  cma_suggested_price: number | null;
+  cma_analysis: string | null;
+  cma_generated_at: string | null;
   created_at: string;
   updated_at: string;
   media: PropertyMedia[];
   cover_url?: string | null;
+}
+
+// ── Cofre de documentos ──────────────────────────────────────────────────────
+
+export type PropertyDocumentCategory =
+  | 'matricula' | 'escritura' | 'iptu' | 'habite_se' | 'contrato'
+  | 'certidao_negativa' | 'laudo_avaliacao' | 'planta' | 'outro';
+
+export interface PropertyDocument {
+  id: string;
+  property_id: string;
+  workspace_id: string;
+  name: string;
+  category: PropertyDocumentCategory;
+  file_url: string;
+  file_type: string | null;
+  expires_at: string | null;
+  expiry_notified_at: string | null;
+  is_client_visible: boolean;
+  created_by: string | null;
+  created_at: string;
+}
+
+// ── Condições de venda/pagamento (incorporadora) ─────────────────────────────
+
+export type CommissionStatus = 'pendente' | 'pago';
+
+export interface PropertySale {
+  id: string;
+  workspace_id: string;
+  property_id: string;
+  buyer_id: string | null;
+  buyer_name?: string | null;
+  sale_price: number;
+  down_payment: number | null;
+  installments_count: number | null;
+  installment_value: number | null;
+  financing_value: number | null;
+  sale_date: string;
+  notes: string | null;
+  commission_pct: number | null;
+  commission_value: number | null;
+  partner_broker_id: string | null;
+  partner_broker_name?: string | null;
+  partner_commission_pct: number | null;
+  broker_commission_value: number | null;
+  partner_commission_value: number | null;
+  commission_status: CommissionStatus;
+  created_at: string;
+  updated_at: string;
+}
+
+// ── Permutas (imóveis recebidos como parte do pagamento) ─────────────────────
+
+export type PropertyExchangeStatus = 'pendente' | 'aceita' | 'recebida' | 'revendida';
+
+export interface PropertyExchange {
+  id: string;
+  workspace_id: string;
+  sale_id: string;
+  description: string;
+  property_type: string | null;
+  address: string | null;
+  appraised_value: number;
+  status: PropertyExchangeStatus;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// ── Corretores parceiros ─────────────────────────────────────────────────────
+
+export interface PartnerBroker {
+  id: string;
+  workspace_id: string;
+  name: string;
+  agency_name: string | null;
+  creci: string | null;
+  phone: string | null;
+  email: string | null;
+  pix_key: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// ── Propostas/contratos (PDF + assinatura eletrônica) ────────────────────────
+
+export type ProposalStatus = 'rascunho' | 'enviada' | 'assinada' | 'cancelada';
+
+export interface ProposalContent {
+  property: {
+    code: string;
+    title: string;
+    property_type: PropertyType;
+    purpose: PropertyPurpose;
+    street: string | null;
+    number: string | null;
+    complement: string | null;
+    neighborhood: string | null;
+    city: string | null;
+    state: string | null;
+    total_area: number | null;
+    built_area: number | null;
+    bedrooms: number | null;
+    bathrooms: number | null;
+    suites: number | null;
+    parking_spots: number | null;
+    sale_price: number | null;
+    rent_price: number | null;
+    cover_url: string | null;
+  };
+  sale: {
+    sale_price: number;
+    down_payment: number | null;
+    installments_count: number | null;
+    installment_value: number | null;
+    financing_value: number | null;
+  } | null;
+  workspace: { name: string; logo_url: string | null } | null;
+}
+
+export interface PropertyProposal {
+  id: string;
+  workspace_id: string;
+  property_id: string;
+  token: string;
+  title: string | null;
+  buyer_name: string;
+  buyer_document: string | null;
+  buyer_email: string | null;
+  buyer_phone: string | null;
+  proposed_price: number;
+  payment_conditions: string | null;
+  validity_date: string | null;
+  content: ProposalContent;
+  status: ProposalStatus;
+  signature_name: string | null;
+  signature_document: string | null;
+  signed_at: string | null;
+  signed_ip: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// ── Portal do cliente (área logada do comprador) ─────────────────────────────
+
+export interface ClientPortalDocument {
+  id: string;
+  name: string;
+  category: PropertyDocumentCategory;
+  file_url: string;
+  file_type: string | null;
+  created_at: string;
+}
+
+export interface ClientPortalProperty {
+  property: {
+    id: string;
+    code: string;
+    title: string;
+    property_type: PropertyType;
+    purpose: PropertyPurpose;
+    status: PropertyStatus;
+    street: string | null;
+    number: string | null;
+    complement: string | null;
+    neighborhood: string | null;
+    city: string | null;
+    state: string | null;
+    cover_url: string | null;
+  };
+  sale: {
+    sale_price: number;
+    down_payment: number | null;
+    installments_count: number | null;
+    installment_value: number | null;
+    financing_value: number | null;
+    sale_date: string;
+  };
+  exchanges: PropertyExchange[];
+  documents: ClientPortalDocument[];
+  construction_stages: ConstructionStage[];
+}
+
+export interface ClientPortalData {
+  contact: { name: string; email: string | null; phone: string | null };
+  workspace: { name: string; logo_url: string | null } | null;
+  properties: ClientPortalProperty[];
+}
+
+// ── Comparador de imóveis ───────────────────────────────────────────────────
+
+export interface PropertyComparison {
+  id: string;
+  workspace_id: string;
+  token: string;
+  title: string | null;
+  property_ids: string[];
+  created_at: string;
+  workspace?: { name: string; logo_url: string | null } | null;
+  properties: Property[];
 }
 
 // ── Empreendimentos ───────────────────────────────────────────────────────────
@@ -234,6 +450,12 @@ export interface DevelopmentUnit {
   sale_price: number | null;
   rent_price: number | null;
   bedrooms: number | null;
+  total_area: number | null;
+  block_label: string | null;
+  lot_label: string | null;
+  map_shape: { x: number; y: number } | null;
+  reserved_until: string | null;
+  reserved_by: string | null;
   cover_url: string | null;
 }
 
@@ -258,12 +480,65 @@ export interface Development {
   amenities: string[];
   is_featured: boolean;
   published_at: string | null;
+  map_image_url: string | null;
+  map_config: { width?: number; height?: number };
+  commission_pct: number | null;
   created_at: string;
   updated_at: string;
   media: DevelopmentMedia[];
   units: DevelopmentUnit[];
   cover_url?: string | null;
   units_count?: number;
+}
+
+// ── Cronograma de obra ──────────────────────────────────────────────────────
+
+export type ConstructionStageStatus = 'pendente' | 'em_andamento' | 'concluida';
+
+export interface ConstructionStagePhoto {
+  id: string;
+  stage_id: string;
+  url: string;
+  caption: string | null;
+  position: number;
+  created_at: string;
+}
+
+export interface ConstructionStage {
+  id: string;
+  workspace_id: string;
+  development_id: string;
+  name: string;
+  description: string | null;
+  status: ConstructionStageStatus;
+  planned_date: string | null;
+  completed_date: string | null;
+  position: number;
+  created_at: string;
+  updated_at: string;
+  photos: ConstructionStagePhoto[];
+}
+
+// ── Importação de loteamento (PDF) ────────────────────────────────────────
+
+export interface DevelopmentImportLot {
+  blockLabel: string | null;
+  lotLabel:   string;
+  totalArea:  number | null;
+  salePrice:  number | null;
+  status:     'disponivel' | 'reservado' | 'vendido';
+}
+
+export interface DevelopmentImportJob {
+  id:               string;
+  development_id:   string;
+  workspace_id:      string;
+  status:           'processing' | 'review' | 'done' | 'error';
+  source_filename:  string | null;
+  extracted_lots:   DevelopmentImportLot[];
+  error_message:    string | null;
+  created_at:       string;
+  updated_at:       string;
 }
 
 export interface PropertyVisit {
@@ -423,6 +698,7 @@ export interface Deal {
   ai_qualification: string | null;
   ai_summary: string | null;
   ai_analyzed_at: string | null;
+  lead_score: number | null;
   // Joined
   contact_name: string;
   contact_phone: string | null;

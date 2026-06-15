@@ -12,7 +12,7 @@ import {
 } from '@/lib/propertyConstants';
 import {
   Search, Plus, Building2, BedDouble, Bath, Car, Ruler,
-  ChevronLeft, ChevronRight, SlidersHorizontal, Star,
+  ChevronLeft, ChevronRight, SlidersHorizontal, Star, GitCompare, X, Check,
 } from 'lucide-react';
 import clsx from 'clsx';
 
@@ -27,6 +27,9 @@ export default function PropertiesPage() {
   const [page,       setPage]       = useState(1);
   const [loading,    setLoading]    = useState(true);
   const [showFilters, setShowFilters] = useState(false);
+
+  const [compareMode, setCompareMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   const [search,    setSearch]    = useState('');
   const [type,      setType]      = useState<PropertyType | ''>('');
@@ -78,6 +81,15 @@ export default function PropertiesPage() {
     setMinPrice(''); setMaxPrice(''); setBedrooms('');
   }
 
+  function toggleSelected(id: string) {
+    setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  }
+
+  function toggleCompareMode() {
+    setCompareMode(v => !v);
+    setSelectedIds([]);
+  }
+
   if (!currentWorkspace) {
     return (
       <>
@@ -94,10 +106,19 @@ export default function PropertiesPage() {
       <Header
         title={`Imóveis (${total})`}
         actions={
-          <button className="btn-primary text-sm" onClick={() => router.push('/dashboard/properties/new')}>
-            <Plus className="w-4 h-4" />
-            Novo imóvel
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              className={clsx('btn-secondary text-sm', compareMode && 'border-brand-300 text-brand-700')}
+              onClick={toggleCompareMode}
+            >
+              {compareMode ? <X className="w-4 h-4" /> : <GitCompare className="w-4 h-4" />}
+              {compareMode ? 'Cancelar' : 'Comparar imóveis'}
+            </button>
+            <button className="btn-primary text-sm" onClick={() => router.push('/dashboard/properties/new')}>
+              <Plus className="w-4 h-4" />
+              Novo imóvel
+            </button>
+          </div>
         }
       />
 
@@ -193,8 +214,11 @@ export default function PropertiesPage() {
             {properties.map((p) => (
               <button
                 key={p.id}
-                onClick={() => router.push(`/dashboard/properties/${p.id}`)}
-                className="card overflow-hidden text-left hover:shadow-lg hover:-translate-y-0.5 transition-all group"
+                onClick={() => compareMode ? toggleSelected(p.id) : router.push(`/dashboard/properties/${p.id}`)}
+                className={clsx(
+                  'card overflow-hidden text-left hover:shadow-lg hover:-translate-y-0.5 transition-all group',
+                  compareMode && selectedIds.includes(p.id) && 'ring-2 ring-brand-400'
+                )}
               >
                 <div className="relative h-40 bg-gray-100 flex items-center justify-center overflow-hidden">
                   {p.cover_url ? (
@@ -206,9 +230,17 @@ export default function PropertiesPage() {
                   <span className={clsx('absolute top-2 left-2 text-xs font-medium px-2 py-1 rounded-full', STATUS_COLORS[p.status])}>
                     {STATUS_LABELS[p.status]}
                   </span>
-                  {p.is_featured && (
+                  {p.is_featured && !compareMode && (
                     <span className="absolute top-2 right-2 bg-gradient-to-br from-accent-300 to-accent-500 text-accent-900 rounded-full p-1 shadow-soft">
                       <Star className="w-3.5 h-3.5" fill="currentColor" />
+                    </span>
+                  )}
+                  {compareMode && (
+                    <span className={clsx(
+                      'absolute top-2 right-2 w-6 h-6 rounded-full border-2 flex items-center justify-center',
+                      selectedIds.includes(p.id) ? 'bg-brand-500 border-brand-500 text-white' : 'bg-white/80 border-gray-300'
+                    )}>
+                      {selectedIds.includes(p.id) && <Check className="w-4 h-4" />}
                     </span>
                   )}
                 </div>
@@ -248,6 +280,21 @@ export default function PropertiesPage() {
                 </div>
               </button>
             ))}
+          </div>
+        )}
+
+        {/* Barra flutuante de comparação */}
+        {compareMode && selectedIds.length > 0 && (
+          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-gray-900 text-white rounded-full shadow-xl px-5 py-3 flex items-center gap-4 z-40">
+            <span className="text-sm">{selectedIds.length} selecionado{selectedIds.length > 1 ? 's' : ''}</span>
+            <button
+              className="btn-primary text-sm"
+              disabled={selectedIds.length < 2}
+              onClick={() => router.push(`/dashboard/properties/compare?ids=${selectedIds.join(',')}`)}
+            >
+              <GitCompare className="w-4 h-4" />
+              Comparar
+            </button>
           </div>
         )}
 

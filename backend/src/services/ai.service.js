@@ -345,13 +345,22 @@ ANÁLISE DE IMAGENS E DOCUMENTOS:
 - Comprovantes de pagamento (PIX, transferência, boleto pago): se identificar um comprovante válido, classifique como "Comprou" e extraia o valor pago.
 - Ignore imagens irrelevantes (figurinhas, fotos de produtos sem valor).
 
+LEAD SCORE (0 a 100): avalie a qualidade/probabilidade de fechamento deste lead considerando:
+- Engajamento: o cliente responde rápido e com interesse genuíno?
+- Intenção de compra/locação: demonstrou urgência, prazo ou motivo claro para fechar negócio?
+- Orçamento: o valor que o cliente busca é compatível com o que está sendo oferecido?
+- Especificidade: o cliente já definiu requisitos claros (localização, tipo de imóvel, valor)?
+- Estágio do funil: leads em "Qualificado para Venda" ou "Comprou" tendem a pontuar mais alto; "Novo Lead" sem interação tende a pontuar baixo.
+Use 0-20 para leads frios/sem engajamento, 21-50 para leads em atendimento mas ainda incertos, 51-80 para leads qualificados com bom potencial, 81-100 para leads muito próximos do fechamento.
+
 Responda SOMENTE com um JSON no formato:
 {
   "stage": "<nome exato da etapa>",
   "summary": "<resumo de 2-3 frases descrevendo o cliente, o que ele quer e qual é a situação atual do negócio>",
   "confidence": <número de 0 a 1>,
   "deal_value": <valor numérico em reais se encontrado em documentos ou comprovante, ou null>,
-  "payment_detected": <true se identificou comprovante de pagamento, false caso contrário>
+  "payment_detected": <true se identificou comprovante de pagamento, false caso contrário>,
+  "lead_score": <número inteiro de 0 a 100 representando a qualidade do lead>
 }`;
 
   try {
@@ -567,6 +576,9 @@ async function analyzeDeal(dealId, workspaceId) {
     ai_analyzed_at:   new Date(),
   };
   if (stageId) updates.stage_id = stageId;
+  if (typeof result.lead_score === 'number' && Number.isFinite(result.lead_score)) {
+    updates.lead_score = Math.max(0, Math.min(100, Math.round(result.lead_score)));
+  }
 
   // ── Detecção de compra ─────────────────────────────────────────────────────
   // 1. IA sinalizou payment_detected
@@ -654,6 +666,108 @@ async function analyzeDeal(dealId, workspaceId) {
   }
 
   return { ...result, dealId };
+}
+
+// ── Avaliação automática de preço (CMA) ─────────────────────────────────────
+
+/**
+ * Gera uma análise comparativa de mercado (CMA) para um imóvel, com base em
+ * imóveis semelhantes do mesmo workspace (mesmo tipo, finalidade e
+ * metragem/localização próximas), usando o LLM configurado.
+ */
+async function generateCMA(propertyId, workspaceId) {
+  const wsRes = await query(
+    `SELECT anthropic_api_key, openai_api_key, custom_ai_api_key, ai_base_url, ai_provider, ai_model
+     FROM workspaces WHERE id = $1`,
+    [workspaceId]
+  );
+  if (!wsRes.rows.length) throw Object.assign(new Error('Workspace não encontrado'), { status: 404 });
+
+  const ws       = wsRes.rows[0];
+  const provider = ws.ai_provider || 'anthropic';
+  const apiKey   = provider === 'custom' ? ws.custom_ai_api_key
+                 : provider === 'openai' ? ws.openai_api_key
+                 : ws.anthropic_api_key;
+  const baseUrl  = provider === 'custom' ? ws.ai_base_url : null;
+  const canRun   = provider === 'custom' ? !!baseUrl : !!apiKey;
+  if (!canRun) {
+    throw Object.assign(new Error('Nenhum provedor de IA configurado para este workspace'), { status: 400 });
+  }
+
+  const property = await propertiesSvc.getById(propertyId, workspaceId);
+  if (!property) throw Object.assign(new Error('Imóvel não encontrado'), { status: 404 });
+
+  const area = property.built_area || property.total_area;
+
+  // Busca imóveis comparáveis: mesmo tipo/finalidade, área próxima (±40%) e mesma cidade quando disponível
+  const compRes = await query(
+    `SELECT code, title, neighborhood, city, sale_price, rent_price, total_area, built_area,
+            bedrooms, bathrooms, parking_spots, status
+     FROM properties
+     WHERE workspace_id = $1
+       AND id != $2
+       AND property_type = $3
+       AND purpose = $4
+       AND (sale_price IS NOT NULL OR rent_price IS NOT NULL)
+       AND ($5::numeric IS NULL OR COALESCE(built_area, total_area) IS NULL
+            OR COALESCE(built_area, total_area) BETWEEN $5 * 0.6 AND $5 * 1.4)
+     ORDER BY (CASE WHEN city = $6 THEN 0 ELSE 1 END), created_at DESC
+     LIMIT 8`,
+    [workspaceId, propertyId, property.property_type, property.purpose, area || null, property.city]
+  );
+
+  if (!compRes.rows.length) {
+    throw Object.assign(new Error('Não há imóveis comparáveis suficientes no catálogo para gerar a avaliação'), { status: 400 });
+  }
+
+  const subjectLines = [
+    `Imóvel avaliado: ${property.title} (${property.code})`,
+    `Tipo: ${property.property_type} · Finalidade: ${property.purpose}`,
+    `Localização: ${[property.neighborhood, property.city, property.state].filter(Boolean).join(', ') || 'não informada'}`,
+    `Área total: ${property.total_area ?? '—'} m² · Área construída: ${property.built_area ?? '—'} m²`,
+    `Quartos: ${property.bedrooms ?? '—'} · Banheiros: ${property.bathrooms ?? '—'} · Suítes: ${property.suites ?? '—'} · Vagas: ${property.parking_spots ?? '—'}`,
+    `Condomínio: ${property.condo_fee ?? '—'} · IPTU: ${property.iptu ?? '—'}`,
+    `Preço atual de venda: ${property.sale_price ?? 'não informado'} · Preço atual de locação: ${property.rent_price ?? 'não informado'}`,
+  ].join('\n');
+
+  const comparablesText = compRes.rows.map((c, i) => [
+    `${i + 1}. ${c.title} (${c.code}) — ${[c.neighborhood, c.city].filter(Boolean).join(', ') || '—'}`,
+    `   Área: ${c.built_area ?? c.total_area ?? '—'} m² · Quartos: ${c.bedrooms ?? '—'} · Banheiros: ${c.bathrooms ?? '—'} · Vagas: ${c.parking_spots ?? '—'}`,
+    `   Venda: ${c.sale_price ?? '—'} · Locação: ${c.rent_price ?? '—'} · Status: ${c.status}`,
+  ].join('\n')).join('\n');
+
+  const systemPrompt = `Você é um especialista em avaliação de imóveis (CMA — Comparative Market Analysis) no Brasil.
+Com base no imóvel avaliado e nos imóveis comparáveis do mesmo catálogo, sugira uma faixa de preço de ${property.purpose === 'locacao' ? 'locação mensal' : 'venda'} em reais (BRL).
+
+Considere diferenças de área, localização, quartos, vagas e estado dos comparáveis para ajustar a estimativa.
+
+Responda SOMENTE com um JSON no formato:
+{
+  "price_min": <número, faixa mínima sugerida em reais>,
+  "price_max": <número, faixa máxima sugerida em reais>,
+  "suggested_price": <número, valor pontual sugerido em reais>,
+  "analysis": "<análise de 3-5 frases em português explicando a faixa sugerida, citando os comparáveis usados como referência>"
+}`;
+
+  const userContent = `IMÓVEL AVALIADO:\n${subjectLines}\n\nCOMPARÁVEIS NO CATÁLOGO:\n${comparablesText}`;
+
+  const text = await callLLM({
+    provider, apiKey, baseUrl, model: ws.ai_model, system: systemPrompt, maxTokens: 600,
+    messages: [{ role: 'user', content: userContent }],
+  });
+
+  const jsonMatch = text.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) throw Object.assign(new Error('Resposta inválida da IA'), { status: 502 });
+  const result = JSON.parse(jsonMatch[0]);
+
+  await query(
+    `UPDATE properties
+     SET cma_price_min = $1, cma_price_max = $2, cma_suggested_price = $3, cma_analysis = $4, cma_generated_at = NOW()
+     WHERE id = $5 AND workspace_id = $6`,
+    [result.price_min ?? null, result.price_max ?? null, result.suggested_price ?? null, result.analysis ?? null, propertyId, workspaceId]
+  );
+
+  return propertiesSvc.getById(propertyId, workspaceId);
 }
 
 // ── Agente de IA — execução de ferramentas e loops de tool-use ──────────────
@@ -905,4 +1019,5 @@ async function generateChatbotResponseWithTools(conversationId, systemPrompt, ws
 module.exports = {
   analyzeConversation, generateFollowUp, generateChatbotResponse, analyzeDeal,
   generateChatbotResponseWithTools, DEFAULT_AGENT_PERSONA, buildAgentPersona,
+  generateCMA,
 };

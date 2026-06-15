@@ -334,6 +334,66 @@ async function runTicketDueSoon() {
   }
 }
 
+// ── Expiração de reservas de lotes/imóveis ─────────────────────────────────
+
+async function runExpireReservations() {
+  const r = await query(
+    `UPDATE properties
+     SET status = 'disponivel', reserved_until = NULL, reserved_by = NULL
+     WHERE status = 'reservado'
+       AND reserved_until IS NOT NULL
+       AND reserved_until < NOW()
+     RETURNING id`
+  );
+  if (r.rows.length) {
+    logger.info(`Reservas expiradas: ${r.rows.length} imóvel(is) voltaram para "disponível"`);
+  }
+}
+
+// ── Vencimento de documentos do cofre de imóveis ───────────────────────────
+
+const DOC_CATEGORY_LABELS = {
+  matricula: 'Matrícula', escritura: 'Escritura', iptu: 'IPTU',
+  habite_se: 'Habite-se', contrato: 'Contrato', certidao_negativa: 'Certidão negativa',
+  laudo_avaliacao: 'Laudo de avaliação', planta: 'Planta', outro: 'Documento',
+};
+
+async function runDocumentExpiryCheck(io) {
+  const docsSvc = require('../modules/properties/documents.service');
+  const docs = await docsSvc.findExpiringSoon();
+
+  for (const doc of docs) {
+    try {
+      const daysLeft = Math.ceil((new Date(doc.expires_at) - Date.now()) / (1000 * 60 * 60 * 24));
+      const label    = DOC_CATEGORY_LABELS[doc.category] || 'Documento';
+      const status   = daysLeft < 0 ? `venceu há ${Math.abs(daysLeft)} dia(s)` : `vence em ${daysLeft} dia(s)`;
+      const message  = `${label} de "${doc.property_title}" (${doc.property_code}) ${status}.`;
+
+      const recipients = await query(
+        `SELECT DISTINCT user_id FROM workspace_memberships WHERE workspace_id = $1 AND role = 'admin'
+         UNION
+         SELECT $2::uuid WHERE $2::uuid IS NOT NULL`,
+        [doc.workspace_id, doc.broker_id]
+      );
+
+      for (const rec of recipients.rows) {
+        if (!rec.user_id) continue;
+        await notifSvc.create({
+          workspaceId: doc.workspace_id,
+          userId:      rec.user_id,
+          type:        'document_expiring',
+          title:       'Documento a vencer',
+          message,
+        }, io);
+      }
+
+      await docsSvc.markNotified(doc.id);
+    } catch (err) {
+      logger.warn('Document expiry notification failed', { documentId: doc.id, err: err.message });
+    }
+  }
+}
+
 // ── Schedule jobs ──────────────────────────────────────────────────────────
 
 function startJobs(io) {
@@ -402,7 +462,17 @@ function startJobs(io) {
     broadcastSvc.runScheduledBroadcasts().catch(err => logger.error('Scheduled broadcasts error', { err: err.message }));
   });
 
-  logger.info('Background jobs started (follow-up + AI analysis + SLA check + stale lead alerts + ticket reminders + scheduled broadcasts)');
+  // Expiração de reservas de lotes/imóveis — every 5 minutes
+  cron.schedule('*/5 * * * *', () => {
+    runExpireReservations().catch(err => logger.error('Expire reservations error', { err: err.message }));
+  });
+
+  // Vencimento de documentos do cofre — every day at 07:00 BRT (10:00 UTC)
+  cron.schedule('0 10 * * *', () => {
+    runDocumentExpiryCheck(io).catch(err => logger.error('Document expiry check error', { err: err.message }));
+  });
+
+  logger.info('Background jobs started (follow-up + AI analysis + SLA check + stale lead alerts + ticket reminders + scheduled broadcasts + reservation expiry + document expiry)');
 }
 
-module.exports = { startJobs, backfillAttending };
+module.exports = { startJobs, backfillAttending, runExpireReservations, runDocumentExpiryCheck };

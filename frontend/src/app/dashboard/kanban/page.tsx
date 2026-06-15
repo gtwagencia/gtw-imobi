@@ -10,7 +10,7 @@ import type { KanbanStage, Deal, Pipeline, Inbox, Property } from '@/types';
 import {
   GripVertical, MessageSquare, Clock, User, Brain,
   RefreshCw, AlertCircle, ChevronRight, ChevronDown,
-  Settings, Filter, Send, Building2,
+  Settings, Filter, Send, Building2, Flame,
 } from 'lucide-react';
 import clsx from 'clsx';
 import { formatDistanceToNow } from 'date-fns';
@@ -43,6 +43,13 @@ function aiQualificationColor(qual: string | null): string {
     'Negócio Perdido':        'bg-red-100 text-red-700',
   };
   return qual ? (map[qual] || 'bg-gray-100 text-gray-600') : '';
+}
+
+function leadScoreColor(score: number): string {
+  if (score >= 81) return 'bg-green-100 text-green-700';
+  if (score >= 51) return 'bg-yellow-100 text-yellow-700';
+  if (score >= 21) return 'bg-orange-100 text-orange-700';
+  return 'bg-gray-100 text-gray-500';
 }
 
 // ── Deal Card ────────────────────────────────────────────────────────────────
@@ -135,7 +142,7 @@ function DealCard({ deal, dragHandleProps, isDragging, onAnalyze, analyzing, wor
           )}
 
           {/* AI status */}
-          <div className="mt-2">
+          <div className="mt-2 flex items-center gap-1.5 flex-wrap">
             {deal.ai_qualification ? (
               <span className={clsx(
                 'inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium',
@@ -153,6 +160,15 @@ function DealCard({ deal, dragHandleProps, isDragging, onAnalyze, analyzing, wor
               <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium bg-gray-50 text-gray-300">
                 <Brain className="w-2.5 h-2.5" />
                 IA pendente
+              </span>
+            )}
+            {deal.lead_score != null && (
+              <span
+                className={clsx('inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium', leadScoreColor(deal.lead_score))}
+                title="Lead score calculado pela IA com base no engajamento e potencial de fechamento"
+              >
+                <Flame className="w-2.5 h-2.5" />
+                {deal.lead_score}
               </span>
             )}
           </div>

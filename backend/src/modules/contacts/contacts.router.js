@@ -6,6 +6,7 @@ const { authenticate }     = require('../../middleware/auth');
 const { workspaceContext, requirePermission } = require('../../middleware/workspaceContext');
 const { logAudit }         = require('../../services/audit.service');
 const svc = require('./contacts.service');
+const portalSvc = require('./portal.service');
 
 const router  = Router({ mergeParams: true });
 const upload  = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
@@ -83,6 +84,22 @@ router.put('/:contactId', authenticate, workspaceContext, requirePermission('con
 router.delete('/:contactId', authenticate, workspaceContext, requirePermission('contacts'), async (req, res, next) => {
   try {
     await svc.remove(req.params.contactId, req.params.workspaceId);
+    res.json({ ok: true });
+  } catch (err) { next(err); }
+});
+
+// ── Portal do cliente (área logada do comprador) ──────────────────────────
+
+router.post('/:contactId/portal-access', authenticate, workspaceContext, requirePermission('contacts'), async (req, res, next) => {
+  try {
+    const result = await portalSvc.grantAccess(req.params.contactId, req.params.workspaceId);
+    res.json(result);
+  } catch (err) { next(err); }
+});
+
+router.delete('/:contactId/portal-access', authenticate, workspaceContext, requirePermission('contacts'), async (req, res, next) => {
+  try {
+    await portalSvc.revokeAccess(req.params.contactId, req.params.workspaceId);
     res.json({ ok: true });
   } catch (err) { next(err); }
 });

@@ -69,8 +69,9 @@ async function getById(developmentId, workspaceId) {
   );
   const units = await query(
     `SELECT id, code, title, property_type, purpose, status, sale_price, rent_price, bedrooms,
+            total_area, block_label, lot_label, map_shape, reserved_until, reserved_by,
             (SELECT pm.url FROM property_media pm WHERE pm.property_id = properties.id AND pm.is_cover = true LIMIT 1) AS cover_url
-     FROM properties WHERE development_id = $1 ORDER BY created_at DESC`,
+     FROM properties WHERE development_id = $1 ORDER BY block_label NULLS LAST, lot_label NULLS LAST, created_at DESC`,
     [developmentId]
   );
 
@@ -134,7 +135,12 @@ const UPDATE_FIELD_MAP = {
   latitude: 'latitude', longitude: 'longitude',
   amenities: 'amenities',
   isFeatured: 'is_featured', publishedAt: 'published_at',
+  mapImageUrl: 'map_image_url',
+  commissionPct: 'commission_pct',
 };
+
+const JSONB_FIELDS = new Set(['mapConfig']);
+UPDATE_FIELD_MAP.mapConfig = 'map_config';
 
 async function update(developmentId, workspaceId, body) {
   const fields = [];
@@ -142,7 +148,10 @@ async function update(developmentId, workspaceId, body) {
   let   idx    = 1;
 
   for (const [k, col] of Object.entries(UPDATE_FIELD_MAP)) {
-    if (body[k] !== undefined) { fields.push(`${col} = $${idx++}`); vals.push(body[k]); }
+    if (body[k] !== undefined) {
+      fields.push(`${col} = $${idx++}`);
+      vals.push(JSONB_FIELDS.has(k) ? JSON.stringify(body[k]) : body[k]);
+    }
   }
 
   if (!fields.length) throw Object.assign(new Error('Nenhum campo para atualizar'), { status: 400 });

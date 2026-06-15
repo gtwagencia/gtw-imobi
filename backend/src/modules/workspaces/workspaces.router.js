@@ -5,6 +5,7 @@ const { authenticate, requireOrgRole } = require('../../middleware/auth');
 const { orgContext }                   = require('../../middleware/orgContext');
 const { workspaceContext }             = require('../../middleware/workspaceContext');
 const { logAudit, listForWorkspace }   = require('../../services/audit.service');
+const { ALL_MODULES, MODULE_PRESETS }  = require('../../config/workspaceModules');
 const svc = require('./workspaces.service');
 
 // mergeParams so :orgId from parent router is available
@@ -105,6 +106,33 @@ router.post('/:workspaceId/custom-domain/verify', authenticate, orgContext, work
       });
     }
     res.json(sanitizeWorkspace(workspace));
+  } catch (err) { next(err); }
+});
+
+// GET /orgs/:orgId/workspaces/:workspaceId/modules
+router.get('/:workspaceId/modules', authenticate, orgContext, workspaceContext, async (req, res, next) => {
+  try {
+    res.json({
+      enabled:   await svc.getModules(req.params.workspaceId),
+      available: ALL_MODULES,
+      presets:   MODULE_PRESETS,
+    });
+  } catch (err) { next(err); }
+});
+
+// PUT /orgs/:orgId/workspaces/:workspaceId/modules
+router.put('/:workspaceId/modules', authenticate, orgContext, workspaceContext, async (req, res, next) => {
+  try {
+    if (!['admin', 'owner'].includes(req.orgRole) && !req.user.isSuperAdmin) {
+      return res.status(403).json({ error: 'Acesso negado' });
+    }
+    const enabled = await svc.updateModules(req.params.workspaceId, req.body.enabled);
+    await logAudit({
+      orgId: req.params.orgId, workspaceId: req.params.workspaceId, userId: req.user.sub,
+      action: 'workspace.modules_update', entityType: 'workspace', entityId: req.params.workspaceId,
+      metadata: { enabled }, ip: req.ip,
+    });
+    res.json({ enabled });
   } catch (err) { next(err); }
 });
 

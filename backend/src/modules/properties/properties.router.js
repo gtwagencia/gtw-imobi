@@ -8,9 +8,15 @@ const { authenticate }     = require('../../middleware/auth');
 const { workspaceContext, requirePermission } = require('../../middleware/workspaceContext');
 const storageSvc = require('../../services/storage.service');
 const svc = require('./properties.service');
+const docsSvc = require('./documents.service');
+const salesSvc = require('./sales.service');
+const exchangesSvc = require('./exchanges.service');
+const proposalsSvc = require('./proposals.service');
+const aiSvc = require('../../services/ai.service');
 
 const router = Router({ mergeParams: true });
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
+const docUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } });
 
 const MIME_EXT = {
   'image/jpeg': '.jpg', 'image/png': '.png', 'image/webp': '.webp', 'image/gif': '.gif',
@@ -114,6 +120,151 @@ router.put('/:propertyId/media/:mediaId/show-on-site', authenticate, workspaceCo
   try {
     const { showOnSite } = req.body;
     await svc.setShowOnSite(req.params.mediaId, req.params.propertyId, req.params.workspaceId, !!showOnSite);
+    res.json({ ok: true });
+  } catch (err) { next(err); }
+});
+
+// ── Condições de venda/pagamento da unidade ───────────────────────────────
+
+router.get('/:propertyId/sale', authenticate, workspaceContext, requirePermission('properties'), async (req, res, next) => {
+  try {
+    const sale = await salesSvc.getByProperty(req.params.propertyId, req.params.workspaceId);
+    res.json(sale);
+  } catch (err) { next(err); }
+});
+
+router.put('/:propertyId/sale', authenticate, workspaceContext, requirePermission('properties'), async (req, res, next) => {
+  try {
+    const sale = await salesSvc.upsert(req.params.propertyId, req.params.workspaceId, req.body, req.user.sub);
+    res.json(sale);
+  } catch (err) { next(err); }
+});
+
+router.delete('/:propertyId/sale', authenticate, workspaceContext, requirePermission('properties'), async (req, res, next) => {
+  try {
+    await salesSvc.remove(req.params.propertyId, req.params.workspaceId);
+    res.json({ ok: true });
+  } catch (err) { next(err); }
+});
+
+// ── Permutas (imóveis recebidos como parte do pagamento) ──────────────────
+
+router.get('/:propertyId/sale/exchanges', authenticate, workspaceContext, requirePermission('properties'), async (req, res, next) => {
+  try {
+    const exchanges = await exchangesSvc.list(req.params.propertyId, req.params.workspaceId);
+    res.json(exchanges);
+  } catch (err) { next(err); }
+});
+
+router.post('/:propertyId/sale/exchanges', authenticate, workspaceContext, requirePermission('properties'), async (req, res, next) => {
+  try {
+    const exchange = await exchangesSvc.create(req.params.propertyId, req.params.workspaceId, req.body);
+    res.status(201).json(exchange);
+  } catch (err) { next(err); }
+});
+
+router.put('/:propertyId/sale/exchanges/:exchangeId', authenticate, workspaceContext, requirePermission('properties'), async (req, res, next) => {
+  try {
+    const exchange = await exchangesSvc.update(req.params.exchangeId, req.params.propertyId, req.params.workspaceId, req.body);
+    res.json(exchange);
+  } catch (err) { next(err); }
+});
+
+router.delete('/:propertyId/sale/exchanges/:exchangeId', authenticate, workspaceContext, requirePermission('properties'), async (req, res, next) => {
+  try {
+    await exchangesSvc.remove(req.params.exchangeId, req.params.propertyId, req.params.workspaceId);
+    res.json({ ok: true });
+  } catch (err) { next(err); }
+});
+
+// ── Propostas/contratos (PDF + assinatura eletrônica) ─────────────────────
+
+router.get('/:propertyId/proposals', authenticate, workspaceContext, requirePermission('properties'), async (req, res, next) => {
+  try {
+    const proposals = await proposalsSvc.list(req.params.propertyId, req.params.workspaceId);
+    res.json(proposals);
+  } catch (err) { next(err); }
+});
+
+router.post('/:propertyId/proposals', authenticate, workspaceContext, requirePermission('properties'), async (req, res, next) => {
+  try {
+    const proposal = await proposalsSvc.create(req.params.propertyId, req.params.workspaceId, req.body, req.user.sub);
+    res.status(201).json(proposal);
+  } catch (err) { next(err); }
+});
+
+router.put('/:propertyId/proposals/:proposalId', authenticate, workspaceContext, requirePermission('properties'), async (req, res, next) => {
+  try {
+    const proposal = await proposalsSvc.updateStatus(req.params.proposalId, req.params.propertyId, req.params.workspaceId, req.body.status);
+    res.json(proposal);
+  } catch (err) { next(err); }
+});
+
+router.delete('/:propertyId/proposals/:proposalId', authenticate, workspaceContext, requirePermission('properties'), async (req, res, next) => {
+  try {
+    await proposalsSvc.remove(req.params.proposalId, req.params.propertyId, req.params.workspaceId);
+    res.json({ ok: true });
+  } catch (err) { next(err); }
+});
+
+// ── QR Code para placa "vende-se" ─────────────────────────────────────────
+
+router.get('/:propertyId/sign-qrcode', authenticate, workspaceContext, requirePermission('properties'), async (req, res, next) => {
+  try {
+    const result = await svc.generateSignQrCode(req.params.propertyId, req.params.workspaceId);
+    res.json(result);
+  } catch (err) { next(err); }
+});
+
+// ── Avaliação automática de preço (CMA) ──────────────────────────────────
+
+router.post('/:propertyId/cma', authenticate, workspaceContext, requirePermission('properties'), async (req, res, next) => {
+  try {
+    const property = await aiSvc.generateCMA(req.params.propertyId, req.params.workspaceId);
+    res.json(property);
+  } catch (err) { next(err); }
+});
+
+// ── Cofre de documentos ──────────────────────────────────────────────────
+
+router.get('/:propertyId/documents', authenticate, workspaceContext, requirePermission('properties'), async (req, res, next) => {
+  try {
+    const docs = await docsSvc.list(req.params.propertyId, req.params.workspaceId);
+    res.json(docs);
+  } catch (err) { next(err); }
+});
+
+router.post('/:propertyId/documents', authenticate, workspaceContext, requirePermission('properties'), docUpload.single('file'), async (req, res, next) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo enviado' });
+
+    const { name, category, expiresAt } = req.body;
+    const ext      = path.extname(req.file.originalname).toLowerCase() || '.bin';
+    const filename = `${uuidv4()}${ext}`;
+    const url      = await storageSvc.uploadFile(req.file.buffer, filename, req.file.mimetype);
+
+    const doc = await docsSvc.create(req.params.propertyId, req.params.workspaceId, {
+      name:      name || req.file.originalname,
+      category,
+      fileUrl:   url,
+      fileType:  req.file.mimetype,
+      expiresAt: expiresAt || null,
+    }, req.user.sub);
+    res.status(201).json(doc);
+  } catch (err) { next(err); }
+});
+
+router.put('/:propertyId/documents/:documentId/visibility', authenticate, workspaceContext, requirePermission('properties'), async (req, res, next) => {
+  try {
+    const { isClientVisible } = req.body;
+    await docsSvc.setClientVisible(req.params.documentId, req.params.propertyId, req.params.workspaceId, !!isClientVisible);
+    res.json({ ok: true });
+  } catch (err) { next(err); }
+});
+
+router.delete('/:propertyId/documents/:documentId', authenticate, workspaceContext, requirePermission('properties'), async (req, res, next) => {
+  try {
+    await docsSvc.remove(req.params.documentId, req.params.propertyId, req.params.workspaceId);
     res.json({ ok: true });
   } catch (err) { next(err); }
 });

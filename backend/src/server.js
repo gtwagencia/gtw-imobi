@@ -27,6 +27,11 @@ const inboxesRouter       = require('./modules/inboxes/inboxes.router');
 const contactsRouter      = require('./modules/contacts/contacts.router');
 const propertiesRouter    = require('./modules/properties/properties.router');
 const propertiesFeedRouter = require('./modules/properties/properties-feed.router');
+const comparisonsRouter   = require('./modules/properties/comparisons.router');
+const partnerBrokersRouter = require('./modules/properties/partner-brokers.router');
+const comparisonsPublicRouter = require('./modules/properties/comparisons-public.router');
+const proposalsPublicRouter = require('./modules/properties/proposals-public.router');
+const portalPublicRouter = require('./modules/contacts/portal-public.router');
 const developmentsRouter  = require('./modules/developments/developments.router');
 const visitsRouter        = require('./modules/visits/visits.router');
 const conversationsRouter = require('./modules/conversations/conversations.router');
@@ -109,9 +114,15 @@ app.use('/api/v1/orgs/:orgId/workspaces',                  workspacesRouter);
 app.use('/api/v1/workspaces/:workspaceId/inboxes',         requireNotTicketsOnly, inboxesRouter);
 app.use('/api/v1/workspaces/:workspaceId/contacts',        requireNotTicketsOnly, contactsRouter);
 app.use('/api/v1/workspaces/:workspaceId/properties',      requireNotTicketsOnly, propertiesRouter);
+app.use('/api/v1/workspaces/:workspaceId/comparisons',     requireNotTicketsOnly, comparisonsRouter);
+app.use('/api/v1/workspaces/:workspaceId/partner-brokers', requireNotTicketsOnly, partnerBrokersRouter);
 app.use('/api/v1/workspaces/:workspaceId/developments',    requireNotTicketsOnly, developmentsRouter);
 // Feed XML público (token-based) — consumido pelo gtw-imoview, sem autenticação JWT
 app.use('/api/v1/feeds',                                   propertiesFeedRouter);
+// Comparativo de imóveis público (token-based) — link enviado ao cliente
+app.use('/api/v1/comparisons',                             comparisonsPublicRouter);
+app.use('/api/v1/proposals',                               proposalsPublicRouter);
+app.use('/api/v1/portal',                                  portalPublicRouter);
 app.use('/api/v1/workspaces/:workspaceId/visits',          requireNotTicketsOnly, visitsRouter);
 app.use('/api/v1/workspaces/:workspaceId/conversations',   requireNotTicketsOnly, conversationsRouter);
 app.use('/api/v1/workspaces/:workspaceId/kanban',          requireNotTicketsOnly, kanbanRouter);

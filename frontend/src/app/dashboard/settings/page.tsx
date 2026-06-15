@@ -5,8 +5,9 @@ import { useAuth } from '@/store/auth';
 import Header from '@/components/layout/Header';
 import api, { API_URL } from '@/lib/api';
 import type { BusinessHours, BusinessHoursDay } from '@/types';
-import { Save, Eye, EyeOff, Brain, Clock, MessageSquare, CheckCircle, Sparkles, Globe, Copy, Check, RefreshCw, ShieldCheck, AlertTriangle } from 'lucide-react';
+import { Save, Eye, EyeOff, Brain, Clock, MessageSquare, CheckCircle, Sparkles, Globe, Copy, Check, RefreshCw, ShieldCheck, AlertTriangle, Percent } from 'lucide-react';
 import clsx from 'clsx';
+import ModulesCard from '@/components/settings/ModulesCard';
 
 interface AuditLogEntry {
   id: string;
@@ -100,6 +101,7 @@ export default function SettingsPage() {
     customDomain:         '',
     slaResponseMinutes:   30,
     leadStaleHours:       24,
+    defaultCommissionPct: '',
   });
 
   const [businessHours, setBusinessHours] = useState<BusinessHours>(DEFAULT_BUSINESS_HOURS);
@@ -138,6 +140,7 @@ export default function SettingsPage() {
         customDomain:         currentWorkspace.custom_domain || '',
         slaResponseMinutes:   currentWorkspace.sla_response_minutes ?? 30,
         leadStaleHours:       currentWorkspace.lead_stale_hours ?? 24,
+        defaultCommissionPct: currentWorkspace.default_commission_pct != null ? String(currentWorkspace.default_commission_pct) : '',
       });
       setBusinessHours(currentWorkspace.business_hours ?? DEFAULT_BUSINESS_HOURS);
     }
@@ -167,6 +170,7 @@ export default function SettingsPage() {
       const payload: Record<string, unknown> = {
         ...form,
         businessHours,
+        defaultCommissionPct: form.defaultCommissionPct === '' ? null : Number(form.defaultCommissionPct),
       };
       // Don't send empty tokens (would overwrite existing ones)
       if (!payload.metaAccessToken)      delete payload.metaAccessToken;
@@ -237,8 +241,9 @@ export default function SettingsPage() {
     );
   }
 
-  const feedUrl  = `${API_URL}/feeds/${currentWorkspace.id}/properties.xml?token=${currentWorkspace.site_integration_token}`;
-  const leadsUrl = `${API_URL}/webhooks/site-leads/${currentWorkspace.id}?token=${currentWorkspace.site_integration_token}`;
+  const feedUrl   = `${API_URL}/feeds/${currentWorkspace.id}/properties.xml?token=${currentWorkspace.site_integration_token}`;
+  const portalsUrl = `${API_URL}/feeds/${currentWorkspace.id}/portais.xml?token=${currentWorkspace.site_integration_token}`;
+  const leadsUrl  = `${API_URL}/webhooks/site-leads/${currentWorkspace.id}?token=${currentWorkspace.site_integration_token}`;
   // Domínio principal da plataforma (extraído da API_URL) — usado nas instruções de DNS do domínio customizado.
   const platformDomain = API_URL.replace(/^https?:\/\//, '').split('/')[0];
   const domainStatus = DOMAIN_STATUS_LABELS[currentWorkspace.custom_domain_status] || DOMAIN_STATUS_LABELS.none;
@@ -325,6 +330,9 @@ export default function SettingsPage() {
               </div>
             </div>
           </div>
+
+          {/* ── Módulos disponíveis ─────────────────────────────────── */}
+          <ModulesCard orgId={currentWorkspace.org_id} workspaceId={currentWorkspace.id} />
 
           {/* ── Meta Ads ───────────────────────────────────────────── */}
           <div className="card p-6">
@@ -423,6 +431,24 @@ export default function SettingsPage() {
                   />
                   <button type="button" className="btn-ghost px-2 flex-shrink-0" onClick={() => copy(feedUrl, 'feed')} title="Copiar">
                     {copiedField === 'feed' ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Feed XML para portais (Zap/OLX/VivaReal)</label>
+                <p className="text-xs text-gray-400 mb-1">
+                  Cole esta URL no assistente de importação por XML dos portais para anunciar automaticamente os imóveis disponíveis.
+                </p>
+                <div className="flex items-center gap-2">
+                  <input
+                    className="input font-mono text-xs"
+                    readOnly
+                    value={portalsUrl}
+                    onClick={(e) => e.currentTarget.select()}
+                  />
+                  <button type="button" className="btn-ghost px-2 flex-shrink-0" onClick={() => copy(portalsUrl, 'portals')} title="Copiar">
+                    {copiedField === 'portals' ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
                   </button>
                 </div>
               </div>
@@ -936,6 +962,35 @@ export default function SettingsPage() {
                   0 desativa o alerta. Avisa o corretor quando uma conversa fica sem resposta dele há mais tempo que isso.
                 </p>
               </div>
+            </div>
+          </div>
+
+          {/* ── Comissionamento de corretores parceiros ────────────── */}
+          <div className="card p-6">
+            <h2 className="font-semibold text-gray-900 mb-1 flex items-center gap-2">
+              <Percent className="w-4 h-4 text-brand-600" />
+              Comissionamento
+            </h2>
+            <p className="text-sm text-gray-500 mb-4">
+              Percentual de comissão padrão aplicado automaticamente ao registrar uma venda. Pode ser
+              sobrescrito por empreendimento ou individualmente em cada venda.
+            </p>
+
+            <div className="max-w-xs">
+              <label className="block text-sm font-medium text-gray-700 mb-1">% de comissão padrão</label>
+              <input
+                type="number"
+                min={0}
+                max={100}
+                step="0.01"
+                className="input"
+                value={form.defaultCommissionPct}
+                onChange={(e) => setForm({ ...form, defaultCommissionPct: e.target.value })}
+                placeholder="Ex: 5"
+              />
+              <p className="text-xs text-gray-400 mt-1">
+                Em branco = sem cálculo automático de comissão por padrão.
+              </p>
             </div>
           </div>
 

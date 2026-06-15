@@ -127,6 +127,110 @@ ${fotos}
   </imovel>`;
 }
 
+// ── Feed para portais (Zap/OLX/VivaReal) ────────────────────────────────
+//
+// Formato compatível com o padrão de importação "XML de Imóveis" aceito
+// pelos portais do Grupo OLX (OLX, ZAP Imóveis e Viva Real). Os campos
+// seguem a nomenclatura usada nos assistentes de importação desses portais
+// — caso o portal exija um mapeamento manual, os nomes das tags já indicam
+// a que correspondem.
+
+const PORTAL_TYPE_LABELS = {
+  apartamento:           'Apartamento',
+  casa:                  'Casa',
+  casa_condominio:       'Casa de Condomínio',
+  cobertura:             'Cobertura',
+  kitnet_studio:         'Kitnet/Studio',
+  sobrado:               'Sobrado',
+  terreno_lote:          'Terreno',
+  sala_comercial:        'Sala Comercial',
+  loja:                  'Loja/Salão',
+  galpao:                'Galpão/Depósito/Armazém',
+  predio_comercial:      'Prédio Comercial',
+  fazenda_sitio_chacara: 'Fazenda/Sítio/Chácara',
+  outro:                 'Outros',
+};
+
+const PORTAL_TRANSACTION_LABELS = {
+  venda:         'Venda',
+  locacao:       'Locacao',
+  venda_locacao: 'Venda/Locacao',
+  temporada:     'Temporada',
+};
+
+function buildPortalPropertyXml(p) {
+  const fotos = (p.media || [])
+    .filter(m => m.media_type === 'image')
+    .map(m => `      <Foto principal="${m.is_cover ? '1' : '0'}">${cdata(m.url)}</Foto>`)
+    .join('\n');
+
+  return `  <Imovel>
+    <CodigoImovel>${esc(p.code)}</CodigoImovel>
+    <TipoImovel>${esc(PORTAL_TYPE_LABELS[p.property_type] || 'Outros')}</TipoImovel>
+    <Transacao>${esc(PORTAL_TRANSACTION_LABELS[p.purpose] || 'Venda')}</Transacao>
+    <Endereco>
+      <Pais>Brasil</Pais>
+      <UF>${esc(p.state)}</UF>
+      <Cidade>${esc(p.city)}</Cidade>
+      <Bairro>${esc(p.neighborhood)}</Bairro>
+      <Endereco>${esc(p.hide_address ? '' : p.street)}</Endereco>
+      <Numero>${esc(p.hide_address ? '' : p.number)}</Numero>
+      <Complemento>${esc(p.hide_address ? '' : p.complement)}</Complemento>
+      <CEP>${esc(p.hide_address ? '' : p.zip_code)}</CEP>
+      <MostrarEndereco>${p.hide_address ? 'Nao' : 'Sim'}</MostrarEndereco>
+      <Latitude>${num(p.latitude)}</Latitude>
+      <Longitude>${num(p.longitude)}</Longitude>
+    </Endereco>
+    <AreaUtil>${num(p.built_area || p.total_area)}</AreaUtil>
+    <AreaTotal>${num(p.total_area)}</AreaTotal>
+    <QtdQuartos>${num(p.bedrooms)}</QtdQuartos>
+    <QtdSuites>${num(p.suites)}</QtdSuites>
+    <QtdBanheiros>${num(p.bathrooms)}</QtdBanheiros>
+    <QtdVagas>${num(p.parking_spots)}</QtdVagas>
+    <AnoConstrucao>${num(p.year_built)}</AnoConstrucao>
+    <Precos>
+      <PrecoVenda>${num(p.sale_price)}</PrecoVenda>
+      <PrecoLocacao>${num(p.rent_price)}</PrecoLocacao>
+      <PrecoCondominio>${num(p.condo_fee)}</PrecoCondominio>
+      <PrecoIPTU>${num(p.iptu)}</PrecoIPTU>
+    </Precos>
+    <Titulo>${cdata(p.title)}</Titulo>
+    <Descricao>${cdata(p.description)}</Descricao>
+    <Fotos>
+${fotos}
+    </Fotos>
+    <DataHora>${new Date(p.updated_at).toISOString()}</DataHora>
+  </Imovel>`;
+}
+
+router.get('/:workspaceId/portais.xml', async (req, res, next) => {
+  try {
+    const { workspaceId } = req.params;
+    const { token } = req.query;
+
+    const wsRes = await query(
+      'SELECT site_integration_token FROM workspaces WHERE id = $1',
+      [workspaceId]
+    );
+    const expected = wsRes.rows[0]?.site_integration_token;
+    if (!tokensMatch(token, expected)) {
+      return res.status(403).type('application/xml').send('<erro>Token inválido</erro>');
+    }
+
+    const properties = await svc.listForFeed(workspaceId);
+    const items = properties.map(buildPortalPropertyXml).join('\n');
+
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<Carga Data="${new Date().toISOString()}">
+  <Imoveis>
+${items}
+  </Imoveis>
+</Carga>`;
+
+    res.type('application/xml').send(xml);
+  } catch (err) { next(err); }
+});
+
 // ── Rota ──────────────────────────────────────────────────────────────────
 
 router.get('/:workspaceId/properties.xml', async (req, res, next) => {

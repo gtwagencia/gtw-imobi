@@ -1,5 +1,6 @@
 'use strict';
 
+const QRCode = require('qrcode');
 const { query } = require('../../config/database');
 
 // ── Geração de código sequencial (IM-0001, IM-0002, ...) ────────────────────
@@ -215,7 +216,12 @@ const UPDATE_FIELD_MAP = {
   amenities: 'amenities',
   ownerId: 'owner_id', brokerId: 'broker_id', scoutId: 'scout_id', developmentId: 'development_id',
   isFeatured: 'is_featured', publishedAt: 'published_at',
+  blockLabel: 'block_label', lotLabel: 'lot_label',
+  reservedUntil: 'reserved_until', reservedBy: 'reserved_by',
+  mapShape: 'map_shape',
 };
+
+const JSONB_FIELDS = new Set(['mapShape']);
 
 async function update(propertyId, workspaceId, body) {
   const fields = [];
@@ -223,7 +229,10 @@ async function update(propertyId, workspaceId, body) {
   let   idx    = 1;
 
   for (const [k, col] of Object.entries(UPDATE_FIELD_MAP)) {
-    if (body[k] !== undefined) { fields.push(`${col} = $${idx++}`); vals.push(body[k]); }
+    if (body[k] !== undefined) {
+      fields.push(`${col} = $${idx++}`);
+      vals.push(JSONB_FIELDS.has(k) ? JSON.stringify(body[k]) : body[k]);
+    }
   }
 
   if (!fields.length) throw Object.assign(new Error('Nenhum campo para atualizar'), { status: 400 });
@@ -323,8 +332,31 @@ async function setShowOnSite(mediaId, propertyId, workspaceId, showOnSite) {
   if (!r.rows.length) throw Object.assign(new Error('Mídia não encontrada'), { status: 404 });
 }
 
+// ── QR Code para placa "vende-se" ───────────────────────────────────────────
+
+async function generateSignQrCode(propertyId, workspaceId) {
+  const property = await getById(propertyId, workspaceId);
+  if (!property) throw Object.assign(new Error('Imóvel não encontrado'), { status: 404 });
+
+  const inboxRes = await query(
+    `SELECT phone_number FROM inboxes
+     WHERE workspace_id = $1 AND is_active = true AND channel_type LIKE 'whatsapp%' AND phone_number IS NOT NULL
+     ORDER BY created_at ASC LIMIT 1`,
+    [workspaceId]
+  );
+  const phone = inboxRes.rows[0]?.phone_number;
+  if (!phone) throw Object.assign(new Error('Nenhum número de WhatsApp configurado neste workspace'), { status: 400 });
+
+  const digits  = phone.replace(/\D/g, '');
+  const message = `Olá! Tenho interesse no imóvel ${property.code} - ${property.title} (vi a placa).`;
+  const link    = `https://wa.me/${digits}?text=${encodeURIComponent(message)}`;
+  const qrCode  = await QRCode.toDataURL(link, { width: 480, margin: 1 });
+
+  return { qrCode, link, message };
+}
+
 module.exports = {
   list, getById, getByCode, create, update, remove,
   addMedia, removeMedia, reorderMedia, setCover, setShowOnSite,
-  listForFeed,
+  listForFeed, generateSignQrCode,
 };

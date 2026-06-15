@@ -6,13 +6,14 @@ import { useAuth } from '@/store/auth';
 import Header from '@/components/layout/Header';
 import DevelopmentForm from '@/components/properties/DevelopmentForm';
 import MediaGallery, { GalleryMediaItem } from '@/components/properties/MediaGallery';
+import LoteamentoImportWizard from '@/components/properties/LoteamentoImportWizard';
 import api from '@/lib/api';
 import type { Development, DevelopmentMedia } from '@/types';
 import {
   CONSTRUCTION_STATUS_COLORS, CONSTRUCTION_STATUS_LABELS, PROPERTY_TYPE_LABELS,
   STATUS_COLORS, STATUS_LABELS, propertyPriceLabel,
 } from '@/lib/propertyConstants';
-import { ArrowLeft, Trash2, Loader2, Building2 } from 'lucide-react';
+import { ArrowLeft, Trash2, Loader2, Building2, FileUp, Map, HardHat } from 'lucide-react';
 import clsx from 'clsx';
 
 export default function DevelopmentDetailPage() {
@@ -24,6 +25,7 @@ export default function DevelopmentDetailPage() {
   const [loading,  setLoading]  = useState(true);
   const [deleting, setDeleting] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [showImportWizard, setShowImportWizard] = useState(false);
 
   const load = useCallback(async () => {
     if (!currentWorkspace) return;
@@ -174,12 +176,35 @@ export default function DevelopmentDetailPage() {
           <div className="card p-5">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-semibold text-gray-900">Unidades ({development.units.length})</h3>
-              <button
-                className="btn-secondary text-sm"
-                onClick={() => router.push(`/dashboard/properties/new?developmentId=${development.id}`)}
-              >
-                Cadastrar unidade
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  className="btn-secondary text-sm"
+                  onClick={() => router.push(`/dashboard/developments/${development.id}/sales-map`)}
+                >
+                  <Map className="w-4 h-4" />
+                  Mapa de vendas
+                </button>
+                <button
+                  className="btn-secondary text-sm"
+                  onClick={() => router.push(`/dashboard/developments/${development.id}/construction`)}
+                >
+                  <HardHat className="w-4 h-4" />
+                  Cronograma de obra
+                </button>
+                <button
+                  className="btn-secondary text-sm"
+                  onClick={() => setShowImportWizard(true)}
+                >
+                  <FileUp className="w-4 h-4" />
+                  Importar loteamento (PDF)
+                </button>
+                <button
+                  className="btn-secondary text-sm"
+                  onClick={() => router.push(`/dashboard/properties/new?developmentId=${development.id}`)}
+                >
+                  Cadastrar unidade
+                </button>
+              </div>
             </div>
             {development.units.length === 0 ? (
               <div className="text-center py-8 text-gray-400">
@@ -227,6 +252,15 @@ export default function DevelopmentDetailPage() {
           />
         </div>
       </div>
+
+      {showImportWizard && (
+        <LoteamentoImportWizard
+          workspaceId={currentWorkspace.id}
+          developmentId={development.id}
+          onClose={() => setShowImportWizard(false)}
+          onImported={load}
+        />
+      )}
     </>
   );
 }

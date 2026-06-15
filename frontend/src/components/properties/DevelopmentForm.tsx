@@ -30,6 +30,7 @@ interface FormState {
   longitude: string;
   amenities: string[];
   isFeatured: boolean;
+  commissionPct: string;
 }
 
 function toFormState(d?: Development): FormState {
@@ -50,6 +51,7 @@ function toFormState(d?: Development): FormState {
     longitude:          d?.longitude != null ? String(d.longitude) : '',
     amenities:          d?.amenities || [],
     isFeatured:         d?.is_featured || false,
+    commissionPct:      d?.commission_pct != null ? String(d.commission_pct) : '',
   };
 }
 
@@ -110,6 +112,7 @@ export default function DevelopmentForm({ development, workspaceId, onSave }: De
         longitude:          form.longitude.trim() === '' ? null : Number(form.longitude),
         amenities:          form.amenities,
         isFeatured:         form.isFeatured,
+        commissionPct:      form.commissionPct.trim() === '' ? null : Number(form.commissionPct),
       };
 
       const { data } = development
@@ -159,6 +162,10 @@ export default function DevelopmentForm({ development, workspaceId, onSave }: De
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1">Previsão de entrega</label>
             <input className="input" type="date" value={form.deliveryDate} onChange={e => set('deliveryDate', e.target.value)} />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">% comissão (override do padrão do workspace)</label>
+            <input className="input" type="number" min="0" max="100" step="0.01" value={form.commissionPct} onChange={e => set('commissionPct', e.target.value)} placeholder="Ex: 5" />
           </div>
           <div className="flex items-center gap-2 pt-6">
             <input id="devIsFeatured" type="checkbox" checked={form.isFeatured} onChange={e => set('isFeatured', e.target.checked)} className="rounded border-gray-300" />

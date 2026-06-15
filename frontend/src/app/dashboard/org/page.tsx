@@ -44,9 +44,10 @@ export default function OrgPage() {
   const [inviting,    setInviting]      = useState(false);
   const [inviteError, setInviteError]   = useState('');
   // New workspace
-  const [wsName,      setWsName]        = useState('');
-  const [creatingWs,  setCreatingWs]    = useState(false);
-  const [showWsForm,  setShowWsForm]    = useState(false);
+  const [wsName,          setWsName]          = useState('');
+  const [wsBusinessModel, setWsBusinessModel] = useState<'imobiliaria' | 'construtora'>('imobiliaria');
+  const [creatingWs,      setCreatingWs]      = useState(false);
+  const [showWsForm,      setShowWsForm]      = useState(false);
 
   const canManage = currentOrg?.role === 'owner' || currentOrg?.role === 'admin';
 
@@ -113,8 +114,9 @@ export default function OrgPage() {
     e.preventDefault();
     if (!currentOrg) return;
     setCreatingWs(true);
-    await api.post(`/orgs/${currentOrg.id}/workspaces`, { name: wsName });
+    await api.post(`/orgs/${currentOrg.id}/workspaces`, { name: wsName, businessModel: wsBusinessModel });
     setWsName('');
+    setWsBusinessModel('imobiliaria');
     setShowWsForm(false);
     fetchForOrg(currentOrg.id);
     setCreatingWs(false);
@@ -293,7 +295,7 @@ export default function OrgPage() {
                 ) : (
                   <form onSubmit={handleCreateWorkspace} className="card p-4">
                     <h3 className="font-medium text-gray-900 mb-3">Criar workspace</h3>
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 mb-3">
                       <input
                         className="input flex-1"
                         placeholder="Nome do workspace (ex: Cliente ABC)"
@@ -302,6 +304,49 @@ export default function OrgPage() {
                         required
                         autoFocus
                       />
+                    </div>
+                    <div className="mb-3">
+                      <label className="block text-xs font-medium text-gray-500 mb-1.5">
+                        Tipo de negócio (define os módulos padrão, ajustável depois em Configurações)
+                      </label>
+                      <div className="flex flex-col sm:flex-row gap-2">
+                        <label className={clsx(
+                          'flex-1 flex items-start gap-2 border rounded-lg p-2.5 cursor-pointer transition-colors text-sm',
+                          wsBusinessModel === 'imobiliaria' ? 'border-brand-400 bg-brand-50' : 'border-gray-200 hover:bg-gray-50'
+                        )}>
+                          <input
+                            type="radio"
+                            name="wsBusinessModel"
+                            value="imobiliaria"
+                            checked={wsBusinessModel === 'imobiliaria'}
+                            onChange={() => setWsBusinessModel('imobiliaria')}
+                            className="mt-0.5 text-brand-600"
+                          />
+                          <div>
+                            <div className="font-medium text-gray-900">Imobiliária</div>
+                            <div className="text-xs text-gray-500">Imóveis de terceiros e/ou lançamentos</div>
+                          </div>
+                        </label>
+                        <label className={clsx(
+                          'flex-1 flex items-start gap-2 border rounded-lg p-2.5 cursor-pointer transition-colors text-sm',
+                          wsBusinessModel === 'construtora' ? 'border-brand-400 bg-brand-50' : 'border-gray-200 hover:bg-gray-50'
+                        )}>
+                          <input
+                            type="radio"
+                            name="wsBusinessModel"
+                            value="construtora"
+                            checked={wsBusinessModel === 'construtora'}
+                            onChange={() => setWsBusinessModel('construtora')}
+                            className="mt-0.5 text-brand-600"
+                          />
+                          <div>
+                            <div className="font-medium text-gray-900">Construtora / Incorporadora</div>
+                            <div className="text-xs text-gray-500">Empreendimentos e unidades próprias</div>
+                          </div>
+                        </label>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
                       <button type="submit" className="btn-primary" disabled={creatingWs}>
                         {creatingWs ? <Loader className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
                         Criar

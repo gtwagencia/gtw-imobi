@@ -105,4 +105,19 @@ function requirePermission(moduleKey) {
   };
 }
 
-module.exports = { workspaceContext, requireNotTicketsOnly, requirePermission };
+/**
+ * Bloqueia acesso a rotas de um módulo desabilitado para este workspace
+ * (configurado pela agência em /dashboard/settings → Módulos).
+ * Deve ser usado após workspaceContext (precisa de req.workspace).
+ */
+function requireModule(moduleKey) {
+  return (req, res, next) => {
+    const enabled = req.workspace?.enabled_modules || [];
+    if (!enabled.includes(moduleKey)) {
+      return res.status(403).json({ error: 'Este módulo não está habilitado para este workspace.' });
+    }
+    next();
+  };
+}
+
+module.exports = { workspaceContext, requireNotTicketsOnly, requirePermission, requireModule };
