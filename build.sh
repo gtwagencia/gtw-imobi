@@ -21,7 +21,7 @@ echo "✓ Backend pronto"
 echo ""
 
 echo "▶ Buildando frontend..."
-DOMAIN="${DOMAIN:-app.gtw.digital}"
+DOMAIN="${DOMAIN:-imobi.gtw.digital}"
 docker build \
   --build-arg NEXT_PUBLIC_API_URL="https://${DOMAIN}/api/v1" \
   --build-arg NEXT_PUBLIC_GOOGLE_MAPS_API_KEY="${GOOGLE_MAPS_API_KEY:-}" \

@@ -96,8 +96,8 @@ services:
         - "traefik.enable=true"
         - "traefik.docker.network=network_public"
 
-        # Dashboard do Traefik (opcional — acesse traefik.app.gtw.digital)
-        - "traefik.http.routers.traefik-dashboard.rule=Host(`traefik.${DOMAIN:-app.gtw.digital}`)"
+        # Dashboard do Traefik (opcional — acesse traefik.<DOMAIN>)
+        - "traefik.http.routers.traefik-dashboard.rule=Host(`traefik.${DOMAIN}`)"
         - "traefik.http.routers.traefik-dashboard.entrypoints=websecure"
         - "traefik.http.routers.traefik-dashboard.tls.certresolver=letsencryptresolver"
         - "traefik.http.routers.traefik-dashboard.service=api@internal"

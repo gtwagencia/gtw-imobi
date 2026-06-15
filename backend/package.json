@@ -1,7 +1,7 @@
 {
-  "name": "gtw-platform-backend",
+  "name": "gtw-imobi-backend",
   "version": "1.1.2",
-  "description": "GTW Platform — Backend API",
+  "description": "GTW Imobi — Backend API",
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
