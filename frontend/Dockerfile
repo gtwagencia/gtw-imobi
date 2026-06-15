@@ -18,6 +18,11 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ARG NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 
+# Opcional: habilita o seletor de localização no mapa (cadastro de imóveis).
+# Sem essa chave, o sistema usa campos manuais de latitude/longitude.
+ARG NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
+ENV NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=$NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
+
 RUN npm run build
 
 # ── Stage 3: production runner ─────────────────────────────────────────────

@@ -19,9 +19,15 @@ const logger = require('../utils/logger');
 // - Variável de ambiente TRAEFIK_DYNAMIC_DIR apontando para o diretório montado
 //   (ex: /app/traefik-dynamic). Se não definida, a geração é desativada (no-op),
 //   o que é seguro para ambientes de desenvolvimento.
+//
+// TRAEFIK_DYNAMIC_FILE e TRAEFIK_WL_PREFIX permitem que múltiplos projetos
+// (ex: gtw-platform e gtw-imobi) compartilhem o mesmo volume/instância do
+// Traefik sem colidir nomes de arquivo nem de routers/services/middlewares
+// gerados (cada projeto usa um arquivo e um prefixo "wl-*" próprios).
 
-const DYNAMIC_DIR  = process.env.TRAEFIK_DYNAMIC_DIR || null;
-const OUTPUT_FILE  = 'custom-domains.yml';
+const DYNAMIC_DIR  = process.env.TRAEFIK_DYNAMIC_DIR  || null;
+const OUTPUT_FILE  = process.env.TRAEFIK_DYNAMIC_FILE || 'custom-domains.yml';
+const WL_PREFIX    = process.env.TRAEFIK_WL_PREFIX    || 'wl';
 
 const FRONTEND_URL = process.env.TRAEFIK_FRONTEND_URL || 'http://gtw-frontend:3000';
 const BACKEND_URL  = process.env.TRAEFIK_BACKEND_URL  || 'http://gtw-backend:4000';
@@ -37,47 +43,47 @@ function buildRouterBlock(workspace) {
   const domain = workspace.custom_domain;
 
   return `
-    wl-${id}-frontend:
+    ${WL_PREFIX}-${id}-frontend:
       rule: "Host(\`${domain}\`)"
       entryPoints: ["websecure"]
-      service: wl-frontend
+      service: ${WL_PREFIX}-frontend
       priority: 1
       tls:
         certResolver: letsencryptresolver
         domains:
           - main: "${domain}"
-    wl-${id}-api:
+    ${WL_PREFIX}-${id}-api:
       rule: "Host(\`${domain}\`) && PathPrefix(\`/api\`)"
       entryPoints: ["websecure"]
-      service: wl-backend
+      service: ${WL_PREFIX}-backend
       priority: 20
       tls:
         certResolver: letsencryptresolver
         domains:
           - main: "${domain}"
-    wl-${id}-uploads:
+    ${WL_PREFIX}-${id}-uploads:
       rule: "Host(\`${domain}\`) && PathPrefix(\`/uploads\`)"
       entryPoints: ["websecure"]
-      service: wl-backend
+      service: ${WL_PREFIX}-backend
       priority: 10
       tls:
         certResolver: letsencryptresolver
         domains:
           - main: "${domain}"
-    wl-${id}-files:
+    ${WL_PREFIX}-${id}-files:
       rule: "Host(\`${domain}\`) && PathPrefix(\`/files\`)"
       entryPoints: ["websecure"]
-      service: wl-minio
-      middlewares: ["wl-minio-strip"]
+      service: ${WL_PREFIX}-minio
+      middlewares: ["${WL_PREFIX}-minio-strip"]
       priority: 25
       tls:
         certResolver: letsencryptresolver
         domains:
           - main: "${domain}"
-    wl-${id}-ws:
+    ${WL_PREFIX}-${id}-ws:
       rule: "Host(\`${domain}\`) && PathPrefix(\`/socket.io\`)"
       entryPoints: ["websecure"]
-      service: wl-backend-ws
+      service: ${WL_PREFIX}-backend-ws
       priority: 15
       tls:
         certResolver: letsencryptresolver
@@ -87,27 +93,27 @@ function buildRouterBlock(workspace) {
 
 const SHARED_SERVICES_AND_MIDDLEWARES = `
   services:
-    wl-frontend:
+    ${WL_PREFIX}-frontend:
       loadBalancer:
         servers:
           - url: "${FRONTEND_URL}"
-    wl-backend:
+    ${WL_PREFIX}-backend:
       loadBalancer:
         servers:
           - url: "${BACKEND_URL}"
-    wl-backend-ws:
+    ${WL_PREFIX}-backend-ws:
       loadBalancer:
         servers:
           - url: "${BACKEND_URL}"
         sticky:
           cookie:
-            name: gtw_ws_sticky
-    wl-minio:
+            name: ${WL_PREFIX}_ws_sticky
+    ${WL_PREFIX}-minio:
       loadBalancer:
         servers:
           - url: "${MINIO_URL}"
   middlewares:
-    wl-minio-strip:
+    ${WL_PREFIX}-minio-strip:
       stripPrefix:
         prefixes: ["/files"]`;
 

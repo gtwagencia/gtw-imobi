@@ -9,6 +9,12 @@ version: '3.9'
 # Pré-requisito:
 #   docker network create --driver overlay --attachable network_public
 #   docker volume create gtw_traefik_dynamic
+#
+# ⚠️ ATENÇÃO: este Traefik é COMPARTILHADO entre todos os projetos do
+# servidor (ex: gtw-platform e gtw-imobi). Se já existir uma stack do
+# Traefik rodando (criada junto com outro projeto), NÃO faça deploy
+# desta stack de novo — apenas conecte os serviços do gtw-imobi à rede
+# `network_public` e ao volume `gtw_traefik_dynamic` já existentes.
 # =============================================================
 
 networks:

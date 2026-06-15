@@ -1,9 +1,20 @@
 version: '3.9'
 
 # =============================================================
-# GTW Platform — Docker Swarm Stack
+# GTW Imobi — Docker Swarm Stack
 # Imagens buildadas localmente no servidor com build.sh
-# Deploy via Portainer — domínio: app.gtw.digital
+# Deploy via Portainer — domínio: definido em ${DOMAIN}
+#
+# IMPORTANTE: este stack roda no MESMO servidor/Portainer do
+# gtw-platform (projeto irmão, originado do mesmo template). Por
+# isso todos os nomes de imagem, serviços, volumes locais e
+# identificadores do Traefik (routers/services/middlewares) usam o
+# prefixo "gtw-imobi-" para não colidir com a stack do gtw-platform.
+#
+# A rede `network_public` e o volume `gtw_traefik_dynamic` são
+# COMPARTILHADOS com o gtw-platform (Traefik único para os dois
+# stacks) — NÃO faça deploy de outra stack do Traefik, reaproveite
+# a instância existente (ver traefik/docker-compose.traefik.yml).
 # =============================================================
 
 networks:
@@ -14,29 +25,31 @@ networks:
     internal: true   # Postgres e MinIO não ficam expostos diretamente
 
 volumes:
-  gtw_pgdata:
+  gtw_imobi_pgdata:
     driver: local
-  gtw_uploads:
+  gtw_imobi_uploads:
     driver: local
-  gtw_minio:
+  gtw_imobi_minio:
     driver: local
-  # Compartilhado com o stack do Traefik (volume externo — ver
-  # traefik/docker-compose.traefik.yml). Usado para publicar a configuração
-  # dinâmica de domínios customizados (white-label).
+  # Compartilhado com o stack do Traefik (volume externo — já criado
+  # junto com o gtw-platform). Usado para publicar a configuração
+  # dinâmica de domínios customizados (white-label). Cada projeto
+  # escreve em um arquivo próprio dentro do volume (ver
+  # TRAEFIK_DYNAMIC_FILE) para não sobrescrever o do outro.
   gtw_traefik_dynamic:
     external: true
 
 services:
 
   # ── PostgreSQL ─────────────────────────────────────────────
-  gtw-postgres:
+  gtw-imobi-postgres:
     image: postgres:16-alpine
     environment:
-      POSTGRES_DB:       gtw_platform
+      POSTGRES_DB:       gtw_imobi
       POSTGRES_USER:     postgres
       POSTGRES_PASSWORD: ${DB_PASSWORD}
     volumes:
-      - gtw_pgdata:/var/lib/postgresql/data
+      - gtw_imobi_pgdata:/var/lib/postgresql/data
     networks:
       - gtw_internal
     deploy:
@@ -52,14 +65,14 @@ services:
           memory: 512M
 
   # ── MinIO Object Storage ────────────────────────────────────
-  gtw-minio:
+  gtw-imobi-minio:
     image: minio/minio:latest
     command: server /data --console-address ":9001"
     environment:
       MINIO_ROOT_USER:     ${MINIO_USER}
       MINIO_ROOT_PASSWORD: ${MINIO_PASSWORD}
     volumes:
-      - gtw_minio:/data
+      - gtw_imobi_minio:/data
     networks:
       - network_public
       - gtw_internal
@@ -79,32 +92,32 @@ services:
         - "traefik.docker.network=network_public"
 
         # Arquivos públicos — GET /files/{bucket}/{key}
-        - "traefik.http.routers.gtw-minio.rule=Host(`${DOMAIN}`) && PathPrefix(`/files`)"
-        - "traefik.http.routers.gtw-minio.entrypoints=websecure"
-        - "traefik.http.routers.gtw-minio.tls.certresolver=letsencryptresolver"
-        - "traefik.http.routers.gtw-minio.priority=25"
-        - "traefik.http.routers.gtw-minio.middlewares=minio-strip"
-        - "traefik.http.routers.gtw-minio.service=gtw-minio"
-        - "traefik.http.services.gtw-minio.loadbalancer.server.port=9000"
-        - "traefik.http.middlewares.minio-strip.stripprefix.prefixes=/files"
+        - "traefik.http.routers.gtw-imobi-minio.rule=Host(`${DOMAIN}`) && PathPrefix(`/files`)"
+        - "traefik.http.routers.gtw-imobi-minio.entrypoints=websecure"
+        - "traefik.http.routers.gtw-imobi-minio.tls.certresolver=letsencryptresolver"
+        - "traefik.http.routers.gtw-imobi-minio.priority=25"
+        - "traefik.http.routers.gtw-imobi-minio.middlewares=gtw-imobi-minio-strip"
+        - "traefik.http.routers.gtw-imobi-minio.service=gtw-imobi-minio"
+        - "traefik.http.services.gtw-imobi-minio.loadbalancer.server.port=9000"
+        - "traefik.http.middlewares.gtw-imobi-minio-strip.stripprefix.prefixes=/files"
 
   # ── Backend ────────────────────────────────────────────────
-  gtw-backend:
-    image: gtw-backend:latest
+  gtw-imobi-backend:
+    image: gtw-imobi-backend:latest
     environment:
       NODE_ENV:     production
       PORT:         "4000"
-      DATABASE_URL: postgresql://postgres:${DB_PASSWORD}@gtw-postgres:5432/gtw_platform
+      DATABASE_URL: postgresql://postgres:${DB_PASSWORD}@gtw-imobi-postgres:5432/gtw_imobi
       JWT_SECRET:   ${JWT_SECRET}
       FRONTEND_URL: https://${DOMAIN}
       BACKEND_URL:  https://${DOMAIN}
       UPLOAD_DIR:   /app/uploads
       # MinIO / S3 storage
-      STORAGE_ENDPOINT:   http://gtw-minio:9000
+      STORAGE_ENDPOINT:   http://gtw-imobi-minio:9000
       STORAGE_PUBLIC_URL: https://${DOMAIN}/files
       STORAGE_ACCESS_KEY: ${MINIO_USER}
       STORAGE_SECRET_KEY: ${MINIO_PASSWORD}
-      STORAGE_BUCKET:     gtw-media
+      STORAGE_BUCKET:     gtw-imobi-media
       # E-mail (SMTP)
       SMTP_HOST:            ${SMTP_HOST:-}
       SMTP_PORT:            ${SMTP_PORT:-587}
@@ -118,18 +131,28 @@ services:
       GOOGLE_REDIRECT_URI:  ${GOOGLE_REDIRECT_URI:-}
       # WhatsApp Business API (WABA)
       WABA_VERIFY_TOKEN:    ${WABA_VERIFY_TOKEN:-}
-      # White-label: diretório (volume compartilhado com o Traefik) onde a
-      # configuração dinâmica de domínios customizados é publicada
-      TRAEFIK_DYNAMIC_DIR: /app/traefik-dynamic
+      # Push notifications (PWA) — opcional, gere com scripts/generate-vapid-keys.js
+      VAPID_PUBLIC_KEY:     ${VAPID_PUBLIC_KEY:-}
+      VAPID_PRIVATE_KEY:    ${VAPID_PRIVATE_KEY:-}
+      VAPID_SUBJECT:        ${VAPID_SUBJECT:-mailto:contato@gtwagencia.com.br}
+      # White-label: diretório/arquivo (volume compartilhado com o Traefik) onde
+      # a configuração dinâmica de domínios customizados é publicada. O prefixo
+      # "wl-imobi" evita colisão com os routers/services gerados pelo gtw-platform.
+      TRAEFIK_DYNAMIC_DIR:  /app/traefik-dynamic
+      TRAEFIK_DYNAMIC_FILE: custom-domains-imobi.yml
+      TRAEFIK_WL_PREFIX:    wl-imobi
+      TRAEFIK_FRONTEND_URL: http://gtw-imobi-frontend:3000
+      TRAEFIK_BACKEND_URL:  http://gtw-imobi-backend:4000
+      TRAEFIK_MINIO_URL:    http://gtw-imobi-minio:9000
     volumes:
-      - gtw_uploads:/app/uploads
+      - gtw_imobi_uploads:/app/uploads
       - gtw_traefik_dynamic:/app/traefik-dynamic
     networks:
       - network_public
       - gtw_internal
     depends_on:
-      - gtw-postgres
-      - gtw-minio
+      - gtw-imobi-postgres
+      - gtw-imobi-minio
     deploy:
       replicas: 1
       restart_policy:
@@ -145,33 +168,33 @@ services:
         - "traefik.docker.network=network_public"
 
         # Rota API REST
-        - "traefik.http.routers.gtw-api.rule=Host(`${DOMAIN}`) && PathPrefix(`/api`)"
-        - "traefik.http.routers.gtw-api.entrypoints=websecure"
-        - "traefik.http.routers.gtw-api.tls.certresolver=letsencryptresolver"
-        - "traefik.http.routers.gtw-api.priority=20"
-        - "traefik.http.routers.gtw-api.service=gtw-api"
-        - "traefik.http.services.gtw-api.loadbalancer.server.port=4000"
+        - "traefik.http.routers.gtw-imobi-api.rule=Host(`${DOMAIN}`) && PathPrefix(`/api`)"
+        - "traefik.http.routers.gtw-imobi-api.entrypoints=websecure"
+        - "traefik.http.routers.gtw-imobi-api.tls.certresolver=letsencryptresolver"
+        - "traefik.http.routers.gtw-imobi-api.priority=20"
+        - "traefik.http.routers.gtw-imobi-api.service=gtw-imobi-api"
+        - "traefik.http.services.gtw-imobi-api.loadbalancer.server.port=4000"
 
         # Rota uploads legados (fallback para arquivos antigos em disco)
-        - "traefik.http.routers.gtw-uploads.rule=Host(`${DOMAIN}`) && PathPrefix(`/uploads`)"
-        - "traefik.http.routers.gtw-uploads.entrypoints=websecure"
-        - "traefik.http.routers.gtw-uploads.tls.certresolver=letsencryptresolver"
-        - "traefik.http.routers.gtw-uploads.priority=10"
-        - "traefik.http.routers.gtw-uploads.service=gtw-api"
+        - "traefik.http.routers.gtw-imobi-uploads.rule=Host(`${DOMAIN}`) && PathPrefix(`/uploads`)"
+        - "traefik.http.routers.gtw-imobi-uploads.entrypoints=websecure"
+        - "traefik.http.routers.gtw-imobi-uploads.tls.certresolver=letsencryptresolver"
+        - "traefik.http.routers.gtw-imobi-uploads.priority=10"
+        - "traefik.http.routers.gtw-imobi-uploads.service=gtw-imobi-api"
 
         # Rota Socket.io (WebSocket) — sticky session obrigatória
-        - "traefik.http.routers.gtw-ws.rule=Host(`${DOMAIN}`) && PathPrefix(`/socket.io`)"
-        - "traefik.http.routers.gtw-ws.entrypoints=websecure"
-        - "traefik.http.routers.gtw-ws.tls.certresolver=letsencryptresolver"
-        - "traefik.http.routers.gtw-ws.priority=15"
-        - "traefik.http.routers.gtw-ws.service=gtw-ws"
-        - "traefik.http.services.gtw-ws.loadbalancer.server.port=4000"
-        - "traefik.http.services.gtw-ws.loadbalancer.sticky.cookie=true"
-        - "traefik.http.services.gtw-ws.loadbalancer.sticky.cookie.name=gtw_ws_sticky"
+        - "traefik.http.routers.gtw-imobi-ws.rule=Host(`${DOMAIN}`) && PathPrefix(`/socket.io`)"
+        - "traefik.http.routers.gtw-imobi-ws.entrypoints=websecure"
+        - "traefik.http.routers.gtw-imobi-ws.tls.certresolver=letsencryptresolver"
+        - "traefik.http.routers.gtw-imobi-ws.priority=15"
+        - "traefik.http.routers.gtw-imobi-ws.service=gtw-imobi-ws"
+        - "traefik.http.services.gtw-imobi-ws.loadbalancer.server.port=4000"
+        - "traefik.http.services.gtw-imobi-ws.loadbalancer.sticky.cookie=true"
+        - "traefik.http.services.gtw-imobi-ws.loadbalancer.sticky.cookie.name=gtw_imobi_ws_sticky"
 
   # ── Frontend ───────────────────────────────────────────────
-  gtw-frontend:
-    image: gtw-frontend:latest
+  gtw-imobi-frontend:
+    image: gtw-imobi-frontend:latest
     environment:
       NODE_ENV:            production
       NEXT_PUBLIC_API_URL: "https://${DOMAIN}/api/v1"
@@ -185,8 +208,8 @@ services:
       labels:
         - "traefik.enable=true"
         - "traefik.docker.network=network_public"
-        - "traefik.http.routers.gtw-frontend.rule=Host(`${DOMAIN}`)"
-        - "traefik.http.routers.gtw-frontend.entrypoints=websecure"
-        - "traefik.http.routers.gtw-frontend.tls.certresolver=letsencryptresolver"
-        - "traefik.http.routers.gtw-frontend.priority=1"
-        - "traefik.http.services.gtw-frontend.loadbalancer.server.port=3000"
+        - "traefik.http.routers.gtw-imobi-frontend.rule=Host(`${DOMAIN}`)"
+        - "traefik.http.routers.gtw-imobi-frontend.entrypoints=websecure"
+        - "traefik.http.routers.gtw-imobi-frontend.tls.certresolver=letsencryptresolver"
+        - "traefik.http.routers.gtw-imobi-frontend.priority=1"
+        - "traefik.http.services.gtw-imobi-frontend.loadbalancer.server.port=3000"
