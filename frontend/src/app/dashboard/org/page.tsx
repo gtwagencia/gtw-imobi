@@ -115,6 +115,7 @@ export default function OrgPage() {
   const [wizardStep,    setWizardStep]    = useState<WizardStep>('type');
   const [wsBusinessModel, setWsBusinessModel] = useState<BusinessModel>('imobiliaria');
   const [wsName,          setWsName]          = useState('');
+  const [wsSeedDemo,      setWsSeedDemo]      = useState(false);
   const [creatingWs,      setCreatingWs]      = useState(false);
 
   const canManage = currentOrg?.role === 'owner' || currentOrg?.role === 'admin';
@@ -180,8 +181,8 @@ export default function OrgPage() {
     if (!currentOrg) return;
     setCreatingWs(true);
     try {
-      await api.post(`/orgs/${currentOrg.id}/workspaces`, { name: wsName, businessModel: wsBusinessModel });
-      setWsName(''); setWsBusinessModel('imobiliaria');
+      await api.post(`/orgs/${currentOrg.id}/workspaces`, { name: wsName, businessModel: wsBusinessModel, seedDemo: wsSeedDemo });
+      setWsName(''); setWsBusinessModel('imobiliaria'); setWsSeedDemo(false);
       setShowWizard(false); setWizardStep('type');
       fetchForOrg(currentOrg.id);
       showToast(`Workspace "${wsName}" criado com sucesso!`);
@@ -192,7 +193,7 @@ export default function OrgPage() {
     }
   }
 
-  function openWizard() { setShowWizard(true); setWizardStep('type'); setWsName(''); }
+  function openWizard() { setShowWizard(true); setWizardStep('type'); setWsName(''); setWsSeedDemo(false); }
   function closeWizard() { setShowWizard(false); setWizardStep('type'); }
 
   if (!currentOrg) return null;
@@ -458,6 +459,35 @@ export default function OrgPage() {
                   required
                   autoFocus
                 />
+
+                {/* Toggle dados demo */}
+                <button
+                  type="button"
+                  onClick={() => setWsSeedDemo(v => !v)}
+                  className={clsx(
+                    'w-full flex items-start gap-3 p-4 rounded-xl border-2 text-left transition-all mb-4',
+                    wsSeedDemo
+                      ? 'border-emerald-400 bg-emerald-50'
+                      : 'border-gray-200 bg-white hover:border-gray-300',
+                  )}
+                >
+                  <div className={clsx(
+                    'w-5 h-5 rounded flex items-center justify-center flex-shrink-0 mt-0.5 border-2 transition-colors',
+                    wsSeedDemo ? 'bg-emerald-500 border-emerald-500' : 'border-gray-300',
+                  )}>
+                    {wsSeedDemo && <Check className="w-3 h-3 text-white" />}
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-gray-900">
+                      Preencher com dados de demonstração
+                    </p>
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      {wsBusinessModel === 'construtora'
+                        ? 'Cria 3 empreendimentos com unidades, 15 contatos e 10 leads no funil — ideal para testar todas as funcionalidades.'
+                        : 'Cria 12 imóveis, 15 contatos e 10 leads distribuídos no funil — ideal para testar todas as funcionalidades.'}
+                    </p>
+                  </div>
+                </button>
 
                 {/* Template preview */}
                 <div className="bg-gray-50 rounded-xl border border-gray-200 p-4 mb-6">

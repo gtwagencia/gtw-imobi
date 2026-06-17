@@ -57,7 +57,7 @@ async function listForOrg(orgId, userId, isSuperAdmin, orgRole) {
 
 // ── Create workspace ───────────────────────────────────────────────────────
 
-async function create(orgId, { name, logoUrl, timezone, businessModel }) {
+async function create(orgId, { name, logoUrl, timezone, businessModel, seedDemo }) {
   const slug = name
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
@@ -78,6 +78,11 @@ async function create(orgId, { name, logoUrl, timezone, businessModel }) {
   await permissionsSvc.ensureDefaultProfiles(workspace.id);
   await require('../departments/departments.service').seedDefaultDepartments(workspace.id, model);
   await require('../ai-agent/ai-agent.service').seedDefaultGroups(workspace.id, model);
+
+  if (seedDemo) {
+    const { seedDemo: runSeed } = require('./workspace-seeder');
+    await runSeed(workspace.id, model);
+  }
 
   return workspace;
 }

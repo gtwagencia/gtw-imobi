@@ -41,9 +41,9 @@ router.get('/', authenticate, orgContext, async (req, res, next) => {
 // POST /orgs/:orgId/workspaces
 router.post('/', authenticate, orgContext, requireOrgRole('owner', 'admin'), async (req, res, next) => {
   try {
-    const { name, logoUrl, timezone } = req.body;
+    const { name, logoUrl, timezone, businessModel, seedDemo } = req.body;
     if (!name) return res.status(400).json({ error: 'name é obrigatório' });
-    const ws = await svc.create(req.params.orgId, { name, logoUrl, timezone });
+    const ws = await svc.create(req.params.orgId, { name, logoUrl, timezone, businessModel, seedDemo: !!seedDemo });
     res.status(201).json(ws);
   } catch (err) { next(err); }
 });
