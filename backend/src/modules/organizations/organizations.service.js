@@ -130,7 +130,7 @@ async function inviteMember(orgId, { email, role }, invitedByUserId) {
   const inviterRes = await query('SELECT name FROM users WHERE id = $1', [invitedByUserId]);
 
   const mail    = require('../../services/mail');
-  const appUrl  = process.env.APP_URL || process.env.FRONTEND_URL || 'https://imobi.gtw.digital';
+  const appUrl  = process.env.APP_URL || process.env.FRONTEND_URL || 'https://app.imobi360.digital';
   await mail.sendMailSilent({
     to:      normalizedEmail,
     subject: `Convite para ${orgRes.rows[0]?.name || 'Imobi360'}`,

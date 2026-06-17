@@ -21,7 +21,7 @@ echo "✓ Backend pronto"
 echo ""
 
 echo "▶ Buildando frontend..."
-DOMAIN="${DOMAIN:-imobi.gtw.digital}"
+DOMAIN="${DOMAIN:-app.imobi360.digital}"
 docker build \
   --build-arg NEXT_PUBLIC_API_URL="https://${DOMAIN}/api/v1" \
   --build-arg NEXT_PUBLIC_GOOGLE_MAPS_API_KEY="${GOOGLE_MAPS_API_KEY:-}" \
@@ -36,7 +36,7 @@ docker images | grep gtw-imobi
 echo ""
 echo "Próximo passo: suba a stack pelo Portainer usando o docker-compose.yml"
 echo "Não esqueça de configurar as variáveis de ambiente no Portainer:"
-echo "  DOMAIN      = (domínio do gtw-imobi, ex: imobi.gtw.digital)"
+echo "  DOMAIN      = (domínio do gtw-imobi, ex: app.imobi360.digital)"
 echo "  DB_PASSWORD = (senha forte)"
 echo "  JWT_SECRET  = (string aleatória longa, mín. 32 caracteres)"
 echo "  MINIO_USER     = (usuário do MinIO)"
