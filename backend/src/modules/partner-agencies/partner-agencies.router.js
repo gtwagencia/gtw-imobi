@@ -5,7 +5,7 @@ const router  = express.Router({ mergeParams: true });
 const crypto  = require('crypto');
 const { query } = require('../../config/database');
 const { authenticate }    = require('../../middleware/auth');
-const { workspaceContext, requirePermission } = require('../../middleware/workspace');
+const { workspaceContext, requirePermission } = require('../../middleware/workspaceContext');
 
 // Todos os endpoints exigem auth + workspace
 router.use(authenticate, workspaceContext, requirePermission('properties'));
