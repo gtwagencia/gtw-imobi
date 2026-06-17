@@ -12,7 +12,8 @@ const importsSvc = require('./development-imports.service');
 const constructionSvc = require('./construction.service');
 
 const router = Router({ mergeParams: true });
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
+const upload    = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
+const mapUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 60 * 1024 * 1024 } });
 const pdfUpload = multer({
   storage: multer.memoryStorage(),
   limits:  { fileSize: 20 * 1024 * 1024 },
@@ -74,13 +75,13 @@ router.delete('/:developmentId', authenticate, workspaceContext, requirePermissi
 
 // ── Mapa de quadras/lotes: imagem da planta-base ──────────────────────────
 
-router.post('/:developmentId/map-image', authenticate, workspaceContext, requirePermission('properties'), upload.single('file'), async (req, res, next) => {
+router.post('/:developmentId/map-image', authenticate, workspaceContext, requirePermission('properties'), mapUpload.single('file'), async (req, res, next) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo enviado' });
 
     const mimeType = req.file.mimetype;
     if (!mimeType.startsWith('image/')) {
-      return res.status(415).json({ error: 'Tipo de arquivo não permitido' });
+      return res.status(415).json({ error: 'Tipo de arquivo não permitido. Envie uma imagem ou converta o PDF no navegador.' });
     }
 
     const ext      = MIME_EXT[mimeType] || path.extname(req.file.originalname).toLowerCase() || '.bin';

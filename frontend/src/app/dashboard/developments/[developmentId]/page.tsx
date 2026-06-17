@@ -196,7 +196,7 @@ export default function DevelopmentDetailPage() {
     try {
       let uploadFile: File | Blob = file;
 
-      // PDF → converte primeira página para PNG no browser
+      // PDF → converte primeira página para JPEG no browser
       if (file.type === 'application/pdf') {
         const pdfjsLib = await import('pdfjs-dist');
         pdfjsLib.GlobalWorkerOptions.workerSrc =
@@ -204,16 +204,26 @@ export default function DevelopmentDetailPage() {
         const buf  = await file.arrayBuffer();
         const pdf  = await pdfjsLib.getDocument({ data: buf }).promise;
         const page = await pdf.getPage(1);
-        const vp   = page.getViewport({ scale: 2.5 }); // alta resolução
+
+        // Limita resolução máxima a 4000px para não extrapolar limite de upload
+        const MAX_PX = 4000;
+        const rawVp  = page.getViewport({ scale: 1 });
+        const scale  = Math.min(2.5, MAX_PX / Math.max(rawVp.width, rawVp.height));
+        const vp     = page.getViewport({ scale });
+
         const canvas = document.createElement('canvas');
-        canvas.width  = vp.width;
-        canvas.height = vp.height;
-        await page.render({ canvasContext: canvas.getContext('2d')!, viewport: vp }).promise;
-        uploadFile = await new Promise<Blob>(r => canvas.toBlob(b => r(b!), 'image/png'));
+        canvas.width  = Math.round(vp.width);
+        canvas.height = Math.round(vp.height);
+        const ctx = canvas.getContext('2d')!;
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        await page.render({ canvasContext: ctx, viewport: vp }).promise;
+        // JPEG quality 0.88 — mantém nitidez com ~5–15 MB em vez de >40 MB (PNG)
+        uploadFile = await new Promise<Blob>(r => canvas.toBlob(b => r(b!), 'image/jpeg', 0.88));
       }
 
       const fd = new FormData();
-      fd.append('file', uploadFile, file.name.replace(/\.pdf$/i, '.png'));
+      fd.append('file', uploadFile, file.name.replace(/\.pdf$/i, '.jpg'));
       const { data } = await api.post(`/workspaces/${wsId}/developments/${development.id}/map-image`, fd, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
