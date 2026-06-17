@@ -200,7 +200,7 @@ export default function Sidebar() {
           <div className="w-8 h-8 bg-gradient-to-br from-brand-500 to-brand-700 rounded-lg flex items-center justify-center flex-shrink-0 shadow-glow">
             <MessageSquare className="w-4 h-4 text-white" />
           </div>
-          <span className="font-display text-white font-semibold text-sm flex-1 tracking-tight">GTW Platform</span>
+          <span className="font-display text-white font-semibold text-sm flex-1 tracking-tight">Imobi360</span>
           <button onClick={close} className="md:hidden text-gray-500 hover:text-white p-1 rounded">
             <X className="w-5 h-5" />
           </button>

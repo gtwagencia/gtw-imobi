@@ -3,7 +3,7 @@
 import { useState, FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/store/auth';
-import { MessageSquare } from 'lucide-react';
+import { Home } from 'lucide-react';
 
 type Mode = 'login' | 'register';
 
@@ -74,9 +74,11 @@ export default function LoginPage() {
         {/* Logo */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-brand-500 to-brand-700 rounded-2xl mb-4 shadow-glow">
-            <MessageSquare className="w-8 h-8 text-white" />
+            <Home className="w-8 h-8 text-white" />
           </div>
-          <h1 className="font-display text-3xl font-semibold text-white tracking-tight">GTW Platform</h1>
+          <h1 className="font-display text-3xl font-semibold text-white tracking-tight">
+            Imobi<span className="text-brand-300">360</span>
+          </h1>
           <p className="text-brand-200 text-sm mt-1">Atendimento & CRM inteligente para o mercado imobiliário</p>
         </div>
 

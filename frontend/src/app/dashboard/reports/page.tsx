@@ -108,7 +108,7 @@ export default function ReportsPage() {
     if (!summary || !agents.length) return;
 
     const rows: string[][] = [
-      ['# Relatório GTW Platform', `Período: últimos ${days} dias`, `Gerado: ${new Date().toLocaleDateString('pt-BR')}`],
+      ['# Relatório Imobi360', `Período: últimos ${days} dias`, `Gerado: ${new Date().toLocaleDateString('pt-BR')}`],
       [],
       ['RESUMO'],
       ['Total de conversas', summary.total_conversations],

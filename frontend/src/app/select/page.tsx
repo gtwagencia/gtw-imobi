@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/store/auth';
 import { useWorkspaceStore } from '@/store/workspace';
 import type { OrgSummary, Workspace } from '@/types';
-import { MessageSquare, Building2, ArrowRight, ChevronLeft, Plus, Loader } from 'lucide-react';
+import { Home, Building2, ArrowRight, ChevronLeft, Plus, Loader } from 'lucide-react';
 import clsx from 'clsx';
 import api from '@/lib/api';
 
@@ -90,9 +90,9 @@ export default function SelectPage() {
         {/* Logo */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-14 h-14 bg-white/20 rounded-2xl mb-4">
-            <MessageSquare className="w-7 h-7 text-white" />
+            <Home className="w-7 h-7 text-white" />
           </div>
-          <h1 className="text-2xl font-bold text-white">GTW Platform</h1>
+          <h1 className="text-2xl font-bold text-white">Imobi<span className="text-brand-300">360</span></h1>
           <p className="text-brand-100 text-sm mt-1">Olá, {user.name?.split(' ')[0]}! Escolha onde trabalhar.</p>
         </div>
 
