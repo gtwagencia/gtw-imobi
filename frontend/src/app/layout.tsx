@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Imobi360',
+  title: 'Imobi360 - Sistema de Gestão para Imobiliárias e Incorporadoras',
   description: 'Plataforma imobiliária de atendimento, CRM e gestão',
   manifest: '/manifest.json',
   appleWebApp: {
