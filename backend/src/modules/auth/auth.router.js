@@ -148,6 +148,31 @@ router.put('/me/password', authenticate, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// ── Recuperação de senha ─────────────────────────────────────────────────────
+
+router.post('/forgot-password', async (req, res, next) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ error: 'E-mail obrigatório' });
+    await svc.forgotPassword(email);
+    res.json({ ok: true }); // Sempre 200 — não revela se o e-mail existe
+  } catch (err) { next(err); }
+});
+
+router.post('/reset-password', async (req, res, next) => {
+  try {
+    const { token, newPassword } = req.body;
+    if (!token || !newPassword) {
+      return res.status(400).json({ error: 'token e newPassword são obrigatórios' });
+    }
+    if (newPassword.length < 8) {
+      return res.status(400).json({ error: 'Senha deve ter ao menos 8 caracteres' });
+    }
+    await svc.resetPassword(token, newPassword);
+    res.json({ ok: true });
+  } catch (err) { next(err); }
+});
+
 // ── Aceitar convite com novo cadastro ────────────────────────────────────────
 
 router.post('/invitations/:token/register', async (req, res, next) => {

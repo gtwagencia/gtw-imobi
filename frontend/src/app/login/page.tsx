@@ -3,9 +3,10 @@
 import { useState, FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/store/auth';
-import { Home } from 'lucide-react';
+import { Home, CheckCircle } from 'lucide-react';
+import api from '@/lib/api';
 
-type Mode = 'login' | 'register';
+type Mode = 'login' | 'register' | 'forgot';
 
 export default function LoginPage() {
   const router   = useRouter();
@@ -18,6 +19,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [loading,  setLoading]  = useState(false);
   const [error,    setError]    = useState('');
+  const [forgotSent, setForgotSent] = useState(false);
 
   // ── Verificação em duas etapas (2FA) ──────────────────────
   const [twoFactorChallenge, setTwoFactorChallenge] = useState<string | null>(null);
@@ -42,6 +44,20 @@ export default function LoginPage() {
       const msg = (err as { response?: { data?: { error?: string } } })
         ?.response?.data?.error || 'Erro ao autenticar';
       setError(msg);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleForgot(e: FormEvent) {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+    try {
+      await api.post('/auth/forgot-password', { email });
+      setForgotSent(true);
+    } catch {
+      setError('Erro ao enviar o e-mail. Tente novamente.');
     } finally {
       setLoading(false);
     }
@@ -84,7 +100,60 @@ export default function LoginPage() {
 
         {/* Card */}
         <div className="card p-8">
-          {twoFactorChallenge ? (
+          {mode === 'forgot' ? (
+            <>
+              <h2 className="font-display text-xl font-semibold text-gray-900 mb-2">
+                Esqueci minha senha
+              </h2>
+              {forgotSent ? (
+                <div className="text-center py-4">
+                  <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-3" />
+                  <p className="text-sm text-gray-700 font-semibold mb-1">E-mail enviado!</p>
+                  <p className="text-sm text-gray-500 mb-6">
+                    Se o e-mail <strong>{email}</strong> está cadastrado, você vai receber um link para redefinir sua senha em breve.
+                    Verifique também a caixa de spam.
+                  </p>
+                  <button onClick={() => { setMode('login'); setForgotSent(false); }} className="text-brand-600 font-medium hover:underline text-sm">
+                    Voltar ao login
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <p className="text-sm text-gray-500 mb-6">
+                    Informe o e-mail da sua conta e enviaremos um link para você criar uma nova senha.
+                  </p>
+                  <form onSubmit={handleForgot} className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">E-mail</label>
+                      <input
+                        className="input"
+                        type="email"
+                        placeholder="voce@empresa.com"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        required
+                        autoFocus
+                      />
+                    </div>
+                    {error && (
+                      <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
+                        {error}
+                      </div>
+                    )}
+                    <button type="submit" className="btn-primary w-full" disabled={loading}>
+                      {loading ? 'Enviando...' : 'Enviar link de recuperação'}
+                    </button>
+                  </form>
+                  <button
+                    onClick={() => { setMode('login'); setError(''); }}
+                    className="text-center w-full text-sm text-gray-500 hover:underline mt-4"
+                  >
+                    Voltar ao login
+                  </button>
+                </>
+              )}
+            </>
+          ) : twoFactorChallenge ? (
             <>
               <h2 className="font-display text-xl font-semibold text-gray-900 mb-2">
                 Verificação em duas etapas
@@ -198,6 +267,18 @@ export default function LoginPage() {
             <button type="submit" className="btn-primary w-full" disabled={loading}>
               {loading ? 'Aguarde...' : mode === 'login' ? 'Entrar' : 'Criar conta'}
             </button>
+
+            {mode === 'login' && (
+              <div className="text-center">
+                <button
+                  type="button"
+                  onClick={() => { setMode('forgot'); setError(''); }}
+                  className="text-sm text-gray-400 hover:text-brand-600 hover:underline transition-colors"
+                >
+                  Esqueci minha senha
+                </button>
+              </div>
+            )}
           </form>
 
           <p className="text-center text-sm text-gray-500 mt-6">

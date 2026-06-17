@@ -405,8 +405,64 @@ async function registerViaInvite({ name, email, password, token }) {
   return issueSession(userRes.rows[0]);
 }
 
+// ── Recuperação de senha ───────────────────────────────────────────────────
+
+async function forgotPassword(email) {
+  const normalizedEmail = email.toLowerCase().trim();
+  const { rows } = await query('SELECT id FROM users WHERE email = $1', [normalizedEmail]);
+  if (!rows.length) return; // Não revela se o e-mail existe ou não
+
+  const token   = crypto.randomBytes(32).toString('hex');
+  const expires = new Date(Date.now() + 60 * 60 * 1000); // 1 hora
+  await query(
+    'UPDATE users SET reset_password_token = $1, reset_password_expires = $2 WHERE id = $3',
+    [token, expires, rows[0].id]
+  );
+
+  const appUrl = process.env.APP_URL || process.env.FRONTEND_URL || 'https://app.imobi360.digital';
+  const link   = `${appUrl}/nova-senha?token=${token}`;
+  const mail   = require('../../services/mail');
+  await mail.sendMailSilent({
+    to:      normalizedEmail,
+    subject: 'Recuperação de senha — Imobi360',
+    html: `
+      <div style="font-family:sans-serif;max-width:480px;margin:auto;padding:24px">
+        <h2 style="color:#1a1a2e;margin-bottom:8px">Recuperação de senha</h2>
+        <p style="color:#555;margin-bottom:24px">
+          Recebemos uma solicitação para redefinir a senha da sua conta.<br>
+          Clique no botão abaixo para criar uma nova senha. O link é válido por <strong>1 hora</strong>.
+        </p>
+        <a href="${link}" style="display:inline-block;background:#4f46e5;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600">
+          Redefinir minha senha
+        </a>
+        <p style="color:#999;font-size:12px;margin-top:24px">
+          Se você não solicitou a recuperação, ignore este e-mail — sua senha continua a mesma.<br>
+          <a href="${link}" style="color:#999">${link}</a>
+        </p>
+      </div>
+    `,
+  });
+}
+
+async function resetPassword(token, newPassword) {
+  const { rows } = await query(
+    `SELECT id FROM users
+     WHERE reset_password_token = $1 AND reset_password_expires > NOW()`,
+    [token]
+  );
+  if (!rows.length) throw Object.assign(new Error('Link inválido ou expirado'), { status: 400 });
+
+  const hash = await bcrypt.hash(newPassword, SALT_ROUNDS);
+  await query(
+    `UPDATE users
+     SET password_hash = $1, reset_password_token = NULL, reset_password_expires = NULL
+     WHERE id = $2`,
+    [hash, rows[0].id]
+  );
+}
+
 module.exports = {
   register, login, verifyTwoFactorLogin, refresh, logout, me, changePassword, updateProfile,
   getTwoFactorStatus, setupTwoFactor, enableTwoFactor, disableTwoFactor,
-  registerViaInvite,
+  registerViaInvite, forgotPassword, resetPassword,
 };
