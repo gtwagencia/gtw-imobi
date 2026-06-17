@@ -160,46 +160,47 @@ export default function PropertyDetailPage() {
       />
 
       <div className="flex-1 overflow-y-auto p-4 md:p-6">
-        <div className="max-w-4xl mx-auto space-y-5">
-          {/* Galeria de mídia */}
-          <MediaGallery
-            media={property.media}
-            uploading={uploading}
-            onUpload={handleUpload}
-            onRemove={handleRemoveMedia}
-            onSetCover={handleSetCover}
-            onToggleShowOnSite={handleToggleShowOnSite}
-            onReorder={handleReorder}
-          />
+        <div className="max-w-7xl mx-auto">
 
-          {/* Formulário */}
-          <PropertyForm
-            property={property}
-            workspaceId={currentWorkspace.id}
-            orgId={currentOrg.id}
-            onSave={(saved) => setProperty(prev => prev ? { ...prev, ...saved, media: prev.media } : prev)}
-          />
+          {/* Galeria — full width hero */}
+          <div className="mb-5">
+            <MediaGallery
+              media={property.media}
+              uploading={uploading}
+              onUpload={handleUpload}
+              onRemove={handleRemoveMedia}
+              onSetCover={handleSetCover}
+              onToggleShowOnSite={handleToggleShowOnSite}
+              onReorder={handleReorder}
+            />
+          </div>
 
-          {/* Avaliação de preço (IA) */}
-          <CmaPanel
-            workspaceId={currentWorkspace.id}
-            property={property}
-            onUpdate={(updated) => setProperty(prev => prev ? { ...prev, ...updated, media: prev.media } : prev)}
-          />
+          {/* Duas colunas: formulário à esquerda, painéis auxiliares à direita */}
+          <div className="flex flex-col lg:flex-row gap-5 items-start">
+            <div className="flex-1 min-w-0">
+              <PropertyForm
+                property={property}
+                workspaceId={currentWorkspace.id}
+                orgId={currentOrg.id}
+                onSave={(saved) => setProperty(prev => prev ? { ...prev, ...saved, media: prev.media } : prev)}
+              />
+            </div>
 
-          {/* Cofre de documentos */}
-          <DocumentVault workspaceId={currentWorkspace.id} propertyId={property.id} />
+            <div className="lg:w-80 xl:w-96 flex-shrink-0 space-y-4">
+              <CmaPanel
+                workspaceId={currentWorkspace.id}
+                property={property}
+                onUpdate={(updated) => setProperty(prev => prev ? { ...prev, ...updated, media: prev.media } : prev)}
+              />
+              <DocumentVault workspaceId={currentWorkspace.id} propertyId={property.id} />
+              <SignQrCode workspaceId={currentWorkspace.id} propertyId={property.id} />
+              {property.development_id && (
+                <SaleConditionsPanel workspaceId={currentWorkspace.id} propertyId={property.id} purpose={property.purpose} />
+              )}
+              <ProposalsPanel workspaceId={currentWorkspace.id} propertyId={property.id} />
+            </div>
+          </div>
 
-          {/* QR Code para placa "vende-se" */}
-          <SignQrCode workspaceId={currentWorkspace.id} propertyId={property.id} />
-
-          {/* Condições de venda/pagamento (unidades de empreendimento) */}
-          {property.development_id && (
-            <SaleConditionsPanel workspaceId={currentWorkspace.id} propertyId={property.id} purpose={property.purpose} />
-          )}
-
-          {/* Propostas/contratos (PDF + assinatura eletrônica) */}
-          <ProposalsPanel workspaceId={currentWorkspace.id} propertyId={property.id} />
         </div>
       </div>
     </>

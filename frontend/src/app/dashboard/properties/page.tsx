@@ -14,6 +14,7 @@ import {
   Search, Plus, Building2, BedDouble, Bath, Car, Ruler,
   ChevronLeft, ChevronRight, SlidersHorizontal, Star, GitCompare, X, Check,
 } from 'lucide-react';
+import EmptyState from '@/components/ui/EmptyState';
 import clsx from 'clsx';
 
 const LIMIT = 24;
@@ -205,10 +206,16 @@ export default function PropertiesPage() {
             ))}
           </div>
         ) : properties.length === 0 ? (
-          <div className="text-center py-20 text-gray-400">
-            <Building2 className="w-12 h-12 mx-auto mb-3 opacity-30" />
-            <p>Nenhum imóvel encontrado</p>
-          </div>
+          <EmptyState
+            illustration="properties"
+            title="Nenhum imóvel encontrado"
+            description={activeFilterCount > 0 ? 'Tente ajustar os filtros para ver mais resultados.' : 'Comece cadastrando seu primeiro imóvel.'}
+            action={activeFilterCount === 0 ? (
+              <button className="btn-primary" onClick={() => router.push('/dashboard/properties/new')}>
+                <Plus className="w-4 h-4" /> Cadastrar imóvel
+              </button>
+            ) : undefined}
+          />
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {properties.map((p) => (
@@ -216,65 +223,84 @@ export default function PropertiesPage() {
                 key={p.id}
                 onClick={() => compareMode ? toggleSelected(p.id) : router.push(`/dashboard/properties/${p.id}`)}
                 className={clsx(
-                  'card overflow-hidden text-left hover:shadow-lg hover:-translate-y-0.5 transition-all group',
-                  compareMode && selectedIds.includes(p.id) && 'ring-2 ring-brand-400'
+                  'card overflow-hidden text-left hover:shadow-nav hover:-translate-y-1 transition-all duration-200 group',
+                  compareMode && selectedIds.includes(p.id) && 'ring-2 ring-brand-400',
                 )}
               >
-                <div className="relative h-40 bg-gray-100 flex items-center justify-center overflow-hidden">
+                {/* Hero photo — 56% do card */}
+                <div className="relative h-48 bg-gray-100 flex items-center justify-center overflow-hidden">
                   {p.cover_url ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={p.cover_url} alt={p.title} className="w-full h-full object-cover" />
+                    <img src={p.cover_url} alt={p.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                   ) : (
-                    <Building2 className="w-10 h-10 text-gray-300" />
+                    <div className="flex flex-col items-center gap-2 text-gray-300">
+                      <Building2 className="w-12 h-12" />
+                      <span className="text-xs">Sem foto</span>
+                    </div>
                   )}
-                  <span className={clsx('absolute top-2 left-2 text-xs font-medium px-2 py-1 rounded-full', STATUS_COLORS[p.status])}>
+                  {/* Gradient overlay */}
+                  {p.cover_url && (
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
+                  )}
+                  {/* Status badge */}
+                  <span className={clsx('absolute top-2.5 left-2.5 text-xs font-semibold px-2.5 py-1 rounded-full shadow-soft', STATUS_COLORS[p.status])}>
                     {STATUS_LABELS[p.status]}
                   </span>
+                  {/* Featured star */}
                   {p.is_featured && !compareMode && (
-                    <span className="absolute top-2 right-2 bg-gradient-to-br from-accent-300 to-accent-500 text-accent-900 rounded-full p-1 shadow-soft">
+                    <span className="absolute top-2.5 right-2.5 bg-gradient-to-br from-accent-300 to-accent-500 text-accent-900 rounded-full p-1.5 shadow-soft">
                       <Star className="w-3.5 h-3.5" fill="currentColor" />
                     </span>
                   )}
+                  {/* Compare checkbox */}
                   {compareMode && (
                     <span className={clsx(
-                      'absolute top-2 right-2 w-6 h-6 rounded-full border-2 flex items-center justify-center',
-                      selectedIds.includes(p.id) ? 'bg-brand-500 border-brand-500 text-white' : 'bg-white/80 border-gray-300'
+                      'absolute top-2.5 right-2.5 w-7 h-7 rounded-full border-2 flex items-center justify-center shadow-soft',
+                      selectedIds.includes(p.id) ? 'bg-brand-500 border-brand-500 text-white' : 'bg-white/90 border-gray-300',
                     )}>
                       {selectedIds.includes(p.id) && <Check className="w-4 h-4" />}
                     </span>
                   )}
+                  {/* Price overlay at bottom */}
+                  {p.cover_url && (
+                    <div className="absolute bottom-0 left-0 right-0 px-3 py-2">
+                      <p className="font-bold text-white text-sm drop-shadow">{propertyPriceLabel(p)}</p>
+                    </div>
+                  )}
                 </div>
-                <div className="p-4">
+
+                {/* Info area */}
+                <div className="p-3.5">
                   <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs font-mono text-gray-400">{p.code}</span>
-                    <span className="text-xs text-gray-400">{PROPERTY_TYPE_LABELS[p.property_type]}</span>
+                    <span className="text-[10px] font-mono text-gray-400 tracking-wider">{p.code}</span>
+                    <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">{PROPERTY_TYPE_LABELS[p.property_type]}</span>
                   </div>
-                  <h3 className="font-semibold text-gray-900 line-clamp-2 mb-1 group-hover:text-brand-600 transition-colors">
+                  <h3 className="font-bold text-gray-900 text-sm line-clamp-2 mb-1 group-hover:text-brand-600 transition-colors leading-snug">
                     {p.title}
                   </h3>
-                  <p className="text-sm text-gray-500 mb-2 truncate">
+                  <p className="text-xs text-gray-500 mb-2 truncate">
                     {[p.neighborhood, p.city].filter(Boolean).join(', ') || '—'}
                   </p>
-                  <p className="font-semibold text-brand-700 mb-2">
-                    {propertyPriceLabel(p)}
-                  </p>
+                  {!p.cover_url && (
+                    <p className="font-bold text-brand-700 mb-2 text-sm">{propertyPriceLabel(p)}</p>
+                  )}
                   <div className="flex items-center gap-3 text-xs text-gray-500">
                     {p.bedrooms != null && (
-                      <span className="flex items-center gap-1"><BedDouble className="w-3.5 h-3.5" />{p.bedrooms}</span>
+                      <span className="flex items-center gap-1 font-medium"><BedDouble className="w-3.5 h-3.5" />{p.bedrooms}</span>
                     )}
                     {p.bathrooms != null && (
-                      <span className="flex items-center gap-1"><Bath className="w-3.5 h-3.5" />{p.bathrooms}</span>
+                      <span className="flex items-center gap-1 font-medium"><Bath className="w-3.5 h-3.5" />{p.bathrooms}</span>
                     )}
                     {p.parking_spots != null && (
-                      <span className="flex items-center gap-1"><Car className="w-3.5 h-3.5" />{p.parking_spots}</span>
+                      <span className="flex items-center gap-1 font-medium"><Car className="w-3.5 h-3.5" />{p.parking_spots}</span>
                     )}
                     {(p.total_area != null || p.built_area != null) && (
-                      <span className="flex items-center gap-1"><Ruler className="w-3.5 h-3.5" />{formatArea(p.built_area ?? p.total_area)}</span>
+                      <span className="flex items-center gap-1 font-medium"><Ruler className="w-3.5 h-3.5" />{formatArea(p.built_area ?? p.total_area)}</span>
                     )}
                   </div>
                   {p.broker_name && (
                     <div className="mt-2 pt-2 border-t border-gray-100 text-xs text-gray-400">
-                      Corretor: <span className="text-gray-600">{p.broker_name}</span>
+                      Corretor: <span className="text-gray-600 font-medium">{p.broker_name}</span>
                     </div>
                   )}
                 </div>

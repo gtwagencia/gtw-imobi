@@ -1,13 +1,13 @@
 {
-  "name": "GTW Platform",
-  "short_name": "GTW",
-  "description": "Plataforma de atendimento, CRM e gestão imobiliária",
+  "name": "Imobi360",
+  "short_name": "Imobi360",
+  "description": "Plataforma imobiliária de atendimento, CRM e gestão",
   "start_url": "/dashboard",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait-primary",
   "background_color": "#ffffff",
-  "theme_color": "#4f46e5",
+  "theme_color": "#4940e0",
   "icons": [
     {
       "src": "/icon.svg",

@@ -363,6 +363,9 @@ export interface PropertyProposal {
   signature_document: string | null;
   signed_at: string | null;
   signed_ip: string | null;
+  zapsign_doc_token: string | null;
+  zapsign_sign_url: string | null;
+  signature_status: 'aguardando' | 'assinado' | null;
   created_at: string;
   updated_at: string;
 }

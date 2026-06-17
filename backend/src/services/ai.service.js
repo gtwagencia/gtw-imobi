@@ -1016,8 +1016,92 @@ async function generateChatbotResponseWithTools(conversationId, systemPrompt, ws
   }
 }
 
+// ── Geração de descrição de imóvel ─────────────────────────────────────────
+
+/**
+ * Gera uma descrição profissional de imóvel usando o provedor de IA
+ * configurado especificamente para geração de textos no workspace.
+ * Independente das configurações do agente de atendimento.
+ */
+async function generatePropertyDescription(workspace, property) {
+  const provider = workspace.description_ai_provider || workspace.ai_provider || 'anthropic';
+  const model    = workspace.description_ai_model || '';
+  const apiKey   = provider === 'openai'  ? workspace.openai_api_key
+                 : provider === 'custom'  ? workspace.custom_ai_api_key
+                 :                         workspace.anthropic_api_key;
+
+  const purposeLabel = { venda: 'Venda', locacao: 'Locação', venda_locacao: 'Venda e Locação', temporada: 'Temporada' }[property.purpose] || property.purpose;
+
+  const priceStr = property.sale_price
+    ? `R$ ${Number(property.sale_price).toLocaleString('pt-BR')}`
+    : property.rent_price
+    ? `R$ ${Number(property.rent_price).toLocaleString('pt-BR')}/mês`
+    : 'consulte';
+
+  const amenities = Array.isArray(property.amenities) && property.amenities.length
+    ? property.amenities.join(', ')
+    : 'não informadas';
+
+  const system = `Você é especialista em marketing imobiliário brasileiro. Escreva descrições atrativas, profissionais e persuasivas. Use linguagem clara, destaque benefícios e estilo de vida. Sempre em português brasileiro. Máximo 220 palavras.`;
+
+  const prompt = `Escreva uma descrição de marketing para este imóvel:
+
+Tipo: ${property.property_type || 'Imóvel'}
+Finalidade: ${purposeLabel}
+Localização: ${[property.neighborhood, property.city, property.state].filter(Boolean).join(', ')}
+Quartos: ${property.bedrooms ?? '—'} | Banheiros: ${property.bathrooms ?? '—'} | Vagas: ${property.parking_spots ?? '—'}
+Área total: ${property.total_area ? property.total_area + 'm²' : '—'} | Área construída: ${property.built_area ? property.built_area + 'm²' : '—'}
+Preço: ${priceStr}
+Comodidades: ${amenities}
+${property.floor_number ? `Andar: ${property.floor_number}` : ''}
+${property.year_built ? `Ano: ${property.year_built}` : ''}
+
+Crie uma descrição envolvente que conte uma história sobre o estilo de vida que este imóvel proporciona. Não liste apenas características — seja persuasivo e emocional.`;
+
+  return callLLM({
+    provider,
+    apiKey,
+    baseUrl: workspace.ai_base_url,
+    model,
+    system,
+    messages: [{ role: 'user', content: prompt }],
+    maxTokens: 500,
+  });
+}
+
+// ── Sugestão de score de lead ───────────────────────────────────────────────
+
+/**
+ * Calcula/atualiza o lead score de um deal com base em comportamento e qualificação.
+ * Retorna score de 0-100.
+ */
+async function recalcLeadScore(workspace, deal) {
+  let score = 0;
+
+  // Engajamento (mensagens)
+  if (deal.message_count > 10) score += 20;
+  else if (deal.message_count > 5) score += 10;
+  else if (deal.message_count > 2) score += 5;
+
+  // Tempo de resposta rápido (lead engajado)
+  if (deal.response_time_seconds != null && deal.response_time_seconds < 300) score += 15;
+
+  // Qualificação IA
+  const qualScore = { 'Alta': 30, 'Média': 20, 'Baixa': 5, 'Inválido': 0 };
+  score += qualScore[deal.ai_qualification] ?? 0;
+
+  // Imóvel vinculado = interesse específico
+  if (deal.property_id) score += 15;
+
+  // Visita agendada ou realizada
+  if (deal.has_visit) score += 20;
+
+  // Cap 100
+  return Math.min(score, 100);
+}
+
 module.exports = {
   analyzeConversation, generateFollowUp, generateChatbotResponse, analyzeDeal,
   generateChatbotResponseWithTools, DEFAULT_AGENT_PERSONA, buildAgentPersona,
-  generateCMA,
+  generateCMA, generatePropertyDescription, recalcLeadScore,
 };

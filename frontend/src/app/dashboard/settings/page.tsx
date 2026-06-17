@@ -5,7 +5,7 @@ import { useAuth } from '@/store/auth';
 import Header from '@/components/layout/Header';
 import api, { API_URL } from '@/lib/api';
 import type { BusinessHours, BusinessHoursDay } from '@/types';
-import { Save, Eye, EyeOff, Brain, Clock, MessageSquare, CheckCircle, Sparkles, Globe, Copy, Check, RefreshCw, ShieldCheck, AlertTriangle, Percent } from 'lucide-react';
+import { Save, Eye, EyeOff, Brain, Clock, MessageSquare, CheckCircle, Sparkles, Globe, Copy, Check, RefreshCw, ShieldCheck, AlertTriangle, Percent, Star } from 'lucide-react';
 import clsx from 'clsx';
 import ModulesCard from '@/components/settings/ModulesCard';
 
@@ -102,6 +102,12 @@ export default function SettingsPage() {
     slaResponseMinutes:   30,
     leadStaleHours:       24,
     defaultCommissionPct: '',
+    descriptionAiProvider: 'anthropic',
+    descriptionAiModel:    '',
+    npsEnabled:            false,
+    npsDelayHours:         24,
+    npsMessageTemplate:    '',
+    zapsignApiToken:       '',
   });
 
   const [businessHours, setBusinessHours] = useState<BusinessHours>(DEFAULT_BUSINESS_HOURS);
@@ -140,7 +146,13 @@ export default function SettingsPage() {
         customDomain:         currentWorkspace.custom_domain || '',
         slaResponseMinutes:   currentWorkspace.sla_response_minutes ?? 30,
         leadStaleHours:       currentWorkspace.lead_stale_hours ?? 24,
-        defaultCommissionPct: currentWorkspace.default_commission_pct != null ? String(currentWorkspace.default_commission_pct) : '',
+        defaultCommissionPct:  currentWorkspace.default_commission_pct != null ? String(currentWorkspace.default_commission_pct) : '',
+        descriptionAiProvider: (currentWorkspace as Record<string, unknown>).description_ai_provider as string || 'anthropic',
+        descriptionAiModel:    (currentWorkspace as Record<string, unknown>).description_ai_model    as string || '',
+        npsEnabled:            Boolean((currentWorkspace as Record<string, unknown>).nps_enabled),
+        npsDelayHours:         Number((currentWorkspace as Record<string, unknown>).nps_delay_hours) || 24,
+        npsMessageTemplate:    (currentWorkspace as Record<string, unknown>).nps_message_template as string || '',
+        zapsignApiToken:       '',
       });
       setBusinessHours(currentWorkspace.business_hours ?? DEFAULT_BUSINESS_HOURS);
     }
@@ -178,6 +190,7 @@ export default function SettingsPage() {
       if (!payload.anthropicApiKey)      delete payload.anthropicApiKey;
       if (!payload.openaiApiKey)         delete payload.openaiApiKey;
       if (!payload.customAiApiKey)       delete payload.customAiApiKey;
+      if (!payload.zapsignApiToken)      delete payload.zapsignApiToken;
 
       const { data } = await api.put(
         `/orgs/${currentWorkspace.org_id}/workspaces/${currentWorkspace.id}`,
@@ -1127,6 +1140,159 @@ export default function SettingsPage() {
               )}
             </div>
           )}
+
+          {/* ── IA para Geração de Textos ──────────────────────────── */}
+          <div className="card p-6">
+            <h2 className="font-semibold text-gray-900 mb-1 flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-violet-500" />
+              IA para Geração de Textos
+            </h2>
+            <p className="text-xs text-gray-400 mb-4">
+              Modelo usado para gerar descrições de imóveis, textos de marketing e sugestões. Independente das configurações do agente de atendimento.
+            </p>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Provedor</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { value: 'anthropic', label: 'Claude (Anthropic)' },
+                    { value: 'openai',    label: 'ChatGPT (OpenAI)' },
+                    { value: 'custom',    label: 'Personalizado' },
+                  ].map((opt) => (
+                    <label key={opt.value} className={`flex items-center gap-2 cursor-pointer border rounded-lg px-3 py-2 transition-colors ${
+                      form.descriptionAiProvider === opt.value
+                        ? 'border-brand-500 bg-brand-50 text-brand-700'
+                        : 'border-gray-200 text-gray-700 hover:border-gray-300'
+                    }`}>
+                      <input
+                        type="radio"
+                        name="descriptionAiProvider"
+                        value={opt.value}
+                        checked={form.descriptionAiProvider === opt.value}
+                        onChange={(e) => setForm({ ...form, descriptionAiProvider: e.target.value })}
+                        className="sr-only"
+                      />
+                      <span className="text-xs font-medium">{opt.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Modelo</label>
+                {form.descriptionAiProvider === 'custom' ? (
+                  <input
+                    className="input"
+                    value={form.descriptionAiModel}
+                    onChange={(e) => setForm({ ...form, descriptionAiModel: e.target.value })}
+                    placeholder="Nome exato do modelo (ex: llama3.2)"
+                  />
+                ) : (
+                  <select
+                    className="input"
+                    value={form.descriptionAiModel}
+                    onChange={(e) => setForm({ ...form, descriptionAiModel: e.target.value })}
+                  >
+                    <option value="">Padrão automático</option>
+                    {form.descriptionAiProvider === 'openai' ? (
+                      <>
+                        <option value="gpt-4o">GPT-4o (mais poderoso)</option>
+                        <option value="gpt-4o-mini">GPT-4o mini (mais rápido)</option>
+                        <option value="gpt-4-turbo">GPT-4 Turbo</option>
+                      </>
+                    ) : (
+                      <>
+                        <option value="claude-opus-4-8">Claude Opus 4.8 (mais poderoso)</option>
+                        <option value="claude-sonnet-4-6">Claude Sonnet 4.6 (balanceado)</option>
+                        <option value="claude-haiku-4-5-20251001">Claude Haiku 4.5 (mais rápido)</option>
+                      </>
+                    )}
+                  </select>
+                )}
+                <p className="text-xs text-gray-400 mt-1">Usa as chaves de API já configuradas para o provedor selecionado.</p>
+              </div>
+            </div>
+          </div>
+
+          {/* ── NPS pós-visita ────────────────────────────────────── */}
+          <div className="card p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h2 className="font-semibold text-gray-900 flex items-center gap-2">
+                  <Star className="w-4 h-4 text-amber-500" />
+                  NPS pós-visita
+                </h2>
+                <p className="text-xs text-gray-400 mt-0.5">
+                  Envio automático de pesquisa de satisfação após a visita ser marcada como realizada.
+                </p>
+              </div>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={form.npsEnabled}
+                  onChange={(e) => setForm({ ...form, npsEnabled: e.target.checked })}
+                  className="w-4 h-4"
+                />
+                <span className="text-sm font-medium text-gray-700">Ativo</span>
+              </label>
+            </div>
+
+            {form.npsEnabled && (
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Delay após visita (horas)</label>
+                  <input
+                    type="number" min={0} max={72}
+                    className="input max-w-xs"
+                    value={form.npsDelayHours}
+                    onChange={(e) => setForm({ ...form, npsDelayHours: parseInt(e.target.value) || 24 })}
+                  />
+                  <p className="text-xs text-gray-400 mt-1">0 = enviar imediatamente após a visita ser realizada.</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Mensagem personalizada (opcional)</label>
+                  <textarea
+                    className="input"
+                    rows={4}
+                    value={form.npsMessageTemplate}
+                    onChange={(e) => setForm({ ...form, npsMessageTemplate: e.target.value })}
+                    placeholder={`Olá! 😊\n\nObrigado pela visita ao imóvel!\n\nComo foi sua experiência? Responda com um número de 0 a 10:`}
+                  />
+                  <p className="text-xs text-gray-400 mt-1">Deixe em branco para usar o texto padrão do sistema.</p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* ── Assinatura Eletrônica (ZapSign) ──────────────────── */}
+          <div className="card p-6">
+            <h2 className="font-semibold text-gray-900 mb-1 flex items-center gap-2">
+              <ShieldCheck className="w-4 h-4 text-green-600" />
+              Assinatura Eletrônica — ZapSign
+            </h2>
+            <p className="text-xs text-gray-400 mb-4">
+              Permite enviar contratos e propostas para assinatura eletrônica diretamente pelo sistema.
+              <a href="https://zapsign.com.br" target="_blank" rel="noreferrer" className="ml-1 text-brand-600 underline">Criar conta ZapSign →</a>
+            </p>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">API Token ZapSign</label>
+              <div className="flex gap-2">
+                <input
+                  className="input font-mono text-xs flex-1"
+                  type="password"
+                  value={form.zapsignApiToken}
+                  onChange={(e) => setForm({ ...form, zapsignApiToken: e.target.value })}
+                  placeholder={
+                    (currentWorkspace as Record<string, unknown>).zapsign_api_token
+                      ? '••••••••••••••••••••••• (já configurado)'
+                      : 'Cole seu token da API ZapSign aqui'
+                  }
+                  autoComplete="off"
+                />
+              </div>
+              <p className="text-xs text-gray-400 mt-1">Encontre em: ZapSign → Configurações → API → Token de produção.</p>
+            </div>
+          </div>
 
           <button type="submit" className="btn-primary" disabled={saving}>
             <Save className="w-4 h-4" />

@@ -5,7 +5,7 @@ import { useAuth } from '@/store/auth';
 import Header from '@/components/layout/Header';
 import api from '@/lib/api';
 import type { AgentReport, VolumeByDay, BrokerDealReport, LeadSourceReport } from '@/types';
-import { MessageSquare, CheckCircle, Clock, Star, AlertTriangle, Download, Megaphone, TrendingUp, DollarSign, Target } from 'lucide-react';
+import { MessageSquare, CheckCircle, Clock, Star, AlertTriangle, Download, Megaphone, TrendingUp, DollarSign, Target, ThumbsUp, ThumbsDown, Minus } from 'lucide-react';
 
 function formatSeconds(secs: number | null) {
   if (!secs) return '—';
@@ -68,6 +68,7 @@ export default function ReportsPage() {
   const [campaignTotals,   setCampaignTotals]   = useState<CampaignTotals | null>(null);
   const [brokerDeals,      setBrokerDeals]      = useState<BrokerDealReport[]>([]);
   const [leadSources,      setLeadSources]      = useState<LeadSourceReport[]>([]);
+  const [npsMetrics,       setNpsMetrics]       = useState<{ nps_score: number; total: number; promoters: number; neutrals: number; detractors: number } | null>(null);
   const [loading,          setLoading]          = useState(true);
   const [days,             setDays]             = useState(30);
 
@@ -79,13 +80,14 @@ export default function ReportsPage() {
     const params    = { startDate, endDate };
 
     try {
-      const [s, a, v, c, b, ls] = await Promise.all([
+      const [s, a, v, c, b, ls, npsR] = await Promise.all([
         api.get(`/workspaces/${currentWorkspace.id}/reports/summary`,        { params }),
         api.get(`/workspaces/${currentWorkspace.id}/reports/agents`,         { params }),
         api.get(`/workspaces/${currentWorkspace.id}/reports/volume`,         { params }),
         api.get(`/workspaces/${currentWorkspace.id}/reports/campaigns`,      { params }),
         api.get(`/workspaces/${currentWorkspace.id}/reports/deals-by-broker`, { params }),
         api.get(`/workspaces/${currentWorkspace.id}/reports/deals-by-source`, { params }),
+        api.get(`/workspaces/${currentWorkspace.id}/nps/metrics`,            { params }).catch(() => ({ data: null })),
       ]);
       setSummary(s.data);
       setAgents(a.data);
@@ -94,6 +96,7 @@ export default function ReportsPage() {
       setCampaignTotals(c.data.totals || null);
       setBrokerDeals(b.data || []);
       setLeadSources(ls.data || []);
+      setNpsMetrics(npsR.data);
     } finally {
       setLoading(false);
     }
@@ -534,6 +537,48 @@ export default function ReportsPage() {
                       })}
                     </tbody>
                   </table>
+                </div>
+              </div>
+            )}
+            {/* NPS pós-visita */}
+            {npsMetrics && npsMetrics.total > 0 && (
+              <div className="card p-5">
+                <h2 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                  <Star className="w-4 h-4 text-amber-500" />
+                  NPS pós-visita
+                </h2>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                  {/* Score */}
+                  <div className="col-span-2 sm:col-span-1 flex flex-col items-center justify-center rounded-2xl border-2 p-5"
+                    style={{ borderColor: npsMetrics.nps_score >= 50 ? '#22c55e' : npsMetrics.nps_score >= 0 ? '#f59e0b' : '#ef4444' }}>
+                    <span className="text-4xl font-black"
+                      style={{ color: npsMetrics.nps_score >= 50 ? '#16a34a' : npsMetrics.nps_score >= 0 ? '#d97706' : '#dc2626' }}>
+                      {npsMetrics.nps_score >= 0 ? '+' : ''}{npsMetrics.nps_score}
+                    </span>
+                    <span className="text-xs font-semibold text-gray-500 mt-1">Score NPS</span>
+                    <span className="text-[10px] text-gray-400">{npsMetrics.total} respostas</span>
+                  </div>
+                  {/* Promotores */}
+                  <div className="flex flex-col items-center justify-center rounded-xl bg-green-50 p-4">
+                    <ThumbsUp className="w-5 h-5 text-green-600 mb-1" />
+                    <span className="text-2xl font-bold text-green-700">{npsMetrics.promoters}</span>
+                    <span className="text-xs text-green-600 font-medium">Promotores</span>
+                    <span className="text-[10px] text-gray-400">nota 9–10</span>
+                  </div>
+                  {/* Neutros */}
+                  <div className="flex flex-col items-center justify-center rounded-xl bg-gray-50 p-4">
+                    <Minus className="w-5 h-5 text-gray-500 mb-1" />
+                    <span className="text-2xl font-bold text-gray-700">{npsMetrics.neutrals}</span>
+                    <span className="text-xs text-gray-600 font-medium">Neutros</span>
+                    <span className="text-[10px] text-gray-400">nota 7–8</span>
+                  </div>
+                  {/* Detratores */}
+                  <div className="flex flex-col items-center justify-center rounded-xl bg-red-50 p-4">
+                    <ThumbsDown className="w-5 h-5 text-red-500 mb-1" />
+                    <span className="text-2xl font-bold text-red-600">{npsMetrics.detractors}</span>
+                    <span className="text-xs text-red-500 font-medium">Detratores</span>
+                    <span className="text-[10px] text-gray-400">nota 0–6</span>
+                  </div>
                 </div>
               </div>
             )}

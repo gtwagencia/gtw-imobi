@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&display=swap');
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -43,7 +43,7 @@
   }
 
   .input {
-    @apply w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm
+    @apply w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm
            placeholder-gray-400 shadow-sm transition
            focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20
            disabled:bg-gray-50 disabled:text-gray-400;
@@ -67,11 +67,22 @@
   .badge-brand  { @apply badge bg-brand-50 text-brand-700; }
   .badge-accent { @apply badge bg-accent-50 text-accent-700; }
 
-  /* Tipografia de destaque — usada em títulos de página, telas de
-     autenticação e seções "hero". Dá identidade própria sem pesar a UI
-     densa (tabelas, cards pequenos) que continua em Inter. */
   .font-display {
     font-family: theme('fontFamily.display');
-    letter-spacing: -0.01em;
+    letter-spacing: -0.02em;
   }
+
+  /* Table rows — consistent hover */
+  .table-row-hover {
+    @apply transition-colors hover:bg-gray-50 cursor-pointer;
+  }
+}
+
+/* Toast slide-in animation */
+@keyframes toast-in {
+  from { opacity: 0; transform: translateX(110%); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+.toast-animate {
+  animation: toast-in 0.22s cubic-bezier(0.16, 1, 0.3, 1);
 }

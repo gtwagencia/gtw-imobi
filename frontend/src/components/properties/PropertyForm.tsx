@@ -7,7 +7,7 @@ import {
   PROPERTY_TYPE_LABELS, PURPOSE_LABELS, STATUS_LABELS, AMENITIES_LIST, BRAZIL_STATES,
 } from '@/lib/propertyConstants';
 import LocationPicker from './LocationPicker';
-import { Plus, X } from 'lucide-react';
+import { Plus, X, Sparkles, Loader2 } from 'lucide-react';
 import clsx from 'clsx';
 
 interface Member {
@@ -110,8 +110,9 @@ export default function PropertyForm({ property, workspaceId, orgId, initialDeve
   const [members,  setMembers]  = useState<Member[]>([]);
   const [developments, setDevelopments] = useState<Development[]>([]);
   const [customAmenity, setCustomAmenity] = useState('');
-  const [saving, setSaving] = useState(false);
-  const [error,  setError]  = useState('');
+  const [saving,          setSaving]          = useState(false);
+  const [error,           setError]           = useState('');
+  const [generatingDesc,  setGeneratingDesc]  = useState(false);
 
   useEffect(() => { setForm(toFormState(property, initialDevelopmentId)); }, [property, initialDevelopmentId]);
 
@@ -129,6 +130,22 @@ export default function PropertyForm({ property, workspaceId, orgId, initialDeve
 
   function set<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm(prev => ({ ...prev, [key]: value }));
+  }
+
+  async function handleGenerateDescription() {
+    setGeneratingDesc(true);
+    try {
+      const endpoint = property?.id
+        ? `/workspaces/${workspaceId}/properties/${property.id}/generate-description`
+        : `/workspaces/${workspaceId}/properties/generate-description`;
+      const body = property?.id ? undefined : form;
+      const { data } = await api.post(endpoint, body);
+      if (data.description) set('description', data.description);
+    } catch {
+      // falha silenciosa — usuário pode tentar de novo
+    } finally {
+      setGeneratingDesc(false);
+    }
   }
 
   function toggleAmenity(amenity: string) {
@@ -255,8 +272,20 @@ export default function PropertyForm({ property, workspaceId, orgId, initialDeve
             <label htmlFor="isFeatured" className="text-sm text-gray-700">Destacar este imóvel</label>
           </div>
           <div className="md:col-span-2">
-            <label className="block text-xs font-medium text-gray-600 mb-1">Descrição</label>
-            <textarea className="input resize-none" rows={4} value={form.description} onChange={e => set('description', e.target.value)} placeholder="Detalhes sobre o imóvel, diferenciais, condições..." />
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-xs font-medium text-gray-600">Descrição</label>
+              <button
+                type="button"
+                onClick={handleGenerateDescription}
+                disabled={generatingDesc}
+                className="flex items-center gap-1.5 text-xs font-semibold text-violet-600 hover:text-violet-700 disabled:opacity-50 transition-colors"
+              >
+                {generatingDesc
+                  ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Gerando...</>
+                  : <><Sparkles className="w-3.5 h-3.5" /> Gerar com IA</>}
+              </button>
+            </div>
+            <textarea className="input resize-none" rows={5} value={form.description} onChange={e => set('description', e.target.value)} placeholder="Descreva o imóvel ou clique em 'Gerar com IA' para criar automaticamente..." />
           </div>
         </div>
       </div>

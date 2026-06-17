@@ -53,6 +53,8 @@ const broadcastsRouter     = require('./modules/broadcasts/broadcasts.router');
 const permissionsRouter    = require('./modules/permissions/permissions.router');
 const notificationsRouter  = require('./modules/notifications/notifications.router');
 const pushRouter           = require('./modules/push/push.router');
+const npsRouter            = require('./modules/nps/nps.router');
+const zapsignRouter        = require('./modules/zapsign/zapsign.router');
 
 const app    = express();
 const server = http.createServer(app);
@@ -143,6 +145,9 @@ app.use('/api/v1/webhooks',                                webhooksRouter);
 app.use('/api/v1/workspaces/:workspaceId/meta',            metaRouter);
 app.use('/api/v1/workspaces/:workspaceId/broadcasts',      requireNotTicketsOnly, broadcastsRouter);
 app.use('/api/v1/workspaces/:workspaceId/notifications',   requireNotTicketsOnly, notificationsRouter);
+app.use('/api/v1/workspaces/:workspaceId/nps',             requireNotTicketsOnly, npsRouter);
+app.use('/api/v1/workspaces/:workspaceId/zapsign',         requireNotTicketsOnly, zapsignRouter);
+app.use('/api/v1/zapsign',                                 zapsignRouter); // webhook público
 
 // ── Health ─────────────────────────────────────────────────────────────────
 app.get('/health', (_req, res) => res.json({ ok: true, ts: new Date() }));

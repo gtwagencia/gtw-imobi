@@ -643,8 +643,9 @@ export default function KanbanPage() {
                         )}
                       >
                         {stage.deals.length === 0 && !snapshot.isDraggingOver && (
-                          <div className="text-xs text-gray-400 text-center py-4">
-                            Nenhum lead
+                          <div className="flex flex-col items-center gap-1.5 py-8 rounded-lg border-2 border-dashed border-gray-200 mx-1">
+                            <span className="text-xs font-medium text-gray-400">Vazio</span>
+                            <span className="text-[10px] text-gray-300">Arraste um card aqui</span>
                           </div>
                         )}
 

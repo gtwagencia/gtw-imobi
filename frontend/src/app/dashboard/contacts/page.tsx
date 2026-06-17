@@ -7,6 +7,7 @@ import Header from '@/components/layout/Header';
 import api from '@/lib/api';
 import type { Contact, ContactType, DocumentType } from '@/types';
 import { Search, Plus, Mail, X, MessageSquare, ExternalLink, ChevronLeft, ChevronRight, Pencil, Upload, CheckCircle, AlertCircle, Users, GitMerge, Copy, Check, Loader2, KeyRound } from 'lucide-react';
+import EmptyState from '@/components/ui/EmptyState';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import clsx from 'clsx';
@@ -792,8 +793,15 @@ export default function ContactsPage() {
                   ))
                 ) : contacts.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-4 py-12 text-center text-gray-400">
-                      Nenhum contato encontrado
+                    <td colSpan={7}>
+                      <EmptyState
+                        illustration="contacts"
+                        title="Nenhum contato encontrado"
+                        description={search || contactTypeFilter.length > 0
+                          ? 'Tente ajustar os filtros de busca.'
+                          : 'Importe uma planilha ou adicione seu primeiro contato.'}
+                        compact
+                      />
                     </td>
                   </tr>
                 ) : (

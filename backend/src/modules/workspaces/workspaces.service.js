@@ -76,6 +76,7 @@ async function create(orgId, { name, logoUrl, timezone, businessModel }) {
 
   await kanbanSvc.seedDefaultStages(workspace.id);
   await permissionsSvc.ensureDefaultProfiles(workspace.id);
+  await require('../departments/departments.service').seedDefaultDepartments(workspace.id, model);
 
   return workspace;
 }
@@ -116,7 +117,14 @@ async function update(workspaceId, body) {
     aiToolsEnabled:       'ai_tools_enabled',
     businessModel:        'business_model',
     aiAgentName:          'ai_agent_name',
-    defaultCommissionPct: 'default_commission_pct',
+    defaultCommissionPct:   'default_commission_pct',
+    descriptionAiProvider:  'description_ai_provider',
+    descriptionAiModel:     'description_ai_model',
+    npsEnabled:             'nps_enabled',
+    npsDelayHours:          'nps_delay_hours',
+    npsInboxId:             'nps_inbox_id',
+    npsMessageTemplate:     'nps_message_template',
+    zapsignApiToken:        'zapsign_api_token',
   };
 
   const fields = [];

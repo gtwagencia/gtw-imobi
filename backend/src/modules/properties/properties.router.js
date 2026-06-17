@@ -72,6 +72,37 @@ router.delete('/:propertyId', authenticate, workspaceContext, requirePermission(
   } catch (err) { next(err); }
 });
 
+// ── Geração de descrição com IA ─────────────────────────────────────────
+
+// Para imóvel existente
+router.post('/:propertyId/generate-description', authenticate, workspaceContext, requirePermission('properties'), async (req, res, next) => {
+  try {
+    const { query } = require('../../config/database');
+    const wsRow = await query('SELECT * FROM workspaces WHERE id = $1', [req.params.workspaceId]);
+    const workspace = wsRow.rows[0];
+    if (!workspace) return res.status(404).json({ error: 'Workspace não encontrado' });
+
+    const property = await svc.getById(req.params.propertyId, req.params.workspaceId);
+    if (!property) return res.status(404).json({ error: 'Imóvel não encontrado' });
+
+    const description = await aiSvc.generatePropertyDescription(workspace, property);
+    res.json({ description });
+  } catch (err) { next(err); }
+});
+
+// Para imóvel novo (ainda sem ID) — recebe características no body
+router.post('/generate-description', authenticate, workspaceContext, requirePermission('properties'), async (req, res, next) => {
+  try {
+    const { query } = require('../../config/database');
+    const wsRow = await query('SELECT * FROM workspaces WHERE id = $1', [req.params.workspaceId]);
+    const workspace = wsRow.rows[0];
+    if (!workspace) return res.status(404).json({ error: 'Workspace não encontrado' });
+
+    const description = await aiSvc.generatePropertyDescription(workspace, req.body);
+    res.json({ description });
+  } catch (err) { next(err); }
+});
+
 // ── Galeria de mídia ─────────────────────────────────────────────────────
 
 router.post('/:propertyId/media', authenticate, workspaceContext, requirePermission('properties'), upload.single('file'), async (req, res, next) => {

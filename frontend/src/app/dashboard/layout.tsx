@@ -7,7 +7,8 @@ import { useNotifications } from '@/store/notifications';
 import { useAlerts } from '@/store/alerts';
 import { useCrmAlerts } from '@/store/crmAlerts';
 import { connectSocket } from '@/lib/socket';
-import Sidebar from '@/components/layout/Sidebar';
+import TopNav from '@/components/layout/TopNav';
+import ToastContainer from '@/components/ui/Toast';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router      = useRouter();
@@ -22,7 +23,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   useEffect(() => {
     if (!_hasHydrated) return;
 
-    // Página recarregada: tenta restaurar a sessão via cookie httpOnly antes de decidir
     if (!accessToken && !_sessionChecked) {
       restoreSession();
       return;
@@ -47,11 +47,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   if (!_hasHydrated || (!accessToken && !_sessionChecked) || !accessToken || !user || !currentWorkspace) return null;
 
   return (
-    <div className="flex h-screen overflow-hidden bg-gray-50">
-      <Sidebar />
+    <div className="flex flex-col h-screen overflow-hidden bg-gray-50">
+      <TopNav />
       <main className="flex-1 flex flex-col overflow-hidden">
         {children}
       </main>
+      <ToastContainer />
     </div>
   );
 }

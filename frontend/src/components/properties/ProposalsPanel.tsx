@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import api from '@/lib/api';
 import type { Contact, ProposalStatus, PropertyProposal } from '@/types';
 import { PROPOSAL_STATUS_LABELS, PROPOSAL_STATUS_COLORS, formatCurrency } from '@/lib/propertyConstants';
-import { Plus, Trash2, Loader2, Copy, Check, FileText } from 'lucide-react';
+import { Plus, Trash2, Loader2, Copy, Check, FileText, PenLine, ExternalLink } from 'lucide-react';
 import clsx from 'clsx';
 
 interface ProposalsPanelProps {
@@ -18,7 +18,8 @@ export default function ProposalsPanel({ workspaceId, propertyId }: ProposalsPan
   const [loading,   setLoading]   = useState(true);
   const [creating,  setCreating]  = useState(false);
   const [showForm,  setShowForm]  = useState(false);
-  const [copiedId,  setCopiedId]  = useState<string | null>(null);
+  const [copiedId,   setCopiedId]   = useState<string | null>(null);
+  const [signingId,  setSigningId]  = useState<string | null>(null);
 
   const [buyerName,         setBuyerName]         = useState('');
   const [buyerDocument,     setBuyerDocument]     = useState('');
@@ -93,6 +94,24 @@ export default function ProposalsPanel({ workspaceId, propertyId }: ProposalsPan
     await navigator.clipboard.writeText(url);
     setCopiedId(proposal.id);
     setTimeout(() => setCopiedId(null), 2000);
+  }
+
+  async function handleSendToSign(proposal: PropertyProposal) {
+    if (!confirm(`Enviar proposta de "${proposal.buyer_name}" para assinatura via ZapSign?`)) return;
+    setSigningId(proposal.id);
+    try {
+      const { data } = await api.post(`/workspaces/${workspaceId}/zapsign/proposals/${proposal.id}/sign`);
+      if (data.sign_url) {
+        setProposals(prev => prev.map(p => p.id === proposal.id
+          ? { ...p, zapsign_sign_url: data.sign_url, zapsign_doc_token: data.doc_token, signature_status: 'aguardando' }
+          : p
+        ));
+      }
+    } catch {
+      alert('Erro ao enviar para ZapSign. Verifique se o token da API está configurado em Configurações e se a proposta tem um PDF gerado.');
+    } finally {
+      setSigningId(null);
+    }
   }
 
   return (
@@ -187,6 +206,22 @@ export default function ProposalsPanel({ workspaceId, propertyId }: ProposalsPan
               >
                 {Object.entries(PROPOSAL_STATUS_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
               </select>
+              {/* Assinatura ZapSign */}
+              {p.signature_status === 'assinado' ? (
+                <span className="badge-green text-xs whitespace-nowrap">Assinado</span>
+              ) : p.zapsign_sign_url ? (
+                <a href={p.zapsign_sign_url} target="_blank" rel="noreferrer"
+                  className="btn-ghost text-sm p-1 text-indigo-600 hover:bg-indigo-50" title="Abrir link de assinatura">
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </a>
+              ) : (
+                <button type="button" className="btn-ghost text-sm p-1 text-violet-600 hover:bg-violet-50"
+                  title="Enviar para assinatura eletrônica (ZapSign)"
+                  disabled={signingId === p.id}
+                  onClick={() => handleSendToSign(p)}>
+                  {signingId === p.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <PenLine className="w-3.5 h-3.5" />}
+                </button>
+              )}
               <button type="button" className="btn-ghost text-sm p-1" title="Copiar link da proposta" onClick={() => handleCopyLink(p)}>
                 {copiedId === p.id ? <Check className="w-3.5 h-3.5 text-green-600" /> : <Copy className="w-3.5 h-3.5" />}
               </button>

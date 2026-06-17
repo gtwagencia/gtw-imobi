@@ -2,13 +2,13 @@ import type { Metadata, Viewport } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'GTW Platform',
-  description: 'Plataforma de atendimento e CRM',
+  title: 'Imobi360',
+  description: 'Plataforma imobiliária de atendimento, CRM e gestão',
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
-    title: 'GTW Platform',
+    title: 'Imobi360',
   },
 };
 

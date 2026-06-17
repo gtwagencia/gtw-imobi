@@ -2,6 +2,7 @@
 
 const { query } = require('../../config/database');
 const gcal      = require('../../services/google-calendar.service');
+const nps       = require('../nps/nps.service');
 
 const SELECT_BASE = `
   SELECT v.*,
@@ -155,6 +156,13 @@ async function update(visitId, workspaceId, body) {
   } else if (scheduleChanged && newAssigneeId && newStatus !== 'cancelada') {
     gcal.updateVisitEvent(newAssigneeId, visitId, visitEventPayload(updated))
       .catch(err => console.error('[gcal-sync] updateVisitEvent:', err.message));
+  }
+
+  // ── NPS: disparar pesquisa quando visita for marcada como realizada ──────
+  const becameRealizada = newStatus === 'realizada' && prev.status !== 'realizada';
+  if (becameRealizada) {
+    nps.sendNpsAfterVisit(workspaceId, visitId)
+      .catch(err => console.error('[nps] sendNpsAfterVisit:', err.message));
   }
 
   return updated;

@@ -161,9 +161,87 @@ async function listUnassignedAgents(workspaceId) {
   return r.rows;
 }
 
+// ── Seed de departamentos padrão por tipo de negócio ─────────────────────
+
+const DEPT_TEMPLATES = {
+  imobiliaria: [
+    {
+      name: 'Vendas',
+      color: '#22c55e',
+      description: 'Imóveis à venda — compra, proposta e financiamento',
+      ai_routing_description: 'Clientes interessados em comprar imóvel, visitar, fazer proposta, financiamento, avaliação de imóvel',
+    },
+    {
+      name: 'Locação',
+      color: '#3b82f6',
+      description: 'Imóveis para alugar — locação residencial e comercial',
+      ai_routing_description: 'Clientes interessados em alugar imóvel, vistoria, contrato de locação, garantias locatícias',
+    },
+    {
+      name: 'Pós-venda',
+      color: '#f97316',
+      description: 'Suporte e acompanhamento após a conclusão do negócio',
+      ai_routing_description: 'Suporte após compra ou locação, entrega de chaves, documentação pós-contrato, reclamações',
+    },
+    {
+      name: 'Administrativo',
+      color: '#6366f1',
+      description: 'Documentação, contratos e gestão interna',
+      ai_routing_description: 'Boletos, contratos, documentação, questões jurídicas, ITBI, escritura e demandas administrativas',
+    },
+  ],
+  construtora: [
+    {
+      name: 'Comercial',
+      color: '#22c55e',
+      description: 'Vendas de unidades — lançamentos e estoque',
+      ai_routing_description: 'Interesse em comprar unidade, reserva, proposta, tour no stand, tabela de preços, plantas',
+    },
+    {
+      name: 'Relacionamento',
+      color: '#3b82f6',
+      description: 'Atendimento ao comprador durante e após a obra',
+      ai_routing_description: 'Clientes que já compraram, andamento da obra, entrega de chaves, satisfação, pós-entrega',
+    },
+    {
+      name: 'Financeiro',
+      color: '#eab308',
+      description: 'Questões financeiras, boletos e distrato',
+      ai_routing_description: 'Boletos, financiamento, distrato, inadimplência, segunda via, parcelamento, reajuste',
+    },
+    {
+      name: 'Obras e Engenharia',
+      color: '#f97316',
+      description: 'Acompanhamento de obra e customizações',
+      ai_routing_description: 'Andamento de obra, cronograma, vistoria, customizações de planta, acabamento, chamados técnicos',
+    },
+    {
+      name: 'Jurídico',
+      color: '#6366f1',
+      description: 'Contratos, escritura e questões legais',
+      ai_routing_description: 'Contratos, escritura, habite-se, cancelamento, questões legais, ITBI, registro de imóvel',
+    },
+  ],
+};
+
+async function seedDefaultDepartments(workspaceId, businessModel) {
+  const existing = await query('SELECT id FROM departments WHERE workspace_id = $1 LIMIT 1', [workspaceId]);
+  if (existing.rows.length) return;
+
+  const model = businessModel === 'construtora' ? 'construtora' : 'imobiliaria';
+  for (const dept of DEPT_TEMPLATES[model]) {
+    await query(
+      `INSERT INTO departments (workspace_id, name, color, description, ai_routing_description)
+       VALUES ($1,$2,$3,$4,$5)`,
+      [workspaceId, dept.name, dept.color, dept.description, dept.ai_routing_description],
+    );
+  }
+}
+
 module.exports = {
   list, getById, create, update, remove,
   getOverview,
   listAgents, assignAgent, removeAgent,
   listUnassignedAgents,
+  seedDefaultDepartments,
 };
