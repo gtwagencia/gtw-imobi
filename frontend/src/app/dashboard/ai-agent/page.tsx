@@ -94,9 +94,10 @@ export default function AiAgentPage() {
 
   useEffect(() => {
     if (currentWorkspace) {
+      const ws = currentWorkspace as unknown as Record<string, unknown>;
       setPersonaForm({
-        ai_agent_name:   (currentWorkspace as Record<string, unknown>).ai_agent_name as string || 'Lia',
-        ai_tools_enabled: Boolean((currentWorkspace as Record<string, unknown>).ai_tools_enabled),
+        ai_agent_name:    ws.ai_agent_name as string || 'Lia',
+        ai_tools_enabled: Boolean(ws.ai_tools_enabled),
       });
     }
   }, [currentWorkspace]);
