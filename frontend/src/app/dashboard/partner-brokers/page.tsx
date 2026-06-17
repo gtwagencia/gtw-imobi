@@ -22,6 +22,7 @@ interface PartnerBroker {
 
 const EMPTY: Omit<PartnerBroker, 'id' | 'created_at'> = {
   name: '', agency_name: '', creci: '', phone: '', email: '', pix_key: '', notes: '',
+  portal_token: null, portal_active: false,
 };
 
 export default function CorretoresParceirosPage() {
