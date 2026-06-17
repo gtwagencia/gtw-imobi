@@ -53,7 +53,7 @@ export default function CorretoresParceirosPage() {
   }
 
   function openEdit(b: PartnerBroker) {
-    setForm({ name: b.name, agency_name: b.agency_name || '', creci: b.creci || '', phone: b.phone || '', email: b.email || '', pix_key: b.pix_key || '', notes: b.notes || '' });
+    setForm({ name: b.name, agency_name: b.agency_name || '', creci: b.creci || '', phone: b.phone || '', email: b.email || '', pix_key: b.pix_key || '', notes: b.notes || '', portal_token: b.portal_token, portal_active: b.portal_active });
     setEditing(b.id);
   }
 
