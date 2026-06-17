@@ -22,6 +22,9 @@ export interface MapUnit {
   price_zone: string | null;
   area_front: number | null;
   area_depth: number | null;
+  area_left: number | null;
+  area_right: number | null;
+  notes: string | null;
   reserved_until: string | null;
   map_shape: { points?: number[][]; type?: string; x?: number; y?: number; width?: number; height?: number } | null;
 }

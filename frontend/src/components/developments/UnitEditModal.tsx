@@ -38,11 +38,11 @@ export default function UnitEditModal({ unit, developmentId, workspaceId, zones,
     unitFloor:   unit.unit_floor != null ? String(unit.unit_floor) : '',
     unitNumber:  unit.unit_number || '',
     totalArea:   unit.total_area != null ? String(unit.total_area) : '',
-    areaFront:   (unit as Record<string, unknown>).area_front != null ? String((unit as Record<string, unknown>).area_front) : '',
-    areaDepth:   (unit as Record<string, unknown>).area_depth != null ? String((unit as Record<string, unknown>).area_depth) : '',
-    areaLeft:    (unit as Record<string, unknown>).area_left  != null ? String((unit as Record<string, unknown>).area_left)  : '',
-    areaRight:   (unit as Record<string, unknown>).area_right != null ? String((unit as Record<string, unknown>).area_right) : '',
-    notes:       (unit as Record<string, unknown>).notes as string || '',
+    areaFront:   unit.area_front  != null ? String(unit.area_front)  : '',
+    areaDepth:   unit.area_depth  != null ? String(unit.area_depth)  : '',
+    areaLeft:    unit.area_left   != null ? String(unit.area_left)   : '',
+    areaRight:   unit.area_right  != null ? String(unit.area_right)  : '',
+    notes:       unit.notes || '',
   });
 
   const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }));
