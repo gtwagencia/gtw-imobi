@@ -10,7 +10,7 @@ import {
   LogOut, ChevronDown, Building2, Home, User, Landmark,
   Check, Plus, ArrowLeftRight, LayoutList, BarChart2, BookMarked, Tag, Ticket, X, Send,
   ShieldCheck, ListChecks, Gauge, CalendarCheck, Construction, Handshake,
-  Star, Upload,
+  Star, Upload, Bot,
 } from 'lucide-react';
 import { useSidebar } from '@/store/sidebar';
 import { useEffect, useRef, useState } from 'react';
@@ -39,6 +39,7 @@ const ALL_NAV_ITEMS = [
   { href: '/dashboard/setores',       icon: Gauge,         label: 'Setores',           ticketsOnly: false, adminOnly: false },
   { href: '/dashboard/canned',        icon: BookMarked,    label: 'Respostas Prontas', ticketsOnly: false, adminOnly: false },
   { href: '/dashboard/labels',        icon: Tag,           label: 'Etiquetas',         ticketsOnly: false, adminOnly: false },
+  { href: '/dashboard/ai-agent',      icon: Bot,           label: 'Agente IA',         ticketsOnly: false, adminOnly: true  },
   { href: '/dashboard/reports',       icon: BarChart2,     label: 'Relatórios',        ticketsOnly: false, adminOnly: false },
   { href: '/dashboard/nps',          icon: Star,          label: 'NPS Pós-Visita',    ticketsOnly: false, adminOnly: false },
   { href: '/dashboard/imports',      icon: Upload,        label: 'Importar Imóveis',  ticketsOnly: false, adminOnly: false },

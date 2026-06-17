@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/store/auth';
 import Header from '@/components/layout/Header';
 import api from '@/lib/api';
-import { Plus, Trash2, Pencil, X, Check, Loader2, Users, Phone, Mail, CreditCard, Search } from 'lucide-react';
+import { Plus, Trash2, Pencil, X, Check, Loader2, Users, Phone, Mail, CreditCard, Search, Link2, Copy, ExternalLink, Shield, ShieldOff } from 'lucide-react';
 
 interface PartnerBroker {
   id: string;
@@ -15,6 +15,8 @@ interface PartnerBroker {
   email: string | null;
   pix_key: string | null;
   notes: string | null;
+  portal_token: string | null;
+  portal_active: boolean;
   created_at: string;
 }
 
@@ -24,12 +26,14 @@ const EMPTY: Omit<PartnerBroker, 'id' | 'created_at'> = {
 
 export default function CorretoresParceirosPage() {
   const { currentWorkspace } = useAuth();
-  const [brokers,  setBrokers]  = useState<PartnerBroker[]>([]);
-  const [loading,  setLoading]  = useState(true);
-  const [search,   setSearch]   = useState('');
-  const [editing,  setEditing]  = useState<string | null>(null); // id or 'new'
-  const [form,     setForm]     = useState<typeof EMPTY>(EMPTY);
-  const [saving,   setSaving]   = useState(false);
+  const [brokers,      setBrokers]      = useState<PartnerBroker[]>([]);
+  const [loading,      setLoading]      = useState(true);
+  const [search,       setSearch]       = useState('');
+  const [editing,      setEditing]      = useState<string | null>(null);
+  const [form,         setForm]         = useState<typeof EMPTY>(EMPTY);
+  const [saving,       setSaving]       = useState(false);
+  const [generatingId, setGeneratingId] = useState<string | null>(null);
+  const [copiedId,     setCopiedId]     = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!currentWorkspace) return;
@@ -70,6 +74,35 @@ export default function CorretoresParceirosPage() {
     if (!currentWorkspace || !confirm(`Remover o corretor "${name}"?`)) return;
     await api.delete(`/workspaces/${currentWorkspace.id}/partner-brokers/${id}`);
     load();
+  }
+
+  async function handleGenerateToken(brokerId: string) {
+    if (!currentWorkspace) return;
+    setGeneratingId(brokerId);
+    try {
+      const { data } = await api.post(
+        `/workspaces/${currentWorkspace.id}/partner-portal/brokers/${brokerId}/generate-token`,
+        { developmentIds: [] }
+      );
+      setBrokers(prev => prev.map(b => b.id === brokerId ? { ...b, portal_token: data.portal_token, portal_active: true } : b));
+    } finally { setGeneratingId(null); }
+  }
+
+  async function handleTogglePortal(brokerId: string, active: boolean) {
+    if (!currentWorkspace) return;
+    const { data } = await api.put(
+      `/workspaces/${currentWorkspace.id}/partner-portal/brokers/${brokerId}/status`,
+      { active }
+    );
+    setBrokers(prev => prev.map(b => b.id === brokerId ? { ...b, portal_active: data.portal_active } : b));
+  }
+
+  function copyPortalLink(token: string, brokerId: string) {
+    const url = `${window.location.origin}/portal-corretor/${token}`;
+    navigator.clipboard.writeText(url).then(() => {
+      setCopiedId(brokerId);
+      setTimeout(() => setCopiedId(null), 2000);
+    });
   }
 
   const filtered = brokers.filter(b =>
@@ -211,13 +244,56 @@ export default function CorretoresParceirosPage() {
                     </div>
                     {b.notes && <p className="text-xs text-gray-400 mt-1">{b.notes}</p>}
                   </div>
-                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button onClick={() => openEdit(b)} className="p-1.5 text-gray-400 hover:text-brand-600 rounded-lg hover:bg-gray-100">
-                      <Pencil className="w-4 h-4" />
-                    </button>
-                    <button onClick={() => handleDelete(b.id, b.name)} className="p-1.5 text-gray-400 hover:text-red-500 rounded-lg hover:bg-red-50">
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                  <div className="flex items-center gap-1 flex-shrink-0">
+                    {/* Portal do corretor */}
+                    {b.portal_token ? (
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => copyPortalLink(b.portal_token!, b.id)}
+                          className="flex items-center gap-1 text-xs px-2 py-1 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors"
+                          title="Copiar link do portal"
+                        >
+                          {copiedId === b.id ? <Check className="w-3 h-3 text-green-500" /> : <Copy className="w-3 h-3" />}
+                          {copiedId === b.id ? 'Copiado!' : 'Link portal'}
+                        </button>
+                        <a
+                          href={`/portal-corretor/${b.portal_token}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="p-1.5 text-gray-400 hover:text-brand-500 rounded-lg hover:bg-gray-100"
+                          title="Abrir portal"
+                        >
+                          <ExternalLink className="w-3.5 h-3.5" />
+                        </a>
+                        <button
+                          onClick={() => handleTogglePortal(b.id, !b.portal_active)}
+                          className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
+                          title={b.portal_active ? 'Desativar acesso' : 'Ativar acesso'}
+                        >
+                          {b.portal_active
+                            ? <Shield className="w-3.5 h-3.5 text-green-500" />
+                            : <ShieldOff className="w-3.5 h-3.5 text-gray-300" />
+                          }
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => handleGenerateToken(b.id)}
+                        disabled={generatingId === b.id}
+                        className="flex items-center gap-1 text-xs px-2 py-1 rounded-lg border border-brand-200 text-brand-600 hover:bg-brand-50 transition-colors"
+                      >
+                        {generatingId === b.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Link2 className="w-3 h-3" />}
+                        Gerar portal
+                      </button>
+                    )}
+                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity ml-1">
+                      <button onClick={() => openEdit(b)} className="p-1.5 text-gray-400 hover:text-brand-600 rounded-lg hover:bg-gray-100">
+                        <Pencil className="w-4 h-4" />
+                      </button>
+                      <button onClick={() => handleDelete(b.id, b.name)} className="p-1.5 text-gray-400 hover:text-red-500 rounded-lg hover:bg-red-50">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>

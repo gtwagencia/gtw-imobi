@@ -12,6 +12,7 @@ import BuildingFloorView from '@/components/developments/BuildingFloorView';
 import ProposalModal from '@/components/developments/ProposalModal';
 import CsvImportModal from '@/components/developments/CsvImportModal';
 import PriceAdjustModal from '@/components/developments/PriceAdjustModal';
+import UnitEditModal from '@/components/developments/UnitEditModal';
 import api from '@/lib/api';
 import type { Development, DevelopmentMedia } from '@/types';
 import { CONSTRUCTION_STATUS_COLORS, CONSTRUCTION_STATUS_LABELS, formatCurrency } from '@/lib/propertyConstants';
@@ -19,7 +20,7 @@ import {
   ArrowLeft, Trash2, Loader2, Building2, FileUp, Map, HardHat,
   TrendingUp, CheckCircle, Clock, Ban, AlertCircle,
   FileSpreadsheet, Plus, Edit2, X, Check, DollarSign,
-  Users, BarChart3, Home, Layers,
+  Users, BarChart3, Home, Layers, ImagePlus, Link, Copy,
 } from 'lucide-react';
 import clsx from 'clsx';
 import { useToast } from '@/store/toast';
@@ -89,6 +90,8 @@ export default function DevelopmentDetailPage() {
   const [showCsvModal,     setShowCsvModal]     = useState(false);
   const [showPriceModal,   setShowPriceModal]   = useState(false);
   const [proposalUnit,     setProposalUnit]     = useState<MapUnit | null>(null);
+  const [editUnit,         setEditUnit]         = useState<MapUnit | null>(null);
+  const [uploadingMap,     setUploadingMap]     = useState(false);
 
   // Price zones
   const [editingZone,  setEditingZone]  = useState<PriceZone | null>(null);
@@ -185,6 +188,21 @@ export default function DevelopmentDetailPage() {
     await api.put(`/workspaces/${wsId}/developments/${development.id}/media/reorder`, {
       mediaIds: orderedMedia.map(m => m.id),
     }).catch(() => load());
+  }
+
+  async function handleMapImageUpload(file: File) {
+    if (!wsId || !development) return;
+    setUploadingMap(true);
+    try {
+      const fd = new FormData(); fd.append('file', file);
+      const { data } = await api.post(`/workspaces/${wsId}/developments/${development.id}/map-image`, fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      setDevelopment(prev => prev ? { ...prev, map_image_url: data.map_image_url } : prev);
+      showToast('Planta carregada com sucesso');
+    } catch {
+      showToast('Erro ao enviar a planta', 'error');
+    } finally { setUploadingMap(false); }
   }
 
   async function handleUnitStatusChange(unitId: string, status: string) {
@@ -390,6 +408,22 @@ export default function DevelopmentDetailPage() {
             >
               <Plus className="w-3.5 h-3.5" /> Unidade manual
             </button>
+            {/* Upload de planta */}
+            <label className="btn-secondary btn-sm cursor-pointer" title="Fazer upload da planta/blueprint">
+              {uploadingMap ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ImagePlus className="w-3.5 h-3.5" />}
+              {!development.map_image_url ? 'Upload da planta' : 'Trocar planta'}
+              <input type="file" accept="image/*" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) handleMapImageUpload(f); }} />
+            </label>
+            <button
+              onClick={() => {
+                const url = `${window.location.origin}/portal-corretor/`;
+                navigator.clipboard.writeText(url).then(() => showToast('Prefixo do portal copiado — cole o token do corretor no final'));
+              }}
+              className="btn-secondary btn-sm"
+              title="Copiar link do portal de corretores"
+            >
+              <Link className="w-3.5 h-3.5" /> Link portal
+            </button>
             <button onClick={loadUnits} className="btn-secondary btn-sm ml-auto">
               <Loader2 className={clsx('w-3.5 h-3.5', unitsLoading && 'animate-spin')} />
             </button>
@@ -403,14 +437,20 @@ export default function DevelopmentDetailPage() {
           ) : isBuilding ? (
             <BuildingFloorView
               units={units}
-              onUnitClick={unit => setProposalUnit(unit)}
+              onUnitClick={unit => {
+                if (unit.status === 'disponivel') setProposalUnit(unit);
+                else setEditUnit(unit);
+              }}
             />
           ) : (
             <DevelopmentMap
               units={units}
               mapImageUrl={development.map_image_url}
               mapConfig={development.map_config as Record<string,number> || null}
-              onUnitClick={unit => { if (unit.status === 'disponivel') setProposalUnit(unit); }}
+              onUnitClick={unit => {
+                if (unit.status === 'disponivel') setProposalUnit(unit);
+                else setEditUnit(unit);
+              }}
               onUnitStatusChange={handleUnitStatusChange}
             />
           )}
@@ -683,6 +723,20 @@ export default function DevelopmentDetailPage() {
           developmentId={developmentId}
           onClose={() => setShowImportWizard(false)}
           onImported={loadUnits}
+        />
+      )}
+
+      {editUnit && wsId && (
+        <UnitEditModal
+          unit={editUnit}
+          developmentId={developmentId}
+          workspaceId={wsId}
+          zones={zones}
+          onClose={() => setEditUnit(null)}
+          onSaved={updated => {
+            setUnits(prev => prev.map(u => u.id === editUnit.id ? { ...u, ...updated } : u));
+            setEditUnit(null);
+          }}
         />
       )}
     </>

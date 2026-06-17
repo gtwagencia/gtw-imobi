@@ -472,7 +472,13 @@ function startJobs(io) {
     runDocumentExpiryCheck(io).catch(err => logger.error('Document expiry check error', { err: err.message }));
   });
 
-  logger.info('Background jobs started (follow-up + AI analysis + SLA check + stale lead alerts + ticket reminders + scheduled broadcasts + reservation expiry + document expiry)');
+  // Expiração de propostas de empreendimentos — every 15 minutes
+  const proposalsSvc = require('../modules/developments/development-proposals.service');
+  cron.schedule('*/15 * * * *', () => {
+    proposalsSvc.expire().catch(err => logger.error('Expire development proposals error', { err: err.message }));
+  });
+
+  logger.info('Background jobs started (follow-up + AI analysis + SLA check + stale lead alerts + ticket reminders + scheduled broadcasts + reservation expiry + document expiry + development proposals expiry)');
 }
 
 module.exports = { startJobs, backfillAttending, runExpireReservations, runDocumentExpiryCheck };
