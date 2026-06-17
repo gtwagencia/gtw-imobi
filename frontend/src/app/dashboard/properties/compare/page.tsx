@@ -115,7 +115,7 @@ export default function ComparePropertiesPage() {
         title="Comparar imóveis"
         actions={
           <div className="flex items-center gap-2 print:hidden">
-            <button className="btn-secondary text-sm" onClick={() => router.push('/dashboard/properties')}>
+            <button className="btn-secondary text-sm" onClick={() => router.push('/dashboard/imoveis')}>
               <ArrowLeft className="w-4 h-4" />
               Voltar
             </button>

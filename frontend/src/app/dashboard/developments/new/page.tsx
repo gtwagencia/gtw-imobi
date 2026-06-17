@@ -27,7 +27,7 @@ export default function NewDevelopmentPage() {
       <Header
         title="Novo empreendimento"
         actions={
-          <button className="btn-secondary text-sm" onClick={() => router.push('/dashboard/developments')}>
+          <button className="btn-secondary text-sm" onClick={() => router.push('/dashboard/empreendimentos')}>
             <ArrowLeft className="w-4 h-4" />
             Voltar
           </button>
@@ -38,7 +38,7 @@ export default function NewDevelopmentPage() {
         <div className="max-w-4xl mx-auto">
           <DevelopmentForm
             workspaceId={currentWorkspace.id}
-            onSave={(created: Development) => router.push(`/dashboard/developments/${created.id}`)}
+            onSave={(created: Development) => router.push(`/dashboard/empreendimentos/${created.id}`)}
           />
         </div>
       </div>

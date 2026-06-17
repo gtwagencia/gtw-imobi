@@ -145,7 +145,7 @@ export default function DevelopmentDetailPage() {
     setDeleting(true);
     try {
       await api.delete(`/workspaces/${wsId}/developments/${development.id}`);
-      router.push('/dashboard/developments');
+      router.push('/dashboard/empreendimentos');
     } finally { setDeleting(false); }
   }
 
@@ -194,7 +194,26 @@ export default function DevelopmentDetailPage() {
     if (!wsId || !development) return;
     setUploadingMap(true);
     try {
-      const fd = new FormData(); fd.append('file', file);
+      let uploadFile: File | Blob = file;
+
+      // PDF → converte primeira página para PNG no browser
+      if (file.type === 'application/pdf') {
+        const pdfjsLib = await import('pdfjs-dist');
+        pdfjsLib.GlobalWorkerOptions.workerSrc =
+          `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
+        const buf  = await file.arrayBuffer();
+        const pdf  = await pdfjsLib.getDocument({ data: buf }).promise;
+        const page = await pdf.getPage(1);
+        const vp   = page.getViewport({ scale: 2.5 }); // alta resolução
+        const canvas = document.createElement('canvas');
+        canvas.width  = vp.width;
+        canvas.height = vp.height;
+        await page.render({ canvasContext: canvas.getContext('2d')!, viewport: vp }).promise;
+        uploadFile = await new Promise<Blob>(r => canvas.toBlob(b => r(b!), 'image/png'));
+      }
+
+      const fd = new FormData();
+      fd.append('file', uploadFile, file.name.replace(/\.pdf$/i, '.png'));
       const { data } = await api.post(`/workspaces/${wsId}/developments/${development.id}/map-image`, fd, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
@@ -307,12 +326,12 @@ export default function DevelopmentDetailPage() {
                 {DEV_TYPE_LABELS[devType] || devType}
               </span>
             )}
-            <button className="btn-secondary text-sm" onClick={() => router.push('/dashboard/developments')}>
+            <button className="btn-secondary text-sm" onClick={() => router.push('/dashboard/empreendimentos')}>
               <ArrowLeft className="w-4 h-4" /> Voltar
             </button>
             <button
               className="btn-secondary text-sm"
-              onClick={() => router.push(`/dashboard/developments/${development.id}/construction`)}
+              onClick={() => router.push(`/dashboard/empreendimentos/${development.id}/construction`)}
             >
               <HardHat className="w-4 h-4" /> Obra
             </button>
@@ -403,16 +422,26 @@ export default function DevelopmentDetailPage() {
               <FileUp className="w-3.5 h-3.5" /> Importar PDF (IA)
             </button>
             <button
-              onClick={() => router.push(`/dashboard/properties/new?developmentId=${development.id}`)}
+              onClick={() => router.push(`/dashboard/imoveis/novo?developmentId=${development.id}`)}
               className="btn-secondary btn-sm"
             >
               <Plus className="w-3.5 h-3.5" /> Unidade manual
             </button>
             {/* Upload de planta */}
-            <label className="btn-secondary btn-sm cursor-pointer" title="Fazer upload da planta/blueprint">
-              {uploadingMap ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ImagePlus className="w-3.5 h-3.5" />}
-              {!development.map_image_url ? 'Upload da planta' : 'Trocar planta'}
-              <input type="file" accept="image/*" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) handleMapImageUpload(f); }} />
+            <label
+              className={`btn-sm cursor-pointer flex items-center gap-1.5 ${!development.map_image_url ? 'btn-primary' : 'btn-secondary'}`}
+              title="Envie a planta do loteamento ou planta baixa (imagem ou PDF)"
+            >
+              {uploadingMap
+                ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Processando...</>
+                : <><ImagePlus className="w-3.5 h-3.5" />{!development.map_image_url ? '📄 Carregar planta (PDF ou imagem)' : 'Trocar planta'}</>
+              }
+              <input
+                type="file"
+                accept="image/*,application/pdf"
+                className="hidden"
+                onChange={e => { const f = e.target.files?.[0]; if (f) handleMapImageUpload(f); }}
+              />
             </label>
             <button
               onClick={() => {

@@ -158,7 +158,7 @@ export default function SalesMapPage() {
       <Header
         title={`Mapa de vendas · ${development.name}`}
         actions={
-          <button className="btn-secondary text-sm" onClick={() => router.push(`/dashboard/developments/${development.id}`)}>
+          <button className="btn-secondary text-sm" onClick={() => router.push(`/dashboard/empreendimentos/${development.id}`)}>
             <ArrowLeft className="w-4 h-4" />
             Voltar
           </button>
@@ -383,7 +383,7 @@ export default function SalesMapPage() {
 
               <button
                 className="btn-secondary text-sm w-full mt-2"
-                onClick={() => router.push(`/dashboard/properties/${selected.id}`)}
+                onClick={() => router.push(`/dashboard/imoveis/${selected.id}`)}
               >
                 <ExternalLink className="w-4 h-4" />
                 Ver ficha completa

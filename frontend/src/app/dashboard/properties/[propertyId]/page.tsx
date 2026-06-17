@@ -46,7 +46,7 @@ export default function PropertyDetailPage() {
     setDeleting(true);
     try {
       await api.delete(`/workspaces/${currentWorkspace.id}/properties/${property.id}`);
-      router.push('/dashboard/properties');
+      router.push('/dashboard/imoveis');
     } finally {
       setDeleting(false);
     }
@@ -147,7 +147,7 @@ export default function PropertyDetailPage() {
             <span className={clsx('text-xs font-medium px-2 py-1 rounded-full', STATUS_COLORS[property.status])}>
               {STATUS_LABELS[property.status]}
             </span>
-            <button className="btn-secondary text-sm" onClick={() => router.push('/dashboard/properties')}>
+            <button className="btn-secondary text-sm" onClick={() => router.push('/dashboard/imoveis')}>
               <ArrowLeft className="w-4 h-4" />
               Voltar
             </button>

@@ -26,42 +26,42 @@ import { ptBR } from 'date-fns/locale';
 // ─── Module / permission maps ───────────────────────────────────────────────
 
 const NAV_MODULE_KEY: Record<string, string> = {
-  '/dashboard/conversations':   'crm',
-  '/dashboard/contacts':        'crm',
-  '/dashboard/properties':      'properties',
-  '/dashboard/developments':    'developments',
-  '/dashboard/partner-brokers': 'developments',
-  '/dashboard/visitas':         'visits',
-  '/dashboard/broadcasts':      'crm',
-  '/dashboard/kanban':          'crm',
-  '/dashboard/meus-leads':      'crm',
-  '/dashboard/tickets':         'tickets',
-  '/dashboard/inboxes':         'crm',
-  '/dashboard/departments':     'crm',
-  '/dashboard/canned':          'crm',
-  '/dashboard/labels':          'crm',
-  '/dashboard/reports':         'reports',
-  '/dashboard/nps':            'properties',
-  '/dashboard/imports':        'properties',
+  '/dashboard/conversations':    'crm',
+  '/dashboard/contacts':         'crm',
+  '/dashboard/imoveis':          'properties',
+  '/dashboard/empreendimentos':  'developments',
+  '/dashboard/parceiras':        'developments',
+  '/dashboard/visitas':          'visits',
+  '/dashboard/transmissoes':     'crm',
+  '/dashboard/funil':            'crm',
+  '/dashboard/meus-leads':       'crm',
+  '/dashboard/tickets':          'tickets',
+  '/dashboard/caixas-entrada':   'crm',
+  '/dashboard/departamentos':    'crm',
+  '/dashboard/respostas-prontas':'crm',
+  '/dashboard/etiquetas':        'crm',
+  '/dashboard/relatorios':       'reports',
+  '/dashboard/nps':              'properties',
+  '/dashboard/importacoes':      'properties',
 };
 
 const NAV_PERMISSION_KEY: Record<string, PermissionModuleKey> = {
-  '/dashboard/conversations':   'conversations',
-  '/dashboard/contacts':        'contacts',
-  '/dashboard/properties':      'properties',
-  '/dashboard/developments':    'properties',
-  '/dashboard/partner-brokers': 'properties',
-  '/dashboard/visitas':         'properties',
-  '/dashboard/broadcasts':      'broadcasts',
-  '/dashboard/kanban':          'kanban',
-  '/dashboard/meus-leads':      'kanban',
-  '/dashboard/inboxes':         'inboxes',
-  '/dashboard/departments':     'departments',
-  '/dashboard/canned':          'canned',
-  '/dashboard/labels':          'labels',
-  '/dashboard/reports':         'reports',
-  '/dashboard/nps':            'properties',
-  '/dashboard/imports':        'properties',
+  '/dashboard/conversations':    'conversations',
+  '/dashboard/contacts':         'contacts',
+  '/dashboard/imoveis':          'properties',
+  '/dashboard/empreendimentos':  'properties',
+  '/dashboard/parceiras':        'properties',
+  '/dashboard/visitas':          'properties',
+  '/dashboard/transmissoes':     'broadcasts',
+  '/dashboard/funil':            'kanban',
+  '/dashboard/meus-leads':       'kanban',
+  '/dashboard/caixas-entrada':   'inboxes',
+  '/dashboard/departamentos':    'departments',
+  '/dashboard/respostas-prontas':'canned',
+  '/dashboard/etiquetas':        'labels',
+  '/dashboard/relatorios':       'reports',
+  '/dashboard/nps':              'properties',
+  '/dashboard/importacoes':      'properties',
 };
 
 // ─── Notification configs ───────────────────────────────────────────────────
@@ -90,29 +90,29 @@ interface NavItem {
 }
 
 const CRM_ITEMS: NavItem[] = [
-  { href: '/dashboard/conversations', label: 'Conversas',     icon: MessageSquare, ticketsOnly: false, adminOnly: false },
-  { href: '/dashboard/contacts',      label: 'Contatos',      icon: Users,         ticketsOnly: false, adminOnly: false },
-  { href: '/dashboard/broadcasts',    label: 'Broadcasts',    icon: Send,          ticketsOnly: false, adminOnly: false },
-  { href: '/dashboard/kanban',        label: 'Funil',         icon: Kanban,        ticketsOnly: false, adminOnly: false },
-  { href: '/dashboard/meus-leads',    label: 'Meus Leads',    icon: ListChecks,    ticketsOnly: false, adminOnly: false },
-  { href: '/dashboard/inboxes',       label: 'Inboxes',       icon: Inbox,         ticketsOnly: false, adminOnly: false },
-  { href: '/dashboard/departments',   label: 'Departamentos', icon: LayoutList,    ticketsOnly: false, adminOnly: false },
+  { href: '/dashboard/conversations',  label: 'Conversas',        icon: MessageSquare, ticketsOnly: false, adminOnly: false },
+  { href: '/dashboard/contacts',       label: 'Contatos',         icon: Users,         ticketsOnly: false, adminOnly: false },
+  { href: '/dashboard/transmissoes',   label: 'Transmissões',     icon: Send,          ticketsOnly: false, adminOnly: false },
+  { href: '/dashboard/funil',          label: 'Funil',            icon: Kanban,        ticketsOnly: false, adminOnly: false },
+  { href: '/dashboard/meus-leads',     label: 'Meus Leads',       icon: ListChecks,    ticketsOnly: false, adminOnly: false },
+  { href: '/dashboard/caixas-entrada', label: 'Caixas de Entrada',icon: Inbox,         ticketsOnly: false, adminOnly: false },
+  { href: '/dashboard/departamentos',  label: 'Departamentos',    icon: LayoutList,    ticketsOnly: false, adminOnly: false },
 ];
 
-const IMOVEIS_ITEMS: NavItem[] = [
-  { href: '/dashboard/properties',      label: 'Imóveis',              icon: Building2,     ticketsOnly: false, adminOnly: false },
-  { href: '/dashboard/developments',    label: 'Empreendimentos',      icon: Construction,  ticketsOnly: false, adminOnly: false },
-  { href: '/dashboard/partner-brokers', label: 'Corretores Parceiros', icon: Handshake,     ticketsOnly: false, adminOnly: false },
-  { href: '/dashboard/visitas',         label: 'Visitas',              icon: CalendarCheck, ticketsOnly: false, adminOnly: false },
-  { href: '/dashboard/nps',             label: 'NPS Pós-Visita',       icon: Star,          ticketsOnly: false, adminOnly: false },
-  { href: '/dashboard/imports',         label: 'Importar Imóveis',     icon: Upload,        ticketsOnly: false, adminOnly: false },
-  { href: '/dashboard/ai-agent',        label: 'Agente IA',            icon: Bot,           ticketsOnly: false, adminOnly: false },
+const ATIVOS_ITEMS: NavItem[] = [
+  { href: '/dashboard/imoveis',         label: 'Imóveis',          icon: Building2,     ticketsOnly: false, adminOnly: false },
+  { href: '/dashboard/empreendimentos', label: 'Empreendimentos',  icon: Construction,  ticketsOnly: false, adminOnly: false },
+  { href: '/dashboard/parceiras',       label: 'Parceiras',        icon: Handshake,     ticketsOnly: false, adminOnly: false },
+  { href: '/dashboard/visitas',         label: 'Visitas',          icon: CalendarCheck, ticketsOnly: false, adminOnly: false },
+  { href: '/dashboard/nps',             label: 'NPS Pós-Visita',   icon: Star,          ticketsOnly: false, adminOnly: false },
+  { href: '/dashboard/importacoes',     label: 'Importações',      icon: Upload,        ticketsOnly: false, adminOnly: false },
+  { href: '/dashboard/agente-ia',       label: 'Agente IA',        icon: Bot,           ticketsOnly: false, adminOnly: true  },
 ];
 
 const TICKETS_ITEMS: NavItem[] = [
-  { href: '/dashboard/tickets', label: 'Tickets',           icon: Ticket,     ticketsOnly: true,  adminOnly: false },
-  { href: '/dashboard/canned',  label: 'Respostas Prontas', icon: BookMarked, ticketsOnly: false, adminOnly: false },
-  { href: '/dashboard/labels',  label: 'Etiquetas',         icon: Tag,        ticketsOnly: false, adminOnly: false },
+  { href: '/dashboard/tickets',          label: 'Tickets',           icon: Ticket,     ticketsOnly: true,  adminOnly: false },
+  { href: '/dashboard/respostas-prontas',label: 'Respostas Prontas', icon: BookMarked, ticketsOnly: false, adminOnly: false },
+  { href: '/dashboard/etiquetas',        label: 'Etiquetas',         icon: Tag,        ticketsOnly: false, adminOnly: false },
 ];
 
 const ADMIN_ITEMS: NavItem[] = [
@@ -306,7 +306,7 @@ export default function TopNav() {
 
   const allMobileGroups = [
     { label: 'CRM',     items: CRM_ITEMS     },
-    { label: 'Imóveis', items: IMOVEIS_ITEMS },
+    { label: 'Ativos',  items: ATIVOS_ITEMS },
     { label: 'Tickets', items: TICKETS_ITEMS },
   ];
 
@@ -399,21 +399,21 @@ export default function TopNav() {
           )}
 
           <NavDropdown groupKey="crm"     label="CRM"       items={CRM_ITEMS}     />
-          <NavDropdown groupKey="imoveis" label="Imóveis"   items={IMOVEIS_ITEMS} />
+          <NavDropdown groupKey="ativos"   label="Ativos"    items={ATIVOS_ITEMS} />
           <NavDropdown groupKey="tickets" label="Tickets"   items={TICKETS_ITEMS} />
 
           {/* Relatórios */}
           {(isAdmin || permissions?.reports) && (
             (() => {
-              const modEnabled = !NAV_MODULE_KEY['/dashboard/reports']
+              const modEnabled = !NAV_MODULE_KEY['/dashboard/relatorios']
                 || !currentWorkspace?.enabled_modules
                 || currentWorkspace.enabled_modules.includes('reports');
               return modEnabled ? (
                 <Link
-                  href="/dashboard/reports"
+                  href="/dashboard/relatorios"
                   className={clsx(
                     'px-3 py-2 rounded-lg text-sm font-semibold transition-all flex-shrink-0',
-                    isActive('/dashboard/reports')
+                    isActive('/dashboard/relatorios')
                       ? 'text-brand-600 bg-brand-50'
                       : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50',
                   )}
@@ -666,9 +666,9 @@ export default function TopNav() {
               })}
 
               {(isAdmin || permissions?.reports) && (
-                <Link href="/dashboard/reports" onClick={closeMobile}
+                <Link href="/dashboard/relatorios" onClick={closeMobile}
                   className={clsx('flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-semibold transition-colors',
-                    isActive('/dashboard/reports') ? 'bg-brand-50 text-brand-700' : 'text-gray-700 hover:bg-gray-50')}>
+                    isActive('/dashboard/relatorios') ? 'bg-brand-50 text-brand-700' : 'text-gray-700 hover:bg-gray-50')}>
                   <BarChart2 className="w-4 h-4" /> Relatórios
                 </Link>
               )}

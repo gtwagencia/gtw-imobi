@@ -68,7 +68,7 @@ export default function ConstructionSchedulePage() {
       <Header
         title={`Cronograma de obra · ${development.name}`}
         actions={
-          <button className="btn-secondary text-sm" onClick={() => router.push(`/dashboard/developments/${development.id}`)}>
+          <button className="btn-secondary text-sm" onClick={() => router.push(`/dashboard/empreendimentos/${development.id}`)}>
             <ArrowLeft className="w-4 h-4" />
             Voltar
           </button>

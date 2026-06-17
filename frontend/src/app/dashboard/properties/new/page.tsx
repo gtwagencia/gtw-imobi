@@ -29,7 +29,7 @@ export default function NewPropertyPage() {
       <Header
         title="Novo imóvel"
         actions={
-          <button className="btn-secondary text-sm" onClick={() => router.push('/dashboard/properties')}>
+          <button className="btn-secondary text-sm" onClick={() => router.push('/dashboard/imoveis')}>
             <ArrowLeft className="w-4 h-4" />
             Voltar
           </button>
@@ -42,7 +42,7 @@ export default function NewPropertyPage() {
             workspaceId={currentWorkspace.id}
             orgId={currentOrg.id}
             initialDevelopmentId={developmentId}
-            onSave={(created: Property) => router.push(`/dashboard/properties/${created.id}`)}
+            onSave={(created: Property) => router.push(`/dashboard/imoveis/${created.id}`)}
           />
         </div>
       </div>

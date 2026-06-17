@@ -115,7 +115,7 @@ export default function PropertiesPage() {
               {compareMode ? <X className="w-4 h-4" /> : <GitCompare className="w-4 h-4" />}
               {compareMode ? 'Cancelar' : 'Comparar imóveis'}
             </button>
-            <button className="btn-primary text-sm" onClick={() => router.push('/dashboard/properties/new')}>
+            <button className="btn-primary text-sm" onClick={() => router.push('/dashboard/imoveis/novo')}>
               <Plus className="w-4 h-4" />
               Novo imóvel
             </button>
@@ -211,7 +211,7 @@ export default function PropertiesPage() {
             title="Nenhum imóvel encontrado"
             description={activeFilterCount > 0 ? 'Tente ajustar os filtros para ver mais resultados.' : 'Comece cadastrando seu primeiro imóvel.'}
             action={activeFilterCount === 0 ? (
-              <button className="btn-primary" onClick={() => router.push('/dashboard/properties/new')}>
+              <button className="btn-primary" onClick={() => router.push('/dashboard/imoveis/novo')}>
                 <Plus className="w-4 h-4" /> Cadastrar imóvel
               </button>
             ) : undefined}
@@ -221,7 +221,7 @@ export default function PropertiesPage() {
             {properties.map((p) => (
               <button
                 key={p.id}
-                onClick={() => compareMode ? toggleSelected(p.id) : router.push(`/dashboard/properties/${p.id}`)}
+                onClick={() => compareMode ? toggleSelected(p.id) : router.push(`/dashboard/imoveis/${p.id}`)}
                 className={clsx(
                   'card overflow-hidden text-left hover:shadow-nav hover:-translate-y-1 transition-all duration-200 group',
                   compareMode && selectedIds.includes(p.id) && 'ring-2 ring-brand-400',
@@ -316,7 +316,7 @@ export default function PropertiesPage() {
             <button
               className="btn-primary text-sm"
               disabled={selectedIds.length < 2}
-              onClick={() => router.push(`/dashboard/properties/compare?ids=${selectedIds.join(',')}`)}
+              onClick={() => router.push(`/dashboard/imoveis/comparar?ids=${selectedIds.join(',')}`)}
             >
               <GitCompare className="w-4 h-4" />
               Comparar

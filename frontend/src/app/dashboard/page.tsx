@@ -108,7 +108,7 @@ export default function DashboardPage() {
       gradient: 'from-amber-500 to-amber-600',
       bg:       'bg-amber-50',
       text:     'text-amber-600',
-      href:     isConstrutora ? '/dashboard/developments' : '/dashboard/properties',
+      href:     isConstrutora ? '/dashboard/empreendimentos' : '/dashboard/imoveis',
     }] : []),
   ];
 
@@ -141,7 +141,7 @@ export default function DashboardPage() {
       icon:  Building2,
       label: isConstrutora ? 'Empreendimentos' : 'Catálogo de imóveis',
       desc:  isConstrutora ? 'Gerencie lançamentos e unidades' : 'Cadastre e gerencie seu portfólio',
-      href:  isConstrutora ? '/dashboard/developments' : '/dashboard/properties',
+      href:  isConstrutora ? '/dashboard/empreendimentos' : '/dashboard/imoveis',
       color: 'text-amber-600',
       bg:    'bg-amber-50',
     },

@@ -78,7 +78,7 @@ export default function DevelopmentsPage() {
       <Header
         title={`Empreendimentos (${total})`}
         actions={
-          <button className="btn-primary text-sm" onClick={() => router.push('/dashboard/developments/new')}>
+          <button className="btn-primary text-sm" onClick={() => router.push('/dashboard/empreendimentos/new')}>
             <Plus className="w-4 h-4" />
             Novo empreendimento
           </button>
@@ -151,7 +151,7 @@ export default function DevelopmentsPage() {
             {developments.map((d) => (
               <button
                 key={d.id}
-                onClick={() => router.push(`/dashboard/developments/${d.id}`)}
+                onClick={() => router.push(`/dashboard/empreendimentos/${d.id}`)}
                 className="card overflow-hidden text-left hover:shadow-lg hover:-translate-y-0.5 transition-all group"
               >
                 <div className="relative h-40 bg-gray-100 flex items-center justify-center overflow-hidden">
