@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Building2, Loader2, Check, Mail, Lock, User, LogIn, UserPlus } from 'lucide-react';
 import api from '@/lib/api';
@@ -22,7 +22,7 @@ const ROLE_LABELS: Record<string, string> = {
   member: 'Membro',
 };
 
-export default function InvitePage() {
+function InvitePageContent() {
   const searchParams = useSearchParams();
   const router       = useRouter();
   const { user, fetchMe } = useAuth();
@@ -92,7 +92,6 @@ export default function InvitePage() {
         user: data.user, accessToken: data.accessToken, csrfToken: data.csrfToken,
         currentOrg: data.user?.orgs?.[0] || null, _sessionChecked: true,
       });
-      // Aceita o convite após login
       await api.post(`/orgs/invitations/${token}/accept`);
       await fetchMe();
       setDone(true);
@@ -178,7 +177,7 @@ export default function InvitePage() {
             {/* Tabs */}
             <div className="flex border border-gray-200 rounded-xl p-1 mb-5">
               {([
-                { key: 'register', label: 'Criar conta',  Icon: UserPlus },
+                { key: 'register', label: 'Criar conta',    Icon: UserPlus },
                 { key: 'login',    label: 'Já tenho conta', Icon: LogIn   },
               ] as { key: Mode; label: string; Icon: React.ElementType }[]).map(({ key, label, Icon }) => (
                 <button
@@ -235,5 +234,17 @@ export default function InvitePage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function InvitePage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-brand-500" />
+      </div>
+    }>
+      <InvitePageContent />
+    </Suspense>
   );
 }
