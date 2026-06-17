@@ -85,6 +85,16 @@ export interface Workspace {
   created_at: string;
   member_count?: number;
   inbox_count?: number;
+  // IA para geração de textos (independente do agente de atendimento)
+  description_ai_provider: string | null;
+  description_ai_model: string | null;
+  // NPS pós-visita
+  nps_enabled: boolean | null;
+  nps_delay_hours: number | null;
+  nps_inbox_id: string | null;
+  nps_message_template: string | null;
+  // ZapSign
+  zapsign_api_token: string | null;
 }
 
 export type PermissionModuleKey =

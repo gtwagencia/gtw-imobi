@@ -147,11 +147,11 @@ export default function SettingsPage() {
         slaResponseMinutes:   currentWorkspace.sla_response_minutes ?? 30,
         leadStaleHours:       currentWorkspace.lead_stale_hours ?? 24,
         defaultCommissionPct:  currentWorkspace.default_commission_pct != null ? String(currentWorkspace.default_commission_pct) : '',
-        descriptionAiProvider: (currentWorkspace as Record<string, unknown>).description_ai_provider as string || 'anthropic',
-        descriptionAiModel:    (currentWorkspace as Record<string, unknown>).description_ai_model    as string || '',
-        npsEnabled:            Boolean((currentWorkspace as Record<string, unknown>).nps_enabled),
-        npsDelayHours:         Number((currentWorkspace as Record<string, unknown>).nps_delay_hours) || 24,
-        npsMessageTemplate:    (currentWorkspace as Record<string, unknown>).nps_message_template as string || '',
+        descriptionAiProvider: currentWorkspace.description_ai_provider || 'anthropic',
+        descriptionAiModel:    currentWorkspace.description_ai_model    || '',
+        npsEnabled:            Boolean(currentWorkspace.nps_enabled),
+        npsDelayHours:         currentWorkspace.nps_delay_hours         ?? 24,
+        npsMessageTemplate:    currentWorkspace.nps_message_template    || '',
         zapsignApiToken:       '',
       });
       setBusinessHours(currentWorkspace.business_hours ?? DEFAULT_BUSINESS_HOURS);
@@ -1283,7 +1283,7 @@ export default function SettingsPage() {
                   value={form.zapsignApiToken}
                   onChange={(e) => setForm({ ...form, zapsignApiToken: e.target.value })}
                   placeholder={
-                    (currentWorkspace as Record<string, unknown>).zapsign_api_token
+                    currentWorkspace.zapsign_api_token
                       ? '••••••••••••••••••••••• (já configurado)'
                       : 'Cole seu token da API ZapSign aqui'
                   }
