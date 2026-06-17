@@ -19,6 +19,8 @@ interface FormState {
   builderName: string;
   constructionStatus: DevelopmentConstructionStatus;
   deliveryDate: string;
+  developmentType: string;
+  totalUnits: string;
   zipCode: string;
   street: string;
   number: string;
@@ -40,6 +42,8 @@ function toFormState(d?: Development): FormState {
     builderName:        d?.builder_name || '',
     constructionStatus: d?.construction_status || 'em_obras',
     deliveryDate:       d?.delivery_date ? d.delivery_date.slice(0, 10) : '',
+    developmentType:    d?.development_type || 'loteamento',
+    totalUnits:         d?.total_units != null ? String(d.total_units) : '',
     zipCode:            d?.zip_code || '',
     street:             d?.street || '',
     number:             d?.number || '',
@@ -113,6 +117,8 @@ export default function DevelopmentForm({ development, workspaceId, onSave }: De
         amenities:          form.amenities,
         isFeatured:         form.isFeatured,
         commissionPct:      form.commissionPct.trim() === '' ? null : Number(form.commissionPct),
+        developmentType:    form.developmentType || null,
+        totalUnits:         form.totalUnits.trim() === '' ? null : Number(form.totalUnits),
       };
 
       const { data } = development
@@ -152,6 +158,19 @@ export default function DevelopmentForm({ development, workspaceId, onSave }: De
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1">Construtora/Incorporadora</label>
             <input className="input" value={form.builderName} onChange={e => set('builderName', e.target.value)} placeholder="Ex: Construtora Alfa" />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Tipo de empreendimento</label>
+            <select className="input" value={form.developmentType} onChange={e => set('developmentType', e.target.value)}>
+              <option value="loteamento">Loteamento</option>
+              <option value="condominio_fechado">Condomínio Fechado</option>
+              <option value="predio">Prédio / Apartamentos</option>
+              <option value="comercial">Comercial</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Total de unidades (lotes/apartamentos)</label>
+            <input className="input" type="number" min="0" step="1" placeholder="Ex: 200" value={form.totalUnits} onChange={e => set('totalUnits', e.target.value)} />
           </div>
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1">Status da obra</label>

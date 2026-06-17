@@ -101,6 +101,7 @@ async function create(workspaceId, body) {
     constructionStatus, deliveryDate,
     zipCode, street, number, complement, neighborhood, city, state, latitude, longitude,
     amenities, isFeatured,
+    developmentType, totalUnits,
   } = body;
 
   const r = await query(
@@ -108,18 +109,21 @@ async function create(workspaceId, body) {
        workspace_id, code, name, description, builder_name,
        construction_status, delivery_date,
        zip_code, street, number, complement, neighborhood, city, state, latitude, longitude,
-       amenities, is_featured
+       amenities, is_featured,
+       development_type, total_units
      ) VALUES (
        $1,$2,$3,$4,$5,
        $6,$7,
        $8,$9,$10,$11,$12,$13,$14,$15,$16,
-       $17,$18
+       $17,$18,
+       $19,$20
      ) RETURNING *`,
     [
       workspaceId, code, name, description || null, builderName || null,
       constructionStatus || 'em_obras', deliveryDate || null,
       zipCode || null, street || null, number || null, complement || null, neighborhood || null, city || null, state || null, latitude ?? null, longitude ?? null,
       amenities || [], isFeatured || false,
+      developmentType || 'loteamento', totalUnits || null,
     ]
   );
   return r.rows[0];
@@ -136,7 +140,9 @@ const UPDATE_FIELD_MAP = {
   amenities: 'amenities',
   isFeatured: 'is_featured', publishedAt: 'published_at',
   mapImageUrl: 'map_image_url',
-  commissionPct: 'commission_pct',
+  commissionPct:   'commission_pct',
+  developmentType: 'development_type',
+  totalUnits:      'total_units',
 };
 
 const JSONB_FIELDS = new Set(['mapConfig']);

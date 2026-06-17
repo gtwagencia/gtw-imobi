@@ -496,6 +496,8 @@ export interface Development {
   map_image_url: string | null;
   map_config: { width?: number; height?: number };
   commission_pct: number | null;
+  development_type: string | null;
+  total_units: number | null;
   created_at: string;
   updated_at: string;
   media: DevelopmentMedia[];

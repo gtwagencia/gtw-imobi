@@ -260,4 +260,152 @@ router.delete('/:developmentId/construction-stages/:stageId/photos/:photoId', au
   } catch (err) { next(err); }
 });
 
+// ── Incorporadora: Unidades, Zonas de Preço e Propostas ──────────────────
+
+const unitsSvc     = require('./development-units.service');
+const proposalsSvc = require('./development-proposals.service');
+const csvUpload    = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
+
+// ── Units ────────────────────────────────────────────────────────────────
+
+router.get('/:developmentId/units', authenticate, workspaceContext, requirePermission('properties'), async (req, res, next) => {
+  try {
+    const { status, zone, block, floor, page, limit } = req.query;
+    const result = await unitsSvc.listUnits(req.params.developmentId, req.params.workspaceId, {
+      status, zone, block, floor,
+      page:  parseInt(page,  10) || 1,
+      limit: Math.min(parseInt(limit, 10) || 200, 500),
+    });
+    res.json(result);
+  } catch (err) { next(err); }
+});
+
+router.get('/:developmentId/units/:unitId', authenticate, workspaceContext, requirePermission('properties'), async (req, res, next) => {
+  try {
+    const unit = await unitsSvc.getUnit(req.params.unitId, req.params.workspaceId);
+    res.json(unit);
+  } catch (err) { next(err); }
+});
+
+router.put('/:developmentId/units/:unitId', authenticate, workspaceContext, requirePermission('properties'), async (req, res, next) => {
+  try {
+    const unit = await unitsSvc.updateUnit(req.params.unitId, req.params.workspaceId, req.body);
+    res.json(unit);
+  } catch (err) { next(err); }
+});
+
+router.post('/:developmentId/units/price-adjust', authenticate, workspaceContext, requirePermission('properties'), async (req, res, next) => {
+  try {
+    const { mode, value, zoneFilter, blockFilter } = req.body;
+    const result = await unitsSvc.bulkPriceAdjust(req.params.developmentId, req.params.workspaceId, {
+      mode, value, zoneFilter, blockFilter,
+    });
+    res.json(result);
+  } catch (err) { next(err); }
+});
+
+router.post('/:developmentId/units/import-csv', authenticate, workspaceContext, requirePermission('properties'), csvUpload.single('file'), async (req, res, next) => {
+  try {
+    let csvText;
+    if (req.file) {
+      csvText = req.file.buffer.toString('utf8');
+    } else if (req.body && req.body.csv) {
+      csvText = req.body.csv;
+    } else {
+      return res.status(400).json({ error: 'Envie um arquivo CSV via multipart (campo "file") ou texto via JSON (campo "csv")' });
+    }
+    const result = await unitsSvc.importCSV(
+      req.params.developmentId, req.params.workspaceId,
+      csvText, req.user.sub
+    );
+    res.status(201).json(result);
+  } catch (err) { next(err); }
+});
+
+// ── Price Zones ──────────────────────────────────────────────────────────
+
+router.get('/:developmentId/price-zones', authenticate, workspaceContext, requirePermission('properties'), async (req, res, next) => {
+  try {
+    const zones = await unitsSvc.listZones(req.params.developmentId, req.params.workspaceId);
+    res.json(zones);
+  } catch (err) { next(err); }
+});
+
+router.post('/:developmentId/price-zones', authenticate, workspaceContext, requirePermission('properties'), async (req, res, next) => {
+  try {
+    const zone = await unitsSvc.createZone(req.params.developmentId, req.params.workspaceId, req.body);
+    res.status(201).json(zone);
+  } catch (err) { next(err); }
+});
+
+router.put('/:developmentId/price-zones/:zoneId', authenticate, workspaceContext, requirePermission('properties'), async (req, res, next) => {
+  try {
+    const zone = await unitsSvc.updateZone(req.params.zoneId, req.params.developmentId, req.params.workspaceId, req.body);
+    res.json(zone);
+  } catch (err) { next(err); }
+});
+
+router.delete('/:developmentId/price-zones/:zoneId', authenticate, workspaceContext, requirePermission('properties'), async (req, res, next) => {
+  try {
+    await unitsSvc.deleteZone(req.params.zoneId, req.params.developmentId, req.params.workspaceId);
+    res.json({ ok: true });
+  } catch (err) { next(err); }
+});
+
+router.post('/:developmentId/price-zones/:zoneId/apply', authenticate, workspaceContext, requirePermission('properties'), async (req, res, next) => {
+  try {
+    const zoneRes = await unitsSvc.listZones(req.params.developmentId, req.params.workspaceId);
+    const zone = zoneRes.find(z => z.id === req.params.zoneId);
+    if (!zone) return res.status(404).json({ error: 'Zona não encontrada' });
+    const result = await unitsSvc.applyPriceZone(req.params.developmentId, req.params.workspaceId, zone.name, zone);
+    res.json(result);
+  } catch (err) { next(err); }
+});
+
+// ── Proposals ────────────────────────────────────────────────────────────
+
+router.get('/:developmentId/proposals', authenticate, workspaceContext, requirePermission('properties'), async (req, res, next) => {
+  try {
+    const { status, page, limit } = req.query;
+    const result = await proposalsSvc.list(req.params.developmentId, req.params.workspaceId, {
+      status,
+      page:  parseInt(page,  10) || 1,
+      limit: Math.min(parseInt(limit, 10) || 50, 200),
+    });
+    res.json(result);
+  } catch (err) { next(err); }
+});
+
+router.post('/:developmentId/proposals', authenticate, workspaceContext, requirePermission('properties'), async (req, res, next) => {
+  try {
+    const proposal = await proposalsSvc.create(
+      req.params.developmentId, req.params.workspaceId,
+      req.body, req.user.sub
+    );
+    res.status(201).json(proposal);
+  } catch (err) { next(err); }
+});
+
+router.get('/:developmentId/proposals/:proposalId', authenticate, workspaceContext, requirePermission('properties'), async (req, res, next) => {
+  try {
+    const proposal = await proposalsSvc.getById(req.params.proposalId, req.params.workspaceId);
+    res.json(proposal);
+  } catch (err) { next(err); }
+});
+
+router.post('/:developmentId/proposals/:proposalId/approve', authenticate, workspaceContext, requirePermission('properties'), async (req, res, next) => {
+  try {
+    const proposal = await proposalsSvc.approve(req.params.proposalId, req.params.workspaceId, req.user.sub);
+    res.json(proposal);
+  } catch (err) { next(err); }
+});
+
+router.post('/:developmentId/proposals/:proposalId/reject', authenticate, workspaceContext, requirePermission('properties'), async (req, res, next) => {
+  try {
+    const { reason } = req.body;
+    const proposal = await proposalsSvc.reject(req.params.proposalId, req.params.workspaceId, req.user.sub, reason);
+    res.json(proposal);
+  } catch (err) { next(err); }
+});
+
 module.exports = router;
