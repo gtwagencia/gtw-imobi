@@ -14,6 +14,8 @@ interface Props {
   brokerToken: string;
   onClose: () => void;
   onSuccess: () => void;
+  apiPath?: string;       // ex: 'portal-parceiro'
+  proposalPath?: string;  // ex: 'propostas'
 }
 
 const PAYMENT_TYPES = [
@@ -23,7 +25,7 @@ const PAYMENT_TYPES = [
   { value: 'parcelado_construtora', label: 'Parcelado com a Construtora' },
 ];
 
-export default function ProposalModalPortal({ unit, developmentId, brokerToken, onClose, onSuccess }: Props) {
+export default function ProposalModalPortal({ unit, developmentId, brokerToken, onClose, onSuccess, apiPath = 'portal-parceiro', proposalPath = 'propostas' }: Props) {
   const [saving, setSaving] = useState(false);
   const [error,  setError]  = useState('');
   const [form, setForm] = useState({
@@ -49,7 +51,7 @@ export default function ProposalModalPortal({ unit, developmentId, brokerToken, 
     setSaving(true); setError('');
     try {
       const expiresAt = new Date(Date.now() + parseInt(form.expiresHours) * 3600000).toISOString();
-      const res = await fetch(`${API}/partner-portal/broker/${brokerToken}/developments/${developmentId}/proposals`, {
+      const res = await fetch(`${API}/${apiPath}/${brokerToken}/empreendimentos/${developmentId}/${proposalPath}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
