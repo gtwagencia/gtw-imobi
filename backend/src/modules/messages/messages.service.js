@@ -233,4 +233,17 @@ async function insertInbound(conversationId, { content, messageType, mediaUrl, m
   return r.rows[0] || null;
 }
 
-module.exports = { list, send, insertInbound };
+async function sendOutbound(workspaceId, inboxId, phone, text) {
+  const convSvc = require('../conversations/conversations.service');
+  const contactRes = await query(
+    'SELECT id FROM contacts WHERE workspace_id = $1 AND phone = $2 LIMIT 1',
+    [workspaceId, phone]
+  );
+  const contactId = contactRes.rows[0]?.id || null;
+  const { conversation } = await convSvc.findOrCreate(workspaceId, {
+    inboxId, contactId, remoteJid: phone,
+  });
+  return send(conversation.id, null, { content: text, messageType: 'text' });
+}
+
+module.exports = { list, send, insertInbound, sendOutbound };

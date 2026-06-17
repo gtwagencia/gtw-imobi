@@ -159,10 +159,28 @@ async function update(visitId, workspaceId, body) {
   }
 
   // ── NPS: disparar pesquisa quando visita for marcada como realizada ──────
-  const becameRealizada = newStatus === 'realizada' && prev.status !== 'realizada';
+  const becameRealizada   = newStatus === 'realizada'   && prev.status !== 'realizada';
+  const becameConfirmada  = newStatus === 'confirmada'  && prev.status !== 'confirmada';
+
   if (becameRealizada) {
     nps.sendNpsAfterVisit(workspaceId, visitId)
       .catch(err => console.error('[nps] sendNpsAfterVisit:', err.message));
+  }
+
+  // ── Confirmação automática via WhatsApp ─────────────────────────────────
+  if (becameConfirmada && updated.conversation_id) {
+    ;(async () => {
+      try {
+        const msgSvc = require('../messages/messages.service');
+        const dt = updated.scheduled_at
+          ? new Date(updated.scheduled_at).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+          : '(horário a confirmar)';
+        const text = `✅ *Visita confirmada!*\n\n🏠 Imóvel: ${updated.property_title || updated.property_code || ''}\n📅 Data/Hora: ${dt}\n\nAguardamos você! Qualquer dúvida, é só chamar. 😊`;
+        await msgSvc.send(updated.conversation_id, null, { content: text, messageType: 'text' });
+      } catch (err) {
+        console.error('[visit-confirm] WhatsApp send failed:', err.message);
+      }
+    })();
   }
 
   return updated;

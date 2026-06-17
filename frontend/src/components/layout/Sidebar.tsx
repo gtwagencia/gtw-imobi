@@ -10,6 +10,7 @@ import {
   LogOut, ChevronDown, Building2, Home, User, Landmark,
   Check, Plus, ArrowLeftRight, LayoutList, BarChart2, BookMarked, Tag, Ticket, X, Send,
   ShieldCheck, ListChecks, Gauge, CalendarCheck, Construction, Handshake,
+  Star, Upload,
 } from 'lucide-react';
 import { useSidebar } from '@/store/sidebar';
 import { useEffect, useRef, useState } from 'react';
@@ -39,6 +40,8 @@ const ALL_NAV_ITEMS = [
   { href: '/dashboard/canned',        icon: BookMarked,    label: 'Respostas Prontas', ticketsOnly: false, adminOnly: false },
   { href: '/dashboard/labels',        icon: Tag,           label: 'Etiquetas',         ticketsOnly: false, adminOnly: false },
   { href: '/dashboard/reports',       icon: BarChart2,     label: 'Relatórios',        ticketsOnly: false, adminOnly: false },
+  { href: '/dashboard/nps',          icon: Star,          label: 'NPS Pós-Visita',    ticketsOnly: false, adminOnly: false },
+  { href: '/dashboard/imports',      icon: Upload,        label: 'Importar Imóveis',  ticketsOnly: false, adminOnly: false },
 ];
 
 // Mapa item da sidebar -> módulo habilitável por workspace em /dashboard/settings.
@@ -60,6 +63,8 @@ const NAV_MODULE_KEY: Record<string, string> = {
   '/dashboard/canned':        'crm',
   '/dashboard/labels':        'crm',
   '/dashboard/reports':       'reports',
+  '/dashboard/nps':          'properties',
+  '/dashboard/imports':      'properties',
 };
 
 // Mapa item da sidebar -> módulo configurável em /dashboard/permissions
@@ -79,6 +84,8 @@ const NAV_PERMISSION_KEY: Record<string, PermissionModuleKey> = {
   '/dashboard/canned':        'canned',
   '/dashboard/labels':        'labels',
   '/dashboard/reports':       'reports',
+  '/dashboard/nps':          'properties',
+  '/dashboard/imports':      'properties',
 };
 
 const bottomItems = [

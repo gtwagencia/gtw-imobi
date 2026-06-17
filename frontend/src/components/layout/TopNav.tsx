@@ -15,6 +15,7 @@ import {
   BookMarked, Tag, Ticket, Send, ShieldCheck, ListChecks,
   CalendarCheck, Construction, Handshake, Menu, X, User, Bell, AtSign,
   AlertTriangle, Clock, UserCheck, MessageCircle, BarChart2,
+  Star, Upload,
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import api from '@/lib/api';
@@ -40,6 +41,8 @@ const NAV_MODULE_KEY: Record<string, string> = {
   '/dashboard/canned':          'crm',
   '/dashboard/labels':          'crm',
   '/dashboard/reports':         'reports',
+  '/dashboard/nps':            'properties',
+  '/dashboard/imports':        'properties',
 };
 
 const NAV_PERMISSION_KEY: Record<string, PermissionModuleKey> = {
@@ -57,6 +60,8 @@ const NAV_PERMISSION_KEY: Record<string, PermissionModuleKey> = {
   '/dashboard/canned':          'canned',
   '/dashboard/labels':          'labels',
   '/dashboard/reports':         'reports',
+  '/dashboard/nps':            'properties',
+  '/dashboard/imports':        'properties',
 };
 
 // ─── Notification configs ───────────────────────────────────────────────────
@@ -99,6 +104,8 @@ const IMOVEIS_ITEMS: NavItem[] = [
   { href: '/dashboard/developments',    label: 'Empreendimentos',      icon: Construction,  ticketsOnly: false, adminOnly: false },
   { href: '/dashboard/partner-brokers', label: 'Corretores Parceiros', icon: Handshake,     ticketsOnly: false, adminOnly: false },
   { href: '/dashboard/visitas',         label: 'Visitas',              icon: CalendarCheck, ticketsOnly: false, adminOnly: false },
+  { href: '/dashboard/nps',             label: 'NPS Pós-Visita',       icon: Star,          ticketsOnly: false, adminOnly: false },
+  { href: '/dashboard/imports',         label: 'Importar Imóveis',     icon: Upload,        ticketsOnly: false, adminOnly: false },
 ];
 
 const TICKETS_ITEMS: NavItem[] = [

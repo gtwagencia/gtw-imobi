@@ -250,6 +250,17 @@ async function updateDeal(dealId, workspaceId, body) {
   if (!r.rows.length) throw Object.assign(new Error('Deal não encontrado'), { status: 404 });
   const updated = r.rows[0];
 
+  // Recalcula lead score em background (não bloqueia a resposta)
+  ;(async () => {
+    try {
+      const aiSvc = require('../../services/ai.service');
+      const wsRes = await query('SELECT * FROM workspaces WHERE id = $1', [workspaceId]);
+      if (!wsRes.rows[0]) return;
+      const score = await aiSvc.recalcLeadScore(wsRes.rows[0], updated);
+      await query('UPDATE deals SET lead_score = $1 WHERE id = $2', [score, dealId]);
+    } catch { /* silently ignore */ }
+  })();
+
   return updated;
 }
 

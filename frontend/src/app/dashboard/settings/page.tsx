@@ -1292,6 +1292,24 @@ export default function SettingsPage() {
               </div>
               <p className="text-xs text-gray-400 mt-1">Encontre em: ZapSign → Configurações → API → Token de produção.</p>
             </div>
+
+            <div className="mt-4 pt-4 border-t border-gray-100">
+              <label className="block text-sm font-medium text-gray-700 mb-1">URL do Webhook (configure no ZapSign)</label>
+              <div className="flex items-center gap-2">
+                <input
+                  className="input font-mono text-xs flex-1"
+                  readOnly
+                  value={`${API_URL}/zapsign/webhook`}
+                  onClick={(e) => e.currentTarget.select()}
+                />
+                <button type="button" className="btn-ghost px-2 flex-shrink-0"
+                  onClick={() => copy(`${API_URL}/zapsign/webhook`, 'zapsign-webhook')}
+                  title="Copiar">
+                  {copiedField === 'zapsign-webhook' ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
+                </button>
+              </div>
+              <p className="text-xs text-gray-400 mt-1">Configure este endpoint em: ZapSign → Configurações → Webhooks → URL de notificação.</p>
+            </div>
           </div>
 
           <button type="submit" className="btn-primary" disabled={saving}>
