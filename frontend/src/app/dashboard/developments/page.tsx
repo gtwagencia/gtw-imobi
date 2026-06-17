@@ -78,7 +78,7 @@ export default function DevelopmentsPage() {
       <Header
         title={`Empreendimentos (${total})`}
         actions={
-          <button className="btn-primary text-sm" onClick={() => router.push('/dashboard/empreendimentos/new')}>
+          <button className="btn-primary text-sm" onClick={() => router.push('/dashboard/empreendimentos/novo')}>
             <Plus className="w-4 h-4" />
             Novo empreendimento
           </button>
