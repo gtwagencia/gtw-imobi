@@ -56,6 +56,7 @@ const pushRouter           = require('./modules/push/push.router');
 const npsRouter            = require('./modules/nps/nps.router');
 const zapsignRouter        = require('./modules/zapsign/zapsign.router');
 const importsRouter        = require('./modules/imports/imports.router');
+const aiAgentRouter        = require('./modules/ai-agent/ai-agent.router');
 
 const app    = express();
 const server = http.createServer(app);
@@ -150,6 +151,7 @@ app.use('/api/v1/workspaces/:workspaceId/nps',             requireNotTicketsOnly
 app.use('/api/v1/workspaces/:workspaceId/zapsign',         requireNotTicketsOnly, zapsignRouter);
 app.use('/api/v1/zapsign',                                 zapsignRouter); // webhook público
 app.use('/api/v1/workspaces/:workspaceId/imports',         requireNotTicketsOnly, importsRouter);
+app.use('/api/v1/workspaces/:workspaceId/ai-agent',        requireNotTicketsOnly, aiAgentRouter);
 
 // ── Health ─────────────────────────────────────────────────────────────────
 app.get('/health', (_req, res) => res.json({ ok: true, ts: new Date() }));

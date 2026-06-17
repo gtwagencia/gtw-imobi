@@ -480,14 +480,25 @@ async function dispatchChatbotResponse(inbox, conversation, contact, io) {
 
   await query('UPDATE conversations SET bot_active = true WHERE id = $1', [conversation.id]);
 
-  // Setores disponíveis para o agente de IA transferir a conversa automaticamente
-  const deptRes = await query(
-    `SELECT id, name, ai_routing_description FROM departments WHERE workspace_id = $1 ORDER BY name`,
-    [inbox.workspace_id]
-  );
+  // Setores e grupos de roteamento disponíveis para o agente
+  const [deptRes, groupRes] = await Promise.all([
+    query(
+      `SELECT id, name, ai_routing_description FROM departments WHERE workspace_id = $1 ORDER BY name`,
+      [inbox.workspace_id]
+    ),
+    query(
+      `SELECT name, group_type, description FROM ai_routing_groups WHERE workspace_id = $1 AND is_active = true ORDER BY name`,
+      [inbox.workspace_id]
+    ),
+  ]);
 
   const systemPrompt = [
-    aiSvc.buildAgentPersona({ agentName: ws.ai_agent_name, businessModel: ws.business_model, departments: deptRes.rows }),
+    aiSvc.buildAgentPersona({
+      agentName:     ws.ai_agent_name,
+      businessModel: ws.business_model,
+      departments:   deptRes.rows,
+      routingGroups: groupRes.rows,
+    }),
     ws.department_ai_persona,
     inbox.chatbot_prompt,
   ].filter(Boolean).join('\n\n---\n\n');

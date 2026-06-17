@@ -15,7 +15,7 @@ import {
   BookMarked, Tag, Ticket, Send, ShieldCheck, ListChecks,
   CalendarCheck, Construction, Handshake, Menu, X, User, Bell, AtSign,
   AlertTriangle, Clock, UserCheck, MessageCircle, BarChart2,
-  Star, Upload,
+  Star, Upload, Bot,
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import api from '@/lib/api';
@@ -106,6 +106,7 @@ const IMOVEIS_ITEMS: NavItem[] = [
   { href: '/dashboard/visitas',         label: 'Visitas',              icon: CalendarCheck, ticketsOnly: false, adminOnly: false },
   { href: '/dashboard/nps',             label: 'NPS Pós-Visita',       icon: Star,          ticketsOnly: false, adminOnly: false },
   { href: '/dashboard/imports',         label: 'Importar Imóveis',     icon: Upload,        ticketsOnly: false, adminOnly: false },
+  { href: '/dashboard/ai-agent',        label: 'Agente IA',            icon: Bot,           ticketsOnly: false, adminOnly: false },
 ];
 
 const TICKETS_ITEMS: NavItem[] = [

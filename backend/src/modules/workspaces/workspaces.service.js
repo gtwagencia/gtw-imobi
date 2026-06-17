@@ -77,6 +77,7 @@ async function create(orgId, { name, logoUrl, timezone, businessModel }) {
   await kanbanSvc.seedDefaultStages(workspace.id);
   await permissionsSvc.ensureDefaultProfiles(workspace.id);
   await require('../departments/departments.service').seedDefaultDepartments(workspace.id, model);
+  await require('../ai-agent/ai-agent.service').seedDefaultGroups(workspace.id, model);
 
   return workspace;
 }

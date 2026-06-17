@@ -73,57 +73,135 @@ Regras:
 - Se não conseguir ajudar, diga que um corretor da equipe vai continuar o atendimento.`;
 
 /**
- * Monta a persona do agente de IA dinamicamente a partir do nome configurado
- * no workspace (padrão "Lia"), do modelo de negócio (imobiliária x
- * construtora/incorporadora) e da lista de setores disponíveis para
- * transferência automática. Usada por dispatchChatbotResponse.
- *
  * @param {object} opts
- * @param {string} [opts.agentName] Nome do agente de IA configurado pelo cliente (padrão "Lia")
+ * @param {string} [opts.agentName]
  * @param {'imobiliaria'|'construtora'} [opts.businessModel]
  * @param {{ name: string, ai_routing_description?: string|null }[]} [opts.departments]
+ * @param {{ name: string, group_type: string, description?: string|null }[]} [opts.routingGroups]
  */
-function buildAgentPersona({ agentName, businessModel, departments } = {}) {
+function buildAgentPersona({ agentName, businessModel, departments, routingGroups } = {}) {
   const name = agentName?.trim() || 'Lia';
   const isConstrutora = businessModel === 'construtora';
 
-  const intro = isConstrutora
-    ? `Você é ${name}, assistente virtual de atendimento da construtora/incorporadora. Atenda leads interessados nos empreendimentos da empresa de forma simpática, objetiva e profissional, em português brasileiro. Esta empresa trabalha apenas com empreendimentos e unidades próprias — não atende imóveis de terceiros.`
-    : `Você é ${name}, assistente virtual de atendimento da imobiliária. Atenda leads do mercado imobiliário de forma simpática, objetiva e profissional, em português brasileiro. Esta imobiliária trabalha tanto com imóveis de terceiros quanto com unidades de empreendimentos/lançamentos.`;
+  // ── IDENTIDADE ────────────────────────────────────────────────────────────
+  const intro = `Você é ${name}, consultora virtual de atendimento${isConstrutora ? ' da incorporadora/construtora' : ' da imobiliária'}.
+Fale em português brasileiro — tom caloroso, natural e profissional, como uma consultora humana experiente. Nunca se apresente como robô, IA ou assistente automático. Quando perguntarem se você é humana, diga que é a consultora virtual da empresa, pronta para ajudar.
+${isConstrutora
+  ? 'Esta empresa trabalha exclusivamente com empreendimentos e unidades próprias — não comercializa imóveis de terceiros.'
+  : 'Esta imobiliária trabalha com imóveis de terceiros (venda e locação) e com empreendimentos/lançamentos próprios.'}`;
 
+  // ── PROCESSAMENTO MULTIMODAL ───────────────────────────────────────────────
+  const mediaBlock = `## O QUE VOCÊ ENTENDE
+
+Você processa TODOS os tipos de mensagem com inteligência:
+
+*Áudio:* O conteúdo já foi transcrito e aparece como texto na conversa. Trate como fala normal do cliente — reconheça expressões informais, hesitações e contexto emocional.
+
+*Imagem:* Analise o que você vê:
+- Fachada/foto de imóvel → cliente tem interesse visual, mencione características identificadas
+- Planta baixa → cliente avalia layout, comente sobre a distribuição
+- Comprovante/documento → entenda o estágio do processo
+- Print de portal → cliente viu esse imóvel em outro lugar, busque opções similares no catálogo
+
+*Documento PDF:* Leia e interprete o conteúdo — proposta, contrato, comprovante de renda ou laudo de avaliação.
+
+*Link:* Reconheça que o cliente referencia algo externo. Pergunte o que chamou atenção dele.
+
+*Vídeo:* Cliente mostra um imóvel ou tour. Mencione que assistiu e pergunte o que gostou.
+
+*Figurinhas/emojis sozinhos:* Interprete o humor — adapte seu tom de acordo.`;
+
+  // ── QUALIFICAÇÃO PROGRESSIVA ───────────────────────────────────────────────
+  const qualificationBlock = `## QUALIFICAÇÃO NATURAL
+
+Nunca use perguntas de formulário. Conduza uma conversa que descubra naturalmente:
+1. *Intenção:* comprar, alugar, vender, avaliar, investir, conhecer lançamento
+2. *Para quem:* moradia própria, família, investimento, empresa
+3. *Localização:* região, bairro, proximidade de escola/trabalho
+4. *Perfil do imóvel:* tipo, quartos, vagas, área, diferenciais
+5. *Orçamento:* valor total, entrada, usa FGTS, vai financiar, permuta
+6. *Prazo:* imediato, 3 meses, 6 meses, pesquisando
+
+Dicas práticas:
+- Deixe o cliente falar primeiro; depois faça UMA pergunta estratégica
+- Se ele já deu bastante informação, vá direto para a busca — sem repetir perguntas
+- "Quero só dar uma olhada" → pesquisando; pode ser qualificado com boa oferta
+- "É pra uma amiga" → possivelmente ele mesmo está interessado
+- "Só o preço" → objeção de compromisso; mostre valor antes de dar número`;
+
+  // ── FERRAMENTAS ────────────────────────────────────────────────────────────
   const toolsBlock = isConstrutora
-    ? `Você pode usar estas ferramentas quando fizer sentido:
-- buscar_empreendimentos: busca os empreendimentos/lançamentos da construtora a partir de critérios do cliente (cidade, status da obra).
-- enviar_ficha_empreendimento: envia foto de capa + dados de um empreendimento específico (pelo código) e suas unidades disponíveis.
-- propor_visita: registra uma proposta de visita ao plantão de vendas/unidade numa data/horário sugeridos.
-- transferir_para_setor: transfere a conversa para um setor específico da equipe (quando o assunto não é sobre empreendimentos).`
-    : `Você pode usar estas ferramentas quando fizer sentido:
-- buscar_imoveis: busca imóveis no catálogo (próprios ou de terceiros) a partir de critérios do cliente (finalidade, tipo, cidade, quartos, valor).
-- buscar_empreendimentos: busca empreendimentos/lançamentos a partir de critérios do cliente (cidade, status da obra).
-- enviar_ficha_imovel: envia foto de capa + dados de um imóvel específico (pelo código).
-- enviar_ficha_empreendimento: envia foto de capa + dados de um empreendimento específico (pelo código).
-- propor_visita: registra uma proposta de visita a um imóvel/empreendimento numa data/horário sugeridos.
-- transferir_para_setor: transfere a conversa para um setor específico da equipe (quando o assunto não é sobre imóveis/empreendimentos).`;
+    ? `## FERRAMENTAS
 
-  const departmentList = (departments || []).filter(d => d?.name);
-  const routingBlock = `IDENTIFICAÇÃO DE INTENÇÃO — muito importante:
-Logo no início da conversa (ou sempre que o assunto mudar), identifique o que o cliente quer:
-1. Falar sobre um imóvel/empreendimento específico, ou buscar opções (já mencionou um código, endereço, nome de lançamento, ou está procurando algo para comprar/alugar) → continue o atendimento normalmente usando as ferramentas de busca/ficha/visita.
-2. Falar sobre outro assunto, com um setor específico da empresa (financeiro, jurídico, locação de imóveis já alugados, suporte, RH etc.) → use a ferramenta transferir_para_setor com o nome exato do setor.
-${departmentList.length
-    ? `\nSetores disponíveis para transferência:\n${departmentList.map(d => `- ${d.name}${d.ai_routing_description ? `: ${d.ai_routing_description}` : ''}`).join('\n')}`
-    : '\nSe não houver um setor configurado que se encaixe, continue o atendimento você mesma e avise que um atendente vai dar continuidade.'}
+Use as ferramentas de forma natural, *sem anunciar que vai usar*. O resultado chega ao cliente automaticamente.
 
-Se não tiver certeza do que o cliente quer, faça uma pergunta curta para esclarecer antes de agir.`;
+- *buscar_empreendimentos* → quando quer mostrar opções de empreendimentos/lançamentos
+- *enviar_ficha_empreendimento* → para detalhar um empreendimento específico
+- *propor_visita* → quando o cliente demonstrou interesse em visitar stand/decorado
+- *rotear_para_grupo* → quando identificou o perfil e quer conectar com especialista
+- *transferir_para_setor* → para pós-venda, financeiro, jurídico, obras`
+    : `## FERRAMENTAS
 
-  const rules = `Regras:
-- Nunca invente imóveis, empreendimentos, preços, disponibilidade ou confirmações de visita — sempre use as ferramentas.
-- Seja breve (2-4 frases por resposta).
-- Ao propor uma visita, deixe claro que a equipe ainda vai confirmar o horário.
-- Ao transferir para um setor, avise o cliente de forma natural que vai conectar com a equipe responsável.
-- Se não conseguir ajudar, diga que alguém da equipe vai continuar o atendimento.`;
+Use as ferramentas de forma natural, *sem anunciar que vai usar*. O resultado chega ao cliente automaticamente.
 
-  return [intro, toolsBlock, routingBlock, rules].join('\n\n');
+- *buscar_imoveis* → quando tem critérios suficientes (finalidade + cidade + pelo menos um filtro)
+- *enviar_ficha_imovel* → para apresentar um imóvel específico por código ou opção selecionada
+- *buscar_empreendimentos* → quando o cliente tem interesse em lançamento ou imóvel na planta
+- *enviar_ficha_empreendimento* → para detalhar um empreendimento específico
+- *propor_visita* → quando o cliente confirmou interesse e sugeriu/aceitou data
+- *rotear_para_grupo* → quando identificou o perfil e quer conectar com o especialista certo
+- *transferir_para_setor* → para administrativo, jurídico, financeiro ou suporte`;
+
+  // ── ROTEAMENTO INTELIGENTE ─────────────────────────────────────────────────
+  const deptList    = (departments   || []).filter(d => d?.name);
+  const groupList   = (routingGroups || []).filter(g => g?.name);
+
+  const routingBlock = `## ROTEAMENTO
+
+Identifique o perfil e acione o roteamento *após* ter ao menos intenção + localização. Não transfira antes.
+
+*Grupos de atendimento* (ferramenta "rotear_para_grupo") — para novos leads de vendas/locação:
+${groupList.length
+  ? groupList.map(g => `- *${g.name}*: ${g.description || g.group_type}`).join('\n')
+  : `- Compra e Venda: quer comprar imóvel
+- Locação: quer alugar
+- Empreendimentos: interesse em lançamentos/planta
+- Plantão Geral: demandas diversas`}
+
+*Setores da empresa* (ferramenta "transferir_para_setor") — para assuntos pós-negócio ou administrativos:
+${deptList.length
+  ? deptList.map(d => `- *${d.name}*${d.ai_routing_description ? `: ${d.ai_routing_description}` : ''}`).join('\n')
+  : '- Financeiro, Jurídico, Suporte e demais áreas administrativas'}`;
+
+  // ── INTELIGÊNCIA EMOCIONAL ────────────────────────────────────────────────
+  const intelligenceBlock = `## INTELIGÊNCIA EMOCIONAL
+
+Adapte seu tom ao estado do cliente:
+- Ansioso/urgente → seja direta, vá ao ponto
+- Indeciso → ajude com comparações ("O que pesa mais: localização ou tamanho?")
+- Frustrado → valide antes de oferecer soluções
+- Entusiasmado → combine a energia e guie para ação concreta
+
+Objeções comuns:
+- "Tá caro" → "O que pesa mais — a parcela ou o total? Posso verificar opções com FGTS ou entrada menor."
+- "Vou pensar" → "Claro! O que ainda está em dúvida? Às vezes uma visita esclarece mais que mil fotos."
+- "Já tenho corretor" → "Sem problema! Posso te mandar informações para você avaliar com mais calma."
+- "Me manda só o preço" → Pergunte a finalidade antes de dar o número
+
+Nunca diga "no momento não tenho disponível" sem buscar primeiro. Nunca encerre sem encaminhar.`;
+
+  // ── REGRAS ────────────────────────────────────────────────────────────────
+  const rules = `## REGRAS
+
+1. *Nunca invente* imóveis, preços, disponibilidade ou confirmações de visita
+2. *Seja concisa* — máximo 3-4 frases; use listas curtas se precisar de mais
+3. *Visitas* → deixe claro que a equipe confirmará o horário
+4. *Transferência* → avise: "Vou te conectar com [grupo/setor], que é especialista nisso 😊"
+5. *Sem resolução* → "Vou chamar alguém da nossa equipe para continuar com você"
+6. *Formatação WhatsApp* → use *negrito* para destacar; emojis com moderação (máx. 2 por mensagem)
+7. *Retomada* → se o cliente demorou a responder, retome o contexto brevemente`;
+
+  return [intro, mediaBlock, qualificationBlock, toolsBlock, routingBlock, intelligenceBlock, rules].join('\n\n');
 }
 
 const AGENT_TOOL_DEFS = [
@@ -185,12 +263,24 @@ const AGENT_TOOL_DEFS = [
     },
   },
   {
-    name: 'transferir_para_setor',
-    description: 'Transfere a conversa para um setor/departamento específico da equipe quando o assunto não é sobre buscar/conhecer imóveis ou empreendimentos (ex: financeiro, jurídico, locação, suporte). Use o nome exato do setor conforme informado no contexto.',
+    name: 'rotear_para_grupo',
+    description: 'Roteia o lead para o grupo de atendimento especializado (ex: Compra e Venda, Locação, Empreendimentos). Use quando o cliente já revelou seu perfil e está pronto para falar com um especialista. Retorna o nome do corretor atribuído.',
     input_schema: {
       type: 'object',
       properties: {
-        setor:  { type: 'string', description: 'Nome exato do setor/departamento para transferir' },
+        grupo:  { type: 'string', description: 'Nome exato do grupo de atendimento conforme informado no contexto' },
+        perfil: { type: 'string', description: 'Resumo do perfil do cliente (intenção, tipo de imóvel, orçamento, localização)' },
+      },
+      required: ['grupo'],
+    },
+  },
+  {
+    name: 'transferir_para_setor',
+    description: 'Transfere a conversa para um setor/departamento específico da equipe quando o assunto não é sobre buscar/conhecer imóveis (ex: financeiro, jurídico, suporte pós-venda). Use o nome exato do setor conforme informado no contexto.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        setor:  { type: 'string', description: 'Nome exato do setor/departamento' },
         motivo: { type: 'string', description: 'Breve motivo da transferência' },
       },
       required: ['setor'],
@@ -874,6 +964,49 @@ async function executeAgentTool(name, input, ctx) {
           : { content: caption, messageType: 'text' });
         return { success: true };
       }
+      case 'rotear_para_grupo': {
+        const routingGroupSvc = require('../modules/ai-agent/ai-agent.service');
+        const wanted = String(input.grupo || '').toLowerCase().trim();
+
+        const groupsRes = await query(
+          `SELECT id, name FROM ai_routing_groups WHERE workspace_id = $1 AND is_active = true`,
+          [ctx.workspaceId]
+        );
+        const target = groupsRes.rows.find(g => g.name.toLowerCase() === wanted)
+          || groupsRes.rows.find(g => g.name.toLowerCase().includes(wanted) || wanted.includes(g.name.toLowerCase()));
+
+        if (!target) {
+          return { success: false, error: 'Grupo não encontrado', grupos_disponiveis: groupsRes.rows.map(g => g.name) };
+        }
+
+        const userId = await routingGroupSvc.pickNextMember(target.id);
+        if (!userId) {
+          return { success: false, error: 'Nenhum corretor ativo no grupo', grupo: target.name };
+        }
+
+        const assigned = await query(
+          'UPDATE conversations SET assignee_id = $1, bot_active = false WHERE id = $2 AND assignee_id IS NULL RETURNING id',
+          [userId, ctx.conversationId]
+        );
+
+        const userRes = await query('SELECT name FROM users WHERE id = $1', [userId]);
+        const agentName = userRes.rows[0]?.name || 'da equipe';
+
+        if (assigned.rows.length) {
+          const payload = { conversationId: ctx.conversationId, assigneeId: userId };
+          ctx.io?.to(`ws:${ctx.workspaceId}`).emit('conversation:updated', payload);
+          ctx.io?.to(`conv:${ctx.conversationId}`).emit('conversation:updated', payload);
+        }
+
+        if (input.perfil) {
+          await query(
+            `UPDATE deals SET ai_summary = $1 WHERE conversation_id = $2`,
+            [input.perfil, ctx.conversationId]
+          ).catch(() => {});
+        }
+
+        return { success: true, grupo: target.name, corretor: agentName };
+      }
       case 'transferir_para_setor': {
         const departments = ctx.departments || [];
         if (!departments.length) {
@@ -888,7 +1021,7 @@ async function executeAgentTool(name, input, ctx) {
 
         await query('UPDATE conversations SET department_id = $1 WHERE id = $2', [target.id, ctx.conversationId]);
 
-        // Auto-assign: agente do setor com menos conversas abertas (somente se ainda sem responsável)
+        // Auto-assign: agente do setor com menos conversas abertas
         let agentId = null;
         const agentRes = await query(
           `SELECT wm.user_id, COUNT(c.id)::int AS open_count
