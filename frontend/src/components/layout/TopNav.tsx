@@ -381,7 +381,7 @@ export default function TopNav() {
         <div className="w-px h-5 bg-gray-200 mx-1 hidden md:block flex-shrink-0" />
 
         {/* Main nav — desktop */}
-        <div className="hidden md:flex items-center gap-0.5 flex-1 overflow-hidden">
+        <div className="hidden md:flex items-center gap-0.5 flex-1 min-w-0">
           {/* Início */}
           {(currentWorkspace?.role !== 'tickets_only' || true) && (
             <Link
