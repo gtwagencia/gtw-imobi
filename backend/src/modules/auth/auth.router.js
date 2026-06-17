@@ -148,6 +148,22 @@ router.put('/me/password', authenticate, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// ── Aceitar convite com novo cadastro ────────────────────────────────────────
+
+router.post('/invitations/:token/register', async (req, res, next) => {
+  try {
+    const { name, email, password } = req.body;
+    if (!name || !email || !password) {
+      return res.status(400).json({ error: 'name, email e password são obrigatórios' });
+    }
+    if (password.length < 8) {
+      return res.status(400).json({ error: 'Senha deve ter ao menos 8 caracteres' });
+    }
+    const data = await svc.registerViaInvite({ name, email, password, token: req.params.token });
+    sendSession(res, 201, data);
+  } catch (err) { next(err); }
+});
+
 // ── 2FA (verificação em duas etapas) ─────────────────────────────────────────
 
 router.get('/2fa/status', authenticate, async (req, res, next) => {

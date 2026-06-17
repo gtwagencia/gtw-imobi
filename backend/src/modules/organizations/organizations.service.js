@@ -1,5 +1,6 @@
 'use strict';
 
+const crypto = require('crypto');
 const { query } = require('../../config/database');
 
 // ── List orgs for user ─────────────────────────────────────────────────────
@@ -89,19 +90,94 @@ async function listMembers(orgId, workspaceId = null) {
   return r.rows;
 }
 
-async function inviteMember(orgId, { email, role }) {
-  const userRes = await query('SELECT id FROM users WHERE email = $1', [email.toLowerCase()]);
-  if (!userRes.rows.length) throw Object.assign(new Error('Usuário não encontrado'), { status: 404 });
+async function inviteMember(orgId, { email, role }, invitedByUserId) {
+  const normalizedEmail = email.toLowerCase();
+  const userRes = await query('SELECT id FROM users WHERE email = $1', [normalizedEmail]);
 
-  const userId = userRes.rows[0].id;
+  if (userRes.rows.length) {
+    // Usuário já existe: adicionar diretamente
+    const userId = userRes.rows[0].id;
+    const r = await query(
+      `INSERT INTO org_memberships (org_id, user_id, role)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (org_id, user_id) DO UPDATE SET role = EXCLUDED.role
+       RETURNING *`,
+      [orgId, userId, role || 'member']
+    );
+    return { type: 'added', member: r.rows[0] };
+  }
+
+  // Usuário não existe: criar convite e enviar e-mail
+  const token = crypto.randomBytes(32).toString('hex');
+
+  // Upsert: reusa token existente se já houver convite pendente para este e-mail/org
+  await query(
+    `INSERT INTO invitations (org_id, email, role, token, invited_by)
+     VALUES ($1, $2, $3, $4, $5)
+     ON CONFLICT DO NOTHING`,
+    [orgId, normalizedEmail, role || 'member', token, invitedByUserId]
+  );
+
+  // Pega o token real (pode ser de convite anterior não aceito)
+  const invRes = await query(
+    `SELECT token FROM invitations WHERE org_id = $1 AND email = $2 AND accepted_at IS NULL
+     ORDER BY created_at DESC LIMIT 1`,
+    [orgId, normalizedEmail]
+  );
+  const activeToken = invRes.rows[0]?.token || token;
+
+  const orgRes     = await query('SELECT name FROM organizations WHERE id = $1', [orgId]);
+  const inviterRes = await query('SELECT name FROM users WHERE id = $1', [invitedByUserId]);
+
+  const mail    = require('../../services/mail');
+  const appUrl  = process.env.APP_URL || process.env.FRONTEND_URL || 'https://imobi.gtw.digital';
+  await mail.sendMailSilent({
+    to:      normalizedEmail,
+    subject: `Convite para ${orgRes.rows[0]?.name || 'Imobi360'}`,
+    html:    mail.tplInvite({
+      orgName:     orgRes.rows[0]?.name     || 'Imobi360',
+      inviterName: inviterRes.rows[0]?.name || 'Um administrador',
+      role:        role || 'member',
+      inviteUrl:   `${appUrl}/invite?token=${activeToken}`,
+    }),
+  });
+
+  return { type: 'invited', email: normalizedEmail };
+}
+
+async function getInvitation(token) {
   const r = await query(
+    `SELECT i.id, i.org_id, i.email, i.role, i.expires_at, i.accepted_at,
+            o.name AS org_name, u.name AS inviter_name
+     FROM invitations i
+     JOIN organizations o ON o.id = i.org_id
+     JOIN users u ON u.id = i.invited_by
+     WHERE i.token = $1`,
+    [token]
+  );
+  const inv = r.rows[0];
+  if (!inv) throw Object.assign(new Error('Convite não encontrado ou inválido'), { status: 404 });
+  if (inv.accepted_at) throw Object.assign(new Error('Este convite já foi aceito'), { status: 410 });
+  if (new Date(inv.expires_at) < new Date()) throw Object.assign(new Error('Este convite expirou'), { status: 410 });
+  return inv;
+}
+
+async function acceptInvitation(token, userId) {
+  const inv = await getInvitation(token);
+
+  await query(
     `INSERT INTO org_memberships (org_id, user_id, role)
      VALUES ($1, $2, $3)
-     ON CONFLICT (org_id, user_id) DO UPDATE SET role = EXCLUDED.role
-     RETURNING *`,
-    [orgId, userId, role || 'member']
+     ON CONFLICT (org_id, user_id) DO UPDATE SET role = EXCLUDED.role`,
+    [inv.org_id, userId, inv.role]
   );
-  return r.rows[0];
+
+  await query(
+    'UPDATE invitations SET accepted_at = NOW() WHERE token = $1',
+    [token]
+  );
+
+  return { ok: true, org_id: inv.org_id, role: inv.role };
 }
 
 async function removeMember(orgId, userId) {
@@ -134,4 +210,5 @@ async function updateMemberRole(orgId, userId, role) {
 module.exports = {
   listForUser, getById, update,
   listMembers, inviteMember, removeMember, updateMemberRole,
+  getInvitation, acceptInvitation,
 };

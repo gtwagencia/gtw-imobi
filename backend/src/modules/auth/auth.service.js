@@ -368,7 +368,45 @@ async function disableTwoFactor(userId, password) {
   await logAudit({ userId, action: '2fa.disable' });
 }
 
+// ── Register via invitation ────────────────────────────────────────────────
+
+async function registerViaInvite({ name, email, password, token }) {
+  const orgSvc = require('../organizations/organizations.service');
+
+  // Valida convite (lança 404/410 se inválido/expirado)
+  const inv = await orgSvc.getInvitation(token);
+
+  if (inv.email.toLowerCase() !== email.toLowerCase()) {
+    throw Object.assign(
+      new Error('O e-mail informado não corresponde ao convite'),
+      { status: 400 }
+    );
+  }
+
+  // Cria conta (pode já existir se o usuário tenta de novo)
+  const existing = await query('SELECT id FROM users WHERE email = $1', [email.toLowerCase()]);
+  let userId;
+  if (existing.rows.length) {
+    userId = existing.rows[0].id;
+  } else {
+    const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
+    const userRes = await query(
+      `INSERT INTO users (name, email, password_hash, is_super_admin)
+       VALUES ($1, $2, $3, false) RETURNING *`,
+      [name, email.toLowerCase(), passwordHash]
+    );
+    userId = userRes.rows[0].id;
+  }
+
+  // Aceita convite (add to org)
+  await orgSvc.acceptInvitation(token, userId);
+
+  const userRes = await query('SELECT * FROM users WHERE id = $1', [userId]);
+  return issueSession(userRes.rows[0]);
+}
+
 module.exports = {
   register, login, verifyTwoFactorLogin, refresh, logout, me, changePassword, updateProfile,
   getTwoFactorStatus, setupTwoFactor, enableTwoFactor, disableTwoFactor,
+  registerViaInvite,
 };

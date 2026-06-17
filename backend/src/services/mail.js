@@ -306,6 +306,37 @@ function tplDueSoon({ assigneeName, ticketTitle, boardName, dueDate, ticketUrl }
   `);
 }
 
+// ── Template: convite para organização ───────────────────────────────────────
+
+const ROLE_NAMES = { owner: 'Owner', admin: 'Administrador', member: 'Membro' };
+
+function tplInvite({ orgName, inviterName, role, inviteUrl }) {
+  const roleName = ROLE_NAMES[role] || role;
+  return baseLayout(`
+    <h2 style="margin:0 0 6px;font-size:20px;color:#111;">Você foi convidado!</h2>
+    <p style="margin:0 0 20px;color:#6b7280;font-size:14px;">
+      <strong>${inviterName}</strong> convidou você para fazer parte de
+      <strong>${orgName}</strong> no Imobi360.
+    </p>
+
+    <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:16px 20px;margin-bottom:24px;">
+      <div style="font-size:13px;color:#6b7280;">Organização: <strong style="color:#111;">${orgName}</strong></div>
+      <div style="font-size:13px;color:#6b7280;margin-top:4px;">Seu papel: <strong style="color:#111;">${roleName}</strong></div>
+    </div>
+
+    <p style="font-size:14px;color:#374151;margin:0 0 20px;">
+      Clique no botão abaixo para criar sua conta e aceitar o convite.
+      O link expira em <strong>7 dias</strong>.
+    </p>
+
+    ${btn(inviteUrl, 'Aceitar Convite')}
+
+    <p style="font-size:12px;color:#9ca3af;margin-top:20px;">
+      Se você não esperava este e-mail, pode ignorá-lo com segurança.
+    </p>
+  `);
+}
+
 module.exports = {
   sendMail,
   sendMailSilent,
@@ -317,4 +348,5 @@ module.exports = {
   tplDueDateChanged,
   tplDueSoon,
   tplDailyDigest,
+  tplInvite,
 };

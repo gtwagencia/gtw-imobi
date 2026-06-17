@@ -260,7 +260,7 @@ export default function OrgPage() {
                   </button>
                 </div>
                 {inviteError && <p className="text-sm text-red-600 mt-2">{inviteError}</p>}
-                <p className="text-xs text-gray-400 mt-2">O usuário deve ter uma conta cadastrada na plataforma.</p>
+                <p className="text-xs text-gray-400 mt-2">Se o usuário ainda não tiver conta, um e-mail de convite será enviado automaticamente.</p>
               </form>
             )}
 

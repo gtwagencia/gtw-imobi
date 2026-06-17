@@ -46,8 +46,8 @@ router.post('/:orgId/members', authenticate, orgContext, requireOrgRole('owner',
   try {
     const { email, role } = req.body;
     if (!email) return res.status(400).json({ error: 'email é obrigatório' });
-    const member = await svc.inviteMember(req.params.orgId, { email, role });
-    res.status(201).json(member);
+    const result = await svc.inviteMember(req.params.orgId, { email, role }, req.user.sub);
+    res.status(201).json(result);
   } catch (err) { next(err); }
 });
 
@@ -64,6 +64,24 @@ router.delete('/:orgId/members/:userId', authenticate, orgContext, requireOrgRol
   try {
     await svc.removeMember(req.params.orgId, req.params.userId);
     res.json({ ok: true });
+  } catch (err) { next(err); }
+});
+
+// ── Convites (rotas públicas — sem orgContext) ────────────────────────────────
+
+// GET /orgs/invitations/:token — retorna info do convite (público)
+router.get('/invitations/:token', async (req, res, next) => {
+  try {
+    const inv = await svc.getInvitation(req.params.token);
+    res.json(inv);
+  } catch (err) { next(err); }
+});
+
+// POST /orgs/invitations/:token/accept — aceita convite (usuário já logado)
+router.post('/invitations/:token/accept', authenticate, async (req, res, next) => {
+  try {
+    const result = await svc.acceptInvitation(req.params.token, req.user.sub);
+    res.json(result);
   } catch (err) { next(err); }
 });
 
