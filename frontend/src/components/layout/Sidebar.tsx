@@ -325,7 +325,7 @@ export default function Sidebar() {
           </Link>
         ))}
         {/* Logs do sistema — somente superadmin */}
-        {(user as any)?.isSuperAdmin && (
+        {user?.is_super_admin && (
           <Link
             href="/dashboard/logs"
             className={clsx(

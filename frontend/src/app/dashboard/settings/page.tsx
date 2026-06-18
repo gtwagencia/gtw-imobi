@@ -75,7 +75,7 @@ const DAY_KEYS = ['monday','tuesday','wednesday','thursday','friday','saturday',
 
 export default function SettingsPage() {
   const { currentWorkspace, setWorkspace, user } = useAuth();
-  const isSuperAdmin = (user as any)?.isSuperAdmin === true;
+  const isSuperAdmin = user?.is_super_admin === true;
 
   const [form, setForm] = useState({
     name:                 '',

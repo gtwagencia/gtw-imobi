@@ -31,7 +31,7 @@ function levelKey(level: string) {
 
 export default function LogsPage() {
   const { user } = useAuth();
-  const isSuperAdmin = (user as any)?.isSuperAdmin === true;
+  const isSuperAdmin = user?.is_super_admin === true;
 
   const [logs,    setLogs]    = useState<LogEntry[]>([]);
   const [loading, setLoading] = useState(false);
