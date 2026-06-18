@@ -10,7 +10,7 @@ import {
   LogOut, ChevronDown, Building2, Home, User, Landmark,
   Check, Plus, ArrowLeftRight, LayoutList, BarChart2, BookMarked, Tag, Ticket, X, Send,
   ShieldCheck, ListChecks, Gauge, CalendarCheck, Construction, Handshake,
-  Star, Upload, Bot,
+  Star, Upload, Bot, ScrollText,
 } from 'lucide-react';
 import { useSidebar } from '@/store/sidebar';
 import { useEffect, useRef, useState } from 'react';
@@ -324,6 +324,21 @@ export default function Sidebar() {
             {label}
           </Link>
         ))}
+        {/* Logs do sistema — somente superadmin */}
+        {(user as any)?.isSuperAdmin && (
+          <Link
+            href="/dashboard/logs"
+            className={clsx(
+              'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+              isActive('/dashboard/logs')
+                ? 'bg-ink-800 text-white'
+                : 'text-gray-500 hover:bg-ink-800 hover:text-gray-300'
+            )}
+          >
+            <ScrollText className="w-4 h-4 flex-shrink-0" />
+            Logs
+          </Link>
+        )}
       </div>
 
       {/* User */}

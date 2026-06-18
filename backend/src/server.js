@@ -160,6 +160,14 @@ app.use('/api/v1/portal-parceiro',                         partnerPortalRouter);
 // ── Health ─────────────────────────────────────────────────────────────────
 app.get('/health', (_req, res) => res.json({ ok: true, ts: new Date() }));
 
+// ── Admin: logs em memória (superadmin only) ────────────────────────────────
+const { authenticate: _authLogs } = require('./middleware/auth');
+app.get('/api/v1/admin/logs', _authLogs, (req, res) => {
+  if (!req.user?.isSuperAdmin) return res.status(403).json({ error: 'Acesso negado' });
+  const limit = Math.min(Number(req.query.limit) || 200, 300);
+  res.json(logger.getRecentLogs(limit).slice().reverse()); // mais recentes primeiro
+});
+
 // ── 404 ────────────────────────────────────────────────────────────────────
 app.use((_req, res) => res.status(404).json({ error: 'Not found' }));
 
@@ -178,11 +186,8 @@ function sanitizeForLog(obj, depth = 0) {
 app.use((err, _req, res, _next) => {
   logger.error(err.message, sanitizeForLog({ stack: err.stack, context: err.context }));
   const status = err.status || 500;
-  // Never expose internal error details in production
-  const message = status < 500
-    ? err.message
-    : (process.env.NODE_ENV === 'production' ? 'Internal server error' : err.message);
-  res.status(status).json({ error: message });
+  // Expose the real message for all errors (stack is only in logs)
+  res.status(status).json({ error: err.message || 'Internal server error' });
 });
 
 // ── Socket.io — JWT obrigatório no handshake ───────────────────────────────
