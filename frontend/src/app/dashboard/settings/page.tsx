@@ -1,11 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, type ReactNode } from 'react';
 import { useAuth } from '@/store/auth';
 import Header from '@/components/layout/Header';
 import api, { API_URL } from '@/lib/api';
 import type { BusinessHours, BusinessHoursDay } from '@/types';
-import { Save, Eye, EyeOff, Brain, Clock, MessageSquare, CheckCircle, Sparkles, Globe, Copy, Check, RefreshCw, ShieldCheck, AlertTriangle, Percent, Star } from 'lucide-react';
+import { Save, Eye, EyeOff, Brain, Clock, MessageSquare, CheckCircle, Sparkles, Globe, Copy, Check, RefreshCw, ShieldCheck, AlertTriangle, Percent, Star, Building2, LayoutGrid, Key, Megaphone, Pen, HardDrive } from 'lucide-react';
 import clsx from 'clsx';
 import ModulesCard from '@/components/settings/ModulesCard';
 
@@ -264,40 +264,128 @@ export default function SettingsPage() {
   const platformDomain = API_URL.replace(/^https?:\/\//, '').split('/')[0];
   const domainStatus = DOMAIN_STATUS_LABELS[currentWorkspace.custom_domain_status] || DOMAIN_STATUS_LABELS.none;
 
+  const scrollTo = (id: string) => {
+    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
+  type NavGroup = { label: string; items: { id: string; icon: ReactNode; text: string; show?: boolean }[] };
+  const navGroups: NavGroup[] = [
+    {
+      label: 'Geral',
+      items: [
+        { id: 'workspace',      icon: <Building2 className="w-4 h-4" />,    text: 'Workspace' },
+        { id: 'modules',        icon: <LayoutGrid className="w-4 h-4" />,   text: 'Módulos' },
+      ],
+    },
+    {
+      label: 'Integrações',
+      items: [
+        { id: 'meta-ads',       icon: <Megaphone className="w-4 h-4" />,    text: 'Meta Ads' },
+        { id: 'site-integration', icon: <Globe className="w-4 h-4" />,      text: 'Site' },
+        { id: 'zapsign',        icon: <Pen className="w-4 h-4" />,          text: 'ZapSign' },
+      ],
+    },
+    {
+      label: 'Inteligência Artificial',
+      items: [
+        { id: 'ai-keys',        icon: <Key className="w-4 h-4" />,          text: 'Chaves de API' },
+        { id: 'ai-agent',       icon: <MessageSquare className="w-4 h-4" />, text: 'Agente de Atendimento' },
+        { id: 'ai-texts',       icon: <Sparkles className="w-4 h-4" />,     text: 'Geração de Textos' },
+      ],
+    },
+    {
+      label: 'Operação',
+      items: [
+        { id: 'business-hours', icon: <Clock className="w-4 h-4" />,        text: 'Horário Comercial' },
+        { id: 'nps',            icon: <Star className="w-4 h-4" />,         text: 'NPS pós-visita' },
+        { id: 'alerts',         icon: <AlertTriangle className="w-4 h-4" />, text: 'Alertas' },
+        { id: 'commission',     icon: <Percent className="w-4 h-4" />,      text: 'Comissionamento' },
+      ],
+    },
+    {
+      label: 'Avançado',
+      items: [
+        { id: 'custom-domain',  icon: <Globe className="w-4 h-4" />,        text: 'Domínio Personalizado' },
+        { id: 'audit-logs',     icon: <ShieldCheck className="w-4 h-4" />,  text: 'Log de Auditoria', show: auditLogs !== null },
+        { id: 'ticket-storage', icon: <HardDrive className="w-4 h-4" />,    text: 'Armazenamento', show: isSuperAdmin },
+      ],
+    },
+  ];
+
   return (
     <>
       <Header title="Configurações" />
 
-      <div className="flex-1 overflow-y-auto p-4 md:p-6 max-w-2xl">
-        <form onSubmit={handleSave} className="space-y-6">
+      <div className="flex-1 overflow-y-auto">
+        <div className="flex gap-8 px-4 md:px-8 py-6 max-w-7xl mx-auto">
 
-          {/* ── Workspace geral ────────────────────────────────────── */}
-          <div className="card p-6">
-            <h2 className="font-semibold text-gray-900 mb-4">Workspace</h2>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Nome</label>
-                <input
-                  className="input"
-                  value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Fuso horário</label>
-                <select
-                  className="input"
-                  value={form.timezone}
-                  onChange={(e) => setForm({ ...form, timezone: e.target.value })}
-                >
-                  <option value="America/Sao_Paulo">America/Sao_Paulo (BRT)</option>
-                  <option value="America/Manaus">America/Manaus (AMT)</option>
-                  <option value="America/Belem">America/Belem</option>
-                  <option value="America/Fortaleza">America/Fortaleza</option>
-                  <option value="America/Recife">America/Recife</option>
-                </select>
-              </div>
+          {/* ── Sidebar nav ─────────────────────────────────────────── */}
+          <aside className="hidden xl:flex flex-col w-52 flex-shrink-0">
+            <nav className="sticky top-6 space-y-6">
+              {navGroups.map((group) => {
+                const visible = group.items.filter(i => i.show !== false);
+                if (!visible.length) return null;
+                return (
+                  <div key={group.label}>
+                    <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1 px-2">
+                      {group.label}
+                    </p>
+                    <ul className="space-y-0.5">
+                      {visible.map((item) => (
+                        <li key={item.id}>
+                          <button
+                            type="button"
+                            onClick={() => scrollTo(item.id)}
+                            className="w-full flex items-center gap-2.5 px-2 py-1.5 rounded-lg text-sm text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors text-left"
+                          >
+                            <span className="text-gray-400 flex-shrink-0">{item.icon}</span>
+                            <span className="truncate">{item.text}</span>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                );
+              })}
+            </nav>
+          </aside>
+
+          {/* ── Conteúdo principal ──────────────────────────────────── */}
+          <div className="flex-1 min-w-0">
+            <form onSubmit={handleSave} className="space-y-6">
+
+              {/* ── Workspace geral ──────────────────────────────────── */}
+              <div id="workspace" className="card p-6 scroll-mt-4">
+                <h2 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                  <Building2 className="w-4 h-4 text-gray-400" />
+                  Workspace
+                </h2>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Nome</label>
+                    <input
+                      className="input"
+                      value={form.name}
+                      onChange={(e) => setForm({ ...form, name: e.target.value })}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Fuso horário</label>
+                    <select
+                      className="input"
+                      value={form.timezone}
+                      onChange={(e) => setForm({ ...form, timezone: e.target.value })}
+                    >
+                      <option value="America/Sao_Paulo">America/Sao_Paulo (BRT)</option>
+                      <option value="America/Manaus">America/Manaus (AMT)</option>
+                      <option value="America/Belem">America/Belem</option>
+                      <option value="America/Fortaleza">America/Fortaleza</option>
+                      <option value="America/Recife">America/Recife</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="mt-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Tipo de negócio</label>
                 <div className="flex flex-col sm:flex-row gap-3">
@@ -348,10 +436,12 @@ export default function SettingsPage() {
           </div>
 
           {/* ── Módulos disponíveis ─────────────────────────────────── */}
-          <ModulesCard orgId={currentWorkspace.org_id} workspaceId={currentWorkspace.id} />
+          <div id="modules" className="scroll-mt-4">
+            <ModulesCard orgId={currentWorkspace.org_id} workspaceId={currentWorkspace.id} />
+          </div>
 
           {/* ── Meta Ads ───────────────────────────────────────────── */}
-          <div className="card p-6">
+          <div id="meta-ads" className="card p-6 scroll-mt-4">
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-semibold text-gray-900">Meta Ads / Conversions API</h2>
               <button
@@ -423,7 +513,7 @@ export default function SettingsPage() {
           </div>
 
           {/* ── Integração com o Site ──────────────────────────────── */}
-          <div className="card p-6">
+          <div id="site-integration" className="card p-6 scroll-mt-4">
             <h2 className="font-semibold text-gray-900 mb-1 flex items-center gap-2">
               <Globe className="w-4 h-4 text-blue-500" />
               Integração com o Site
@@ -505,7 +595,7 @@ export default function SettingsPage() {
           </div>
 
           {/* ── Chaves de API dos Provedores ──────────────────────── */}
-          <div className="card p-6">
+          <div id="ai-keys" className="card p-6 scroll-mt-4">
             <h2 className="font-semibold text-gray-900 mb-1 flex items-center gap-2">
               <Brain className="w-4 h-4 text-indigo-500" />
               Provedores de IA — Chaves de API
@@ -603,7 +693,7 @@ export default function SettingsPage() {
           </div>
 
           {/* ── Agente de Atendimento ──────────────────────────────── */}
-          <div className="card p-6">
+          <div id="ai-agent" className="card p-6 scroll-mt-4">
             <h2 className="font-semibold text-gray-900 mb-1 flex items-center gap-2">
               <MessageSquare className="w-4 h-4 text-indigo-500" />
               Agente de Atendimento (Chatbot)
@@ -794,7 +884,7 @@ export default function SettingsPage() {
 
           {/* ── Armazenamento de Tickets (superadmin) ─────────────── */}
           {isSuperAdmin && (
-            <div className="card p-6">
+            <div id="ticket-storage" className="card p-6 scroll-mt-4">
               <h2 className="font-semibold text-gray-900 mb-1 flex items-center gap-2">
                 <Save className="w-4 h-4 text-gray-500" />
                 Armazenamento de Tickets
@@ -825,7 +915,7 @@ export default function SettingsPage() {
           )}
 
           {/* ── Horário comercial ──────────────────────────────────── */}
-          <div className="card p-6">
+          <div id="business-hours" className="card p-6 scroll-mt-4">
             <h2 className="font-semibold text-gray-900 mb-1 flex items-center gap-2">
               <Clock className="w-4 h-4 text-orange-500" />
               Horário Comercial
@@ -905,7 +995,7 @@ export default function SettingsPage() {
           </div>
 
           {/* ── Alertas internos: SLA e leads sem retorno ──────────── */}
-          <div className="card p-6">
+          <div id="alerts" className="card p-6 scroll-mt-4">
             <h2 className="font-semibold text-gray-900 mb-1 flex items-center gap-2">
               <AlertTriangle className="w-4 h-4 text-red-500" />
               Alertas Internos
@@ -947,7 +1037,7 @@ export default function SettingsPage() {
           </div>
 
           {/* ── Comissionamento de corretores parceiros ────────────── */}
-          <div className="card p-6">
+          <div id="commission" className="card p-6 scroll-mt-4">
             <h2 className="font-semibold text-gray-900 mb-1 flex items-center gap-2">
               <Percent className="w-4 h-4 text-brand-600" />
               Comissionamento
@@ -976,7 +1066,7 @@ export default function SettingsPage() {
           </div>
 
           {/* ── White-label: domínio personalizado ─────────────────── */}
-          <div className="card p-6">
+          <div id="custom-domain" className="card p-6 scroll-mt-4">
             <h2 className="font-semibold text-gray-900 mb-1 flex items-center gap-2">
               <Globe className="w-4 h-4 text-purple-500" />
               Domínio Personalizado (White-label)
@@ -1063,7 +1153,7 @@ export default function SettingsPage() {
 
           {/* ── Log de Auditoria ────────────────────────────────────── */}
           {auditLogs !== null && (
-            <div className="card p-6">
+            <div id="audit-logs" className="card p-6 scroll-mt-4">
               <h2 className="font-semibold text-gray-900 mb-1 flex items-center gap-2">
                 <ShieldCheck className="w-4 h-4 text-emerald-500" />
                 Log de Auditoria
@@ -1110,7 +1200,7 @@ export default function SettingsPage() {
           )}
 
           {/* ── IA para Geração de Textos ──────────────────────────── */}
-          <div className="card p-6">
+          <div id="ai-texts" className="card p-6 scroll-mt-4">
             <h2 className="font-semibold text-gray-900 mb-1 flex items-center gap-2">
               <Sparkles className="w-4 h-4 text-violet-500" />
               IA para Geração de Textos
@@ -1189,7 +1279,7 @@ export default function SettingsPage() {
           </div>
 
           {/* ── NPS pós-visita ────────────────────────────────────── */}
-          <div className="card p-6">
+          <div id="nps" className="card p-6 scroll-mt-4">
             <div className="flex items-center justify-between mb-4">
               <div>
                 <h2 className="font-semibold text-gray-900 flex items-center gap-2">
@@ -1239,7 +1329,7 @@ export default function SettingsPage() {
           </div>
 
           {/* ── Assinatura Eletrônica (ZapSign) ──────────────────── */}
-          <div className="card p-6">
+          <div id="zapsign" className="card p-6 scroll-mt-4">
             <h2 className="font-semibold text-gray-900 mb-1 flex items-center gap-2">
               <ShieldCheck className="w-4 h-4 text-green-600" />
               Assinatura Eletrônica — ZapSign
@@ -1291,7 +1381,9 @@ export default function SettingsPage() {
             {saved ? 'Salvo!' : saving ? 'Salvando...' : 'Salvar alterações'}
           </button>
         </form>
-      </div>
+          </div>{/* end content */}
+        </div>{/* end flex row */}
+      </div>{/* end scroll container */}
     </>
   );
 }
