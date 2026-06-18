@@ -113,6 +113,7 @@ async function update(workspaceId, body) {
     ticketStorageQuotaMb:       'ticket_storage_quota_mb',
     anthropicApiKey:      'anthropic_api_key',
     openaiApiKey:         'openai_api_key',
+    geminiApiKey:         'gemini_api_key',
     aiProvider:           'ai_provider',
     aiModel:              'ai_model',
     slaResponseMinutes:   'sla_response_minutes',

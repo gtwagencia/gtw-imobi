@@ -13,9 +13,24 @@ const visitsSvc     = require('../modules/visits/visits.service');
 
 // Modelos padrão por provedor
 const DEFAULT_MODELS = {
-  anthropic: { fast: 'claude-haiku-4-5-20251001', smart: 'claude-sonnet-4-6' },
-  openai:    { fast: 'gpt-4o-mini',               smart: 'gpt-4o'            },
+  anthropic: { fast: 'claude-haiku-4-5-20251001', smart: 'claude-sonnet-4-6'    },
+  openai:    { fast: 'gpt-4o-mini',               smart: 'gpt-4o'               },
+  gemini:    { fast: 'gemini-2.0-flash',          smart: 'gemini-2.5-pro-preview-06-05' },
 };
+
+// Helper: converte tipo JSON Schema para SchemaType do Gemini (string uppercase)
+function toGeminiType(t) {
+  return ({ string: 'STRING', number: 'NUMBER', integer: 'INTEGER', boolean: 'BOOLEAN', array: 'ARRAY', object: 'OBJECT' })[String(t).toLowerCase()] || 'STRING';
+}
+
+function toGeminiProperties(props = {}) {
+  const out = {};
+  for (const [k, v] of Object.entries(props)) {
+    out[k] = { type: toGeminiType(v.type), description: v.description || '' };
+    if (v.enum) out[k].enum = v.enum;
+  }
+  return out;
+}
 
 /**
  * Chama o LLM configurado no workspace (Anthropic, OpenAI ou um endpoint
@@ -31,6 +46,21 @@ const DEFAULT_MODELS = {
  * @returns {Promise<string>}
  */
 async function callLLM({ provider, apiKey, baseUrl, model, system, messages, maxTokens = 300 }) {
+  // ── Gemini (Google) ──
+  if (provider === 'gemini') {
+    const { GoogleGenerativeAI } = require('@google/generative-ai');
+    const genAI   = new GoogleGenerativeAI(apiKey);
+    const resolvedModel = model || (maxTokens > 200 ? DEFAULT_MODELS.gemini.smart : DEFAULT_MODELS.gemini.fast);
+    const client  = genAI.getGenerativeModel({ model: resolvedModel, systemInstruction: system });
+    const contents = messages.map(m => ({
+      role: m.role === 'user' ? 'user' : 'model',
+      parts: [{ text: typeof m.content === 'string' ? m.content : JSON.stringify(m.content) }],
+    }));
+    const result = await client.generateContent({ contents, generationConfig: { maxOutputTokens: maxTokens } });
+    return result.response.text().trim() || '';
+  }
+
+  // ── OpenAI / Custom (compatível OpenAI) ──
   if (provider === 'openai' || provider === 'custom') {
     const url = provider === 'custom'
       ? `${(baseUrl || '').replace(/\/$/, '')}/chat/completions`
@@ -45,7 +75,7 @@ async function callLLM({ provider, apiKey, baseUrl, model, system, messages, max
     return resp.data.choices[0]?.message?.content?.trim() || '';
   }
 
-  // Default: Anthropic
+  // ── Anthropic (padrão) ──
   const resolvedModel = model || (maxTokens > 200 ? DEFAULT_MODELS.anthropic.smart : DEFAULT_MODELS.anthropic.fast);
   const client        = new Anthropic({ apiKey });
   const response      = await client.messages.create({
@@ -1123,10 +1153,57 @@ async function runOpenAICompatToolLoop({ apiKey, baseUrl, model, system, history
 }
 
 /**
+ * Loop de tool-use usando a Function Calling API nativa do Google Gemini.
+ */
+async function runGeminiToolLoop({ apiKey, model, system, history, ctx }) {
+  const { GoogleGenerativeAI } = require('@google/generative-ai');
+  const genAI = new GoogleGenerativeAI(apiKey);
+  const resolvedModel = model || DEFAULT_MODELS.gemini.smart;
+
+  const geminiTools = [{
+    functionDeclarations: AGENT_TOOL_DEFS.map(t => ({
+      name:        t.name,
+      description: t.description,
+      parameters:  {
+        type:       'OBJECT',
+        properties: toGeminiProperties(t.input_schema?.properties),
+        required:   t.input_schema?.required || [],
+      },
+    })),
+  }];
+
+  const client   = genAI.getGenerativeModel({ model: resolvedModel, systemInstruction: system, tools: geminiTools });
+  const contents = history.map(m => ({
+    role:  m.role === 'user' ? 'user' : 'model',
+    parts: [{ text: typeof m.content === 'string' ? m.content : JSON.stringify(m.content) }],
+  }));
+
+  for (let i = 0; i < MAX_AGENT_TOOL_ITERATIONS; i++) {
+    const gen       = await client.generateContent({ contents, generationConfig: { maxOutputTokens: 400 } });
+    const calls     = gen.response.functionCalls?.() || [];
+
+    if (!calls.length) return gen.response.text().trim() || null;
+
+    // Adiciona resposta do model com as chamadas de ferramenta
+    contents.push({ role: 'model', parts: calls.map(fc => ({ functionCall: { name: fc.name, args: fc.args } })) });
+
+    // Executa ferramentas e devolve resultados
+    const resultParts = [];
+    for (const fc of calls) {
+      const toolResult = await executeAgentTool(fc.name, fc.args || {}, ctx);
+      resultParts.push({ functionResponse: { name: fc.name, response: toolResult } });
+    }
+    contents.push({ role: 'user', parts: resultParts });
+  }
+
+  return null;
+}
+
+/**
  * Gera a resposta do chatbot com acesso às ferramentas do agente de IA (busca
  * de imóveis, envio de ficha, proposta de visita). ws = row de `workspaces`
- * (anthropic_api_key, openai_api_key, custom_ai_api_key, ai_base_url,
- * ai_provider, ai_model). ctx = { workspaceId, conversationId, contactId, io }.
+ * (anthropic_api_key, openai_api_key, gemini_api_key, custom_ai_api_key,
+ * ai_base_url, ai_provider, ai_model). ctx = { workspaceId, conversationId, contactId, io }.
  */
 async function generateChatbotResponseWithTools(conversationId, systemPrompt, ws, ctx) {
   const messages = await getConversationMessages(conversationId);
@@ -1139,6 +1216,9 @@ async function generateChatbotResponseWithTools(conversationId, systemPrompt, ws
   try {
     if (provider === 'anthropic') {
       return await runAnthropicToolLoop({ apiKey: ws.anthropic_api_key, model: ws.ai_model, system: systemPrompt, history, ctx });
+    }
+    if (provider === 'gemini') {
+      return await runGeminiToolLoop({ apiKey: ws.gemini_api_key, model: ws.ai_model, system: systemPrompt, history, ctx });
     }
     const apiKey  = provider === 'custom' ? ws.custom_ai_api_key : ws.openai_api_key;
     const baseUrl = provider === 'custom' ? ws.ai_base_url : 'https://api.openai.com/v1';
@@ -1160,6 +1240,7 @@ async function generatePropertyDescription(workspace, property) {
   const provider = workspace.description_ai_provider || workspace.ai_provider || 'anthropic';
   const model    = workspace.description_ai_model || '';
   const apiKey   = provider === 'openai'  ? workspace.openai_api_key
+                 : provider === 'gemini'  ? workspace.gemini_api_key
                  : provider === 'custom'  ? workspace.custom_ai_api_key
                  :                         workspace.anthropic_api_key;
 

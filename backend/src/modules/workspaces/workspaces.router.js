@@ -14,11 +14,12 @@ const router = Router({ mergeParams: true });
 /** Strip raw API keys and replace with boolean flags for safe frontend consumption. */
 function sanitizeWorkspace(ws) {
   if (!ws) return ws;
-  const { anthropic_api_key, openai_api_key, custom_ai_api_key, meta_conversions_token, meta_access_token, ...rest } = ws;
+  const { anthropic_api_key, openai_api_key, gemini_api_key, custom_ai_api_key, meta_conversions_token, meta_access_token, ...rest } = ws;
   return {
     ...rest,
     has_anthropic_key:          !!anthropic_api_key,
     has_openai_key:             !!openai_api_key,
+    has_gemini_key:             !!gemini_api_key,
     has_custom_ai_key:          !!custom_ai_api_key,
     has_meta_conversions_token: !!meta_conversions_token,
     has_meta_access_token:      !!meta_access_token,
