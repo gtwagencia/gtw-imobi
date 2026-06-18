@@ -16,7 +16,7 @@ const upload    = multer({ storage: multer.memoryStorage(), limits: { fileSize: 
 const mapUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 60 * 1024 * 1024 } });
 const pdfUpload = multer({
   storage: multer.memoryStorage(),
-  limits:  { fileSize: 20 * 1024 * 1024 },
+  limits:  { fileSize: 50 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
     if (file.mimetype === 'application/pdf') return cb(null, true);
     cb(Object.assign(new Error('Apenas arquivos PDF são aceitos'), { status: 415 }));

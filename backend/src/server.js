@@ -184,6 +184,10 @@ function sanitizeForLog(obj, depth = 0) {
 
 // eslint-disable-next-line no-unused-vars
 app.use((err, _req, res, _next) => {
+  // Multer file-size errors → 413 com mensagem amigável
+  if (err.code === 'LIMIT_FILE_SIZE') {
+    return res.status(413).json({ error: `Arquivo muito grande. O limite é ${Math.round((err.limit || 0) / 1024 / 1024)} MB.` });
+  }
   logger.error(err.message, sanitizeForLog({ stack: err.stack, context: err.context }));
   const status = err.status || 500;
   // Expose the real message for all errors (stack is only in logs)
