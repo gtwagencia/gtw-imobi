@@ -60,42 +60,114 @@ function normalizeLot(item) {
   };
 }
 
-const EXTRACTION_SYSTEM_PROMPT = `Você extrai dados estruturados de tabelas de loteamentos/condomínios a partir de texto bruto de PDF.
-Retorne APENAS um array JSON (sem markdown, sem comentários, sem texto antes ou depois), onde cada item representa um lote/terreno/unidade com os campos:
-- "blockLabel": identificação da quadra/bloco (ex: "Quadra A", "Bloco 2"), ou null se não houver
-- "lotLabel": identificação do lote/unidade (ex: "Lote 12", "Unidade 305") — obrigatório
-- "totalArea": área total em m² (apenas o número, sem unidade), ou null
-- "salePrice": valor de venda em reais (apenas o número, sem "R$" ou pontuação de milhar), ou null
-- "status": um destes valores: "disponivel", "reservado", "vendido" — baseado em qualquer indicação no texto (padrão "disponivel")
+const EXTRACTION_PROMPT = `Você é um especialista em análise de plantas de loteamentos e condomínios.
+Analise o PDF fornecido — que pode ser um mapa visual colorido ou uma tabela de texto — e extraia todos os lotes/terrenos/unidades identificáveis.
 
-Se não conseguir identificar nenhum lote, retorne [].`;
+Retorne APENAS um array JSON válido (sem markdown, sem texto antes ou depois), onde cada item tem:
+- "blockLabel": quadra/bloco (ex: "Quadra A", "Q1", "Bloco 2"), ou null
+- "lotLabel": número/id do lote (ex: "01", "Lote 12", "302") — obrigatório
+- "totalArea": área em m² como número puro, ou null
+- "salePrice": valor de venda em reais como número puro, ou null
+- "status": "disponivel", "reservado" ou "vendido" (padrão "disponivel")
 
-// ── Extraction ───────────────────────────────────────────────────────────
+Em mapas coloridos, identifique os lotes pelos rótulos/números visíveis dentro de cada polígono.
+Se não encontrar nenhum lote, retorne [].`;
 
-async function extractLotsFromPdfBuffer(buffer, ws) {
+// ── Extraction via Gemini (PDF nativo — visão multimodal) ─────────────────
+
+async function extractLotsGemini(buffer, apiKey, model) {
+  const { GoogleGenerativeAI } = require('@google/generative-ai');
+  const genAI  = new GoogleGenerativeAI(apiKey);
+  const client = genAI.getGenerativeModel({ model: model || 'gemini-2.0-flash' });
+
+  const result = await client.generateContent({
+    contents: [{
+      role:  'user',
+      parts: [
+        { inlineData: { mimeType: 'application/pdf', data: buffer.toString('base64') } },
+        { text: EXTRACTION_PROMPT },
+      ],
+    }],
+    generationConfig: { maxOutputTokens: 8000 },
+  });
+
+  return parseLotsJson(result.response.text().trim());
+}
+
+// ── Extraction via Anthropic (visão — converte 1ª página em imagem) ────────
+
+async function extractLotsAnthropic(buffer, apiKey, model) {
+  // Tenta extração de texto primeiro; se vazio usa base64 da primeira página
   const pdfParse = require('pdf-parse');
-  const data = await pdfParse(buffer);
-  const text = data.text?.replace(/\s+/g, ' ').trim();
-  if (!text) {
-    throw Object.assign(new Error('Não foi possível extrair texto do PDF.'), { status: 422 });
+  let text = '';
+  try { text = (await pdfParse(buffer)).text?.replace(/\s+/g, ' ').trim(); } catch {}
+
+  const Anthropic = require('@anthropic-ai/sdk');
+  const client    = new Anthropic.default({ apiKey });
+
+  if (text && text.length > 200) {
+    // PDF com texto — envia o texto
+    const resp = await client.messages.create({
+      model:      model || 'claude-sonnet-4-6',
+      max_tokens: 8000,
+      system:     EXTRACTION_PROMPT,
+      messages:   [{ role: 'user', content: `Texto extraído do PDF:\n\n${text.slice(0, 50000)}` }],
+    });
+    return parseLotsJson(resp.content?.[0]?.text || '');
   }
 
+  // PDF visual — envia a primeira página como imagem base64
+  const pdfBase64 = buffer.toString('base64');
+  const resp = await client.messages.create({
+    model:      model || 'claude-sonnet-4-6',
+    max_tokens: 8000,
+    messages: [{
+      role:    'user',
+      content: [
+        { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: pdfBase64 } },
+        { type: 'text',     text: EXTRACTION_PROMPT },
+      ],
+    }],
+  });
+  return parseLotsJson(resp.content?.[0]?.text || '');
+}
+
+// ── Extraction via OpenAI (texto; visão requer conversão de página) ────────
+
+async function extractLotsOpenAI(buffer, apiKey, baseUrl, model) {
+  const pdfParse = require('pdf-parse');
+  let text = '';
+  try { text = (await pdfParse(buffer)).text?.replace(/\s+/g, ' ').trim(); } catch {}
+
+  if (!text || text.length < 100) {
+    throw Object.assign(
+      new Error('PDF visual detectado. Para mapas coloridos use Gemini ou Claude como provedor de IA — eles suportam visão nativa de PDF.'),
+      { status: 422 }
+    );
+  }
+
+  const raw = await aiSvc.callLLM({
+    provider: 'openai', apiKey, baseUrl, model,
+    system:   EXTRACTION_PROMPT,
+    messages: [{ role: 'user', content: `Texto extraído do PDF:\n\n${text.slice(0, 50000)}` }],
+    maxTokens: 8000,
+  });
+  return parseLotsJson(raw);
+}
+
+// ── Dispatcher principal ──────────────────────────────────────────────────
+
+async function extractLotsFromPdfBuffer(buffer, ws) {
   const { provider, apiKey, baseUrl, canRun, model } = resolveAiCredentials(ws);
   if (!canRun) {
     throw Object.assign(new Error(
-      'Configure uma chave de IA (Anthropic, OpenAI ou customizada) em Configurações para usar a importação de loteamento.'
+      'Configure uma chave de IA em Configurações para usar a importação de loteamento.'
     ), { status: 400 });
   }
 
-  const truncated = text.slice(0, 50000);
-  const raw = await aiSvc.callLLM({
-    provider, apiKey, baseUrl, model,
-    system:   EXTRACTION_SYSTEM_PROMPT,
-    messages: [{ role: 'user', content: `Texto extraído do PDF:\n\n${truncated}` }],
-    maxTokens: 8000,
-  });
-
-  return parseLotsJson(raw);
+  if (provider === 'gemini')    return await extractLotsGemini(buffer, apiKey, model);
+  if (provider === 'anthropic') return await extractLotsAnthropic(buffer, apiKey, model);
+  return await extractLotsOpenAI(buffer, apiKey, baseUrl, model);
 }
 
 // ── Jobs CRUD ────────────────────────────────────────────────────────────
