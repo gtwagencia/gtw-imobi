@@ -765,8 +765,8 @@ export default function SettingsPage() {
                     </>}
                     {form.aiProvider === 'gemini' && <>
                       <optgroup label="Gemini 2.5">
-                        <option value="gemini-2.5-pro-preview-06-05">Gemini 2.5 Pro (mais poderoso)</option>
-                        <option value="gemini-2.5-flash-preview-05-20">Gemini 2.5 Flash (equilibrado)</option>
+                        <option value="gemini-2.5-pro">Gemini 2.5 Pro (mais poderoso)</option>
+                        <option value="gemini-2.5-flash">Gemini 2.5 Flash (rápido)</option>
                       </optgroup>
                       <optgroup label="Gemini 2.0">
                         <option value="gemini-2.0-flash">Gemini 2.0 Flash (rápido e barato)</option>
@@ -1261,8 +1261,8 @@ export default function SettingsPage() {
                       <option value="gpt-4.1-mini">GPT-4.1 mini</option>
                     </>}
                     {form.descriptionAiProvider === 'gemini' && <>
-                      <option value="gemini-2.5-pro-preview-06-05">Gemini 2.5 Pro (mais poderoso)</option>
-                      <option value="gemini-2.5-flash-preview-05-20">Gemini 2.5 Flash (equilibrado)</option>
+                      <option value="gemini-2.5-pro">Gemini 2.5 Pro (mais poderoso)</option>
+                      <option value="gemini-2.5-flash">Gemini 2.5 Flash (equilibrado)</option>
                       <option value="gemini-2.0-flash">Gemini 2.0 Flash (rápido)</option>
                       <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
                     </>}

@@ -15,7 +15,7 @@ const visitsSvc     = require('../modules/visits/visits.service');
 const DEFAULT_MODELS = {
   anthropic: { fast: 'claude-haiku-4-5-20251001', smart: 'claude-sonnet-4-6'    },
   openai:    { fast: 'gpt-4o-mini',               smart: 'gpt-4o'               },
-  gemini:    { fast: 'gemini-2.0-flash',          smart: 'gemini-2.5-pro-preview-06-05' },
+  gemini:    { fast: 'gemini-2.0-flash',          smart: 'gemini-2.5-pro'               },
 };
 
 // Helper: converte tipo JSON Schema para SchemaType do Gemini (string uppercase)
