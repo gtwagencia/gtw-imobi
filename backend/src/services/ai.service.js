@@ -1315,6 +1315,7 @@ async function recalcLeadScore(workspace, deal) {
 }
 
 module.exports = {
+  callLLM,
   analyzeConversation, generateFollowUp, generateChatbotResponse, analyzeDeal,
   generateChatbotResponseWithTools, DEFAULT_AGENT_PERSONA, buildAgentPersona,
   generateCMA, generatePropertyDescription, recalcLeadScore,
