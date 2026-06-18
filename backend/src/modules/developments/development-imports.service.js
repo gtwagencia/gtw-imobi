@@ -26,18 +26,22 @@ function resolveAiCredentials(ws) {
 function parseLotsJson(raw) {
   if (!raw) return [];
   let text = raw.trim();
-  text = text.replace(/^```(?:json)?/i, '').replace(/```$/, '').trim();
+  // Remove cercas de markdown (```json ... ``` ou ``` ... ```)
+  text = text.replace(/^```(?:json)?\s*/im, '').replace(/\s*```\s*$/im, '').trim();
 
   const start = text.indexOf('[');
   const end   = text.lastIndexOf(']');
-  if (start === -1 || end === -1 || end < start) return [];
+  if (start === -1 || end === -1 || end < start) {
+    logger.warn('[import-loteamento] Nenhum array JSON encontrado na resposta', { preview: text.slice(0, 200) });
+    return [];
+  }
 
   try {
     const arr = JSON.parse(text.slice(start, end + 1));
     if (!Array.isArray(arr)) return [];
     return arr.map(normalizeLot).filter(Boolean);
   } catch (err) {
-    logger.warn('Falha ao parsear JSON de lotes extraídos', { err: err.message });
+    logger.warn('[import-loteamento] Falha ao parsear JSON', { err: err.message, preview: text.slice(0, 200) });
     return [];
   }
 }
@@ -60,25 +64,42 @@ function normalizeLot(item) {
   };
 }
 
-const EXTRACTION_PROMPT = `Você é um especialista em análise de plantas de loteamentos e condomínios.
-Analise o PDF fornecido — que pode ser um mapa visual colorido ou uma tabela de texto — e extraia todos os lotes/terrenos/unidades identificáveis.
+const EXTRACTION_PROMPT = `Você é um especialista em leitura de plantas de loteamentos e condomínios fechados.
 
-Retorne APENAS um array JSON válido (sem markdown, sem texto antes ou depois), onde cada item tem:
-- "blockLabel": quadra/bloco (ex: "Quadra A", "Q1", "Bloco 2"), ou null
-- "lotLabel": número/id do lote (ex: "01", "Lote 12", "302") — obrigatório
-- "totalArea": área em m² como número puro, ou null
-- "salePrice": valor de venda em reais como número puro, ou null
-- "status": "disponivel", "reservado" ou "vendido" (padrão "disponivel")
+TAREFA: extraia TODOS os lotes/unidades visíveis neste PDF — seja uma planta colorida, tabela ou lista.
 
-Em mapas coloridos, identifique os lotes pelos rótulos/números visíveis dentro de cada polígono.
-Se não encontrar nenhum lote, retorne [].`;
+INSTRUÇÕES PARA PLANTAS VISUAIS COLORIDAS:
+- Cada polígono colorido no mapa é um lote. Leia o número/rótulo escrito DENTRO de cada polígono.
+- Agrupe por quadra: as quadras geralmente são blocos contíguos da mesma cor ou separados por rua.
+- Leia atentamente mesmo números pequenos — faça o máximo esforço para identificar cada lote.
+- NÃO omita lotes por estarem sobrepostos ou com texto pequeno — estime se necessário.
+- Se houver legenda de cores (ex: verde=disponível, laranja=vendido), use para definir o status.
+
+FORMATO DE SAÍDA — responda SOMENTE com um array JSON, exemplo:
+[
+  {"blockLabel":"Quadra 1","lotLabel":"01","totalArea":200,"salePrice":null,"status":"disponivel"},
+  {"blockLabel":"Quadra 1","lotLabel":"02","totalArea":null,"salePrice":null,"status":"vendido"}
+]
+
+Campos:
+- blockLabel: nome da quadra/bloco ou null
+- lotLabel: número do lote (obrigatório — use o número visível no polígono)
+- totalArea: área m² como número, ou null
+- salePrice: valor R$ como número, ou null
+- status: "disponivel", "reservado" ou "vendido"
+
+IMPORTANTE: retorne o array JSON completo com TODOS os lotes, sem texto extra.`;
 
 // ── Extraction via Gemini (PDF nativo — visão multimodal) ─────────────────
 
 async function extractLotsGemini(buffer, apiKey, model) {
   const { GoogleGenerativeAI } = require('@google/generative-ai');
-  const genAI  = new GoogleGenerativeAI(apiKey);
-  const client = genAI.getGenerativeModel({ model: model || 'gemini-2.0-flash' });
+  const genAI = new GoogleGenerativeAI(apiKey);
+  // Para PDFs visuais usa gemini-2.5-pro por padrão (melhor visão)
+  const resolvedModel = model || 'gemini-2.5-pro';
+  const client = genAI.getGenerativeModel({ model: resolvedModel });
+
+  logger.info(`[import-loteamento] Enviando PDF (${(buffer.length / 1024).toFixed(0)}KB) ao Gemini (${resolvedModel})`);
 
   const result = await client.generateContent({
     contents: [{
@@ -88,10 +109,15 @@ async function extractLotsGemini(buffer, apiKey, model) {
         { text: EXTRACTION_PROMPT },
       ],
     }],
-    generationConfig: { maxOutputTokens: 8000 },
+    generationConfig: { maxOutputTokens: 16000, temperature: 0.1 },
   });
 
-  return parseLotsJson(result.response.text().trim());
+  const raw = result.response.text().trim();
+  logger.info(`[import-loteamento] Resposta Gemini (${raw.length} chars): ${raw.slice(0, 300)}`);
+
+  const lots = parseLotsJson(raw);
+  logger.info(`[import-loteamento] Lotes extraídos: ${lots.length}`);
+  return lots;
 }
 
 // ── Extraction via Anthropic (visão — converte 1ª página em imagem) ────────
