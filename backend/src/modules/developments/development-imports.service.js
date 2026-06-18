@@ -10,9 +10,10 @@ const VALID_STATUS = new Set(['disponivel', 'reservado', 'vendido']);
 
 function resolveAiCredentials(ws) {
   const provider = ws.ai_provider || 'anthropic';
-  const apiKey   = provider === 'custom' ? (ws.custom_ai_api_key || 'ollama')
-                 : provider === 'openai' ? ws.openai_api_key
-                 : ws.anthropic_api_key;
+  const apiKey   = provider === 'custom'    ? (ws.custom_ai_api_key || 'ollama')
+                 : provider === 'openai'    ? ws.openai_api_key
+                 : provider === 'gemini'    ? ws.gemini_api_key
+                 :                           ws.anthropic_api_key;
   const baseUrl  = provider === 'custom' ? ws.ai_base_url : null;
   const canRun   = provider === 'custom' ? !!ws.ai_base_url : !!apiKey;
   return { provider, apiKey, baseUrl, canRun, model: ws.ai_model || null };
