@@ -897,7 +897,9 @@ router.post('/evolution/:inboxId', async (req, res) => {
         await query(`UPDATE conversations SET last_inbound_at = NOW() WHERE id = $1`, [conversation.id]);
 
         // ── Auto-assign (round-robin) ─────────────────────────────────
-        if (created && inbox.auto_assign && !conversation.assignee_id) {
+        // Chatbot takes priority: if enabled, skip auto-assign on new conversations
+        // so the bot can handle the lead first and route to an agent when ready.
+        if (created && inbox.auto_assign && !inbox.chatbot_enabled && !conversation.assignee_id) {
           const agentId = await autoAssignAgent(inbox.workspace_id, inbox.id, conversation.department_id);
           if (agentId) {
             await query(
@@ -937,6 +939,14 @@ router.post('/evolution/:inboxId', async (req, res) => {
 
         // ── Chatbot response ──────────────────────────────────────────
         const isNewOrBotActive = created || conversation.bot_active;
+        logger.info('[chatbot] condition check', {
+          conversationId: conversation.id,
+          chatbotEnabled: inbox.chatbot_enabled,
+          assigneeId: conversation.assignee_id,
+          isNewOrBotActive,
+          created,
+          botActive: conversation.bot_active,
+        });
         if (inbox.chatbot_enabled && !conversation.assignee_id && isNewOrBotActive) {
           dispatchChatbotResponse(inbox, conversation, contact, io)
             .catch(err => logger.warn('Chatbot dispatch failed', { err: err.message }));
