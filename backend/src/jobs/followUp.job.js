@@ -478,7 +478,13 @@ function startJobs(io) {
     proposalsSvc.expire().catch(err => logger.error('Expire development proposals error', { err: err.message }));
   });
 
-  logger.info('Background jobs started (follow-up + AI analysis + SLA check + stale lead alerts + ticket reminders + scheduled broadcasts + reservation expiry + document expiry + development proposals expiry)');
+  // Sincronização automática de feeds de imóveis — every hour
+  cron.schedule('0 * * * *', () => {
+    const importSvc = require('../modules/imports/imports.service');
+    importSvc.runDueFeeds().catch(err => logger.error('Feed sync error', { err: err.message }));
+  });
+
+  logger.info('Background jobs started (follow-up + AI analysis + SLA check + stale lead alerts + ticket reminders + scheduled broadcasts + reservation expiry + document expiry + development proposals expiry + feed sync)');
 }
 
 module.exports = { startJobs, backfillAttending, runExpireReservations, runDocumentExpiryCheck };

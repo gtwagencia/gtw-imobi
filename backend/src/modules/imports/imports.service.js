@@ -594,4 +594,84 @@ async function listJobs(workspaceId, limit = 20) {
   return r.rows;
 }
 
-module.exports = { importFromUrl, importFromCSV, listJobs, getCSVTemplate };
+// ── Feed configs (sincronização automática) ───────────────────────────────────
+
+async function listFeedConfigs(workspaceId) {
+  const r = await query(
+    `SELECT * FROM property_feed_configs WHERE workspace_id = $1 ORDER BY created_at DESC`,
+    [workspaceId]
+  );
+  return r.rows;
+}
+
+async function createFeedConfig(workspaceId, { source, url, intervalHours }) {
+  const r = await query(
+    `INSERT INTO property_feed_configs (workspace_id, source, url, interval_hours)
+     VALUES ($1, $2, $3, $4) RETURNING *`,
+    [workspaceId, source, url, intervalHours || 24]
+  );
+  return r.rows[0];
+}
+
+async function updateFeedConfig(workspaceId, id, fields) {
+  const allowed = { source: 'source', url: 'url', intervalHours: 'interval_hours', isActive: 'is_active' };
+  const setClauses = [];
+  const vals = [];
+  let idx = 1;
+  for (const [key, col] of Object.entries(allowed)) {
+    if (fields[key] !== undefined) {
+      setClauses.push(`${col} = $${idx++}`);
+      vals.push(fields[key]);
+    }
+  }
+  if (!setClauses.length) return null;
+  vals.push(id, workspaceId);
+  const r = await query(
+    `UPDATE property_feed_configs SET ${setClauses.join(', ')} WHERE id = $${idx++} AND workspace_id = $${idx} RETURNING *`,
+    vals
+  );
+  return r.rows[0] || null;
+}
+
+async function deleteFeedConfig(workspaceId, id) {
+  await query(
+    `DELETE FROM property_feed_configs WHERE id = $1 AND workspace_id = $2`,
+    [id, workspaceId]
+  );
+}
+
+// Chamado pelo cron: roda todos os feeds ativos que estão vencidos
+async function runDueFeeds() {
+  const r = await query(
+    `SELECT * FROM property_feed_configs
+     WHERE is_active = true
+       AND (last_run_at IS NULL OR last_run_at <= NOW() - (interval_hours * INTERVAL '1 hour'))`
+  );
+  if (!r.rows.length) return;
+
+  logger.info(`[feed-sync] ${r.rows.length} feed(s) para sincronizar`);
+
+  for (const cfg of r.rows) {
+    try {
+      const result = await importFromUrl(cfg.workspace_id, cfg.url, cfg.source);
+      await query(
+        `UPDATE property_feed_configs
+         SET last_run_at = NOW(), last_result = $1, last_error = NULL
+         WHERE id = $2`,
+        [JSON.stringify({ created_count: result.created_count, updated_count: result.updated_count, error_count: result.error_count, total: result.total }), cfg.id]
+      );
+      logger.info(`[feed-sync] ${cfg.source} ws=${cfg.workspace_id}: +${result.created_count} criados, ~${result.updated_count} atualizados`);
+    } catch (err) {
+      await query(
+        `UPDATE property_feed_configs SET last_run_at = NOW(), last_error = $1 WHERE id = $2`,
+        [err.message, cfg.id]
+      );
+      logger.warn(`[feed-sync] Erro no feed ${cfg.id} (${cfg.source}): ${err.message}`);
+    }
+  }
+}
+
+module.exports = {
+  importFromUrl, importFromCSV, listJobs, getCSVTemplate,
+  listFeedConfigs, createFeedConfig, updateFeedConfig, deleteFeedConfig, runDueFeeds,
+};
