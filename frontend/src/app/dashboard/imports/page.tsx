@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/store/auth';
 import Header from '@/components/layout/Header';
 import api, { API_URL } from '@/lib/api';
-import { Upload, Clock, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
+import { Upload, Clock, CheckCircle, AlertCircle, Loader2, XCircle, RefreshCw } from 'lucide-react';
 
 interface ImportJob {
   id: string;
@@ -24,6 +24,7 @@ interface ImportResult {
   created_count: number;
   updated_count: number;
   error_count: number;
+  total?: number;
 }
 
 const SOURCE_OPTIONS = [
@@ -61,6 +62,48 @@ function StatusIcon({ status }: { status: ImportJob['status'] }) {
     case 'done':       return <CheckCircle className="w-3.5 h-3.5" />;
     case 'error':      return <AlertCircle className="w-3.5 h-3.5" />;
   }
+}
+
+function ImportResultBanner({ result }: { result: ImportResult & { total?: number } }) {
+  const total    = result.total ?? (result.created_count + result.updated_count + result.error_count);
+  const nothingDone = total === 0;
+  const hasErrors = result.error_count > 0;
+
+  if (nothingDone) {
+    return (
+      <div className="rounded-lg bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-800 flex items-start gap-2">
+        <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+        <span>
+          <strong>Nenhum imóvel foi importado.</strong> Verifique se a URL está correta, se o sistema selecionado corresponde ao feed e se o feed está acessível.
+        </span>
+      </div>
+    );
+  }
+
+  return (
+    <div className={`rounded-lg border px-4 py-3 ${hasErrors ? 'bg-amber-50 border-amber-200' : 'bg-green-50 border-green-200'}`}>
+      <p className={`text-xs font-medium mb-2 ${hasErrors ? 'text-amber-700' : 'text-green-700'}`}>
+        {total} imóvel(is) processado(s)
+      </p>
+      <div className="flex flex-wrap gap-4 text-sm font-semibold">
+        {result.created_count > 0 && (
+          <span className="text-green-700 flex items-center gap-1">
+            <CheckCircle className="w-3.5 h-3.5" /> {result.created_count} criado{result.created_count !== 1 ? 's' : ''}
+          </span>
+        )}
+        {result.updated_count > 0 && (
+          <span className="text-blue-700 flex items-center gap-1">
+            <RefreshCw className="w-3.5 h-3.5" /> {result.updated_count} atualizado{result.updated_count !== 1 ? 's' : ''}
+          </span>
+        )}
+        {result.error_count > 0 && (
+          <span className="text-red-600 flex items-center gap-1">
+            <XCircle className="w-3.5 h-3.5" /> {result.error_count} com erro
+          </span>
+        )}
+      </div>
+    </div>
+  );
 }
 
 function formatDate(dateStr: string) {
@@ -106,8 +149,8 @@ export default function ImportsPage() {
       });
       setUrlResult(data);
     } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
-      setUrlError(msg || 'Erro ao importar. Verifique a URL e tente novamente.');
+      const d = (err as { response?: { data?: { error?: string; message?: string } } })?.response?.data;
+      setUrlError(d?.error || d?.message || 'Erro ao importar. Verifique a URL e tente novamente.');
     } finally {
       setUrlLoading(false);
     }
@@ -126,8 +169,8 @@ export default function ImportsPage() {
       });
       setCsvResult(data);
     } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
-      setCsvError(msg || 'Erro ao importar o arquivo. Verifique o formato e tente novamente.');
+      const d = (err as { response?: { data?: { error?: string; message?: string } } })?.response?.data;
+      setCsvError(d?.error || d?.message || 'Erro ao importar o arquivo. Verifique o formato e tente novamente.');
     } finally {
       setCsvLoading(false);
     }
@@ -233,14 +276,11 @@ export default function ImportsPage() {
                 {urlLoading ? 'Importando...' : 'Importar agora'}
               </button>
 
-              {urlResult && (
-                <div className="rounded-lg bg-green-50 border border-green-200 px-4 py-3 text-sm text-green-800 font-medium">
-                  {urlResult.created_count} criados, {urlResult.updated_count} atualizados, {urlResult.error_count} erros
-                </div>
-              )}
+              {urlResult && <ImportResultBanner result={urlResult} />}
 
               {urlError && (
-                <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
+                <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700 flex items-start gap-2">
+                  <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
                   {urlError}
                 </div>
               )}
@@ -309,14 +349,11 @@ export default function ImportsPage() {
                 </button>
               )}
 
-              {csvResult && (
-                <div className="rounded-lg bg-green-50 border border-green-200 px-4 py-3 text-sm text-green-800 font-medium">
-                  {csvResult.created_count} criados, {csvResult.updated_count} atualizados, {csvResult.error_count} erros
-                </div>
-              )}
+              {csvResult && <ImportResultBanner result={csvResult} />}
 
               {csvError && (
-                <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
+                <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700 flex items-start gap-2">
+                  <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
                   {csvError}
                 </div>
               )}

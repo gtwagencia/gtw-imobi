@@ -2,6 +2,7 @@
 
 const axios     = require('axios');
 const { query } = require('../../config/database');
+const logger    = require('../../utils/logger');
 
 // ── Helpers XML ──────────────────────────────────────────────────────────────
 
@@ -30,11 +31,25 @@ function parseBool(v) {
   return v === '1' || v === 'true' || v === 'Sim';
 }
 
+function getAttr(xml, tag, attr) {
+  const re = new RegExp(`<${tag}[^>]*\\s${attr}="([^"]*)"`, 'i');
+  const m  = xml.match(re);
+  return m ? m[1] : null;
+}
+
 // ── Detectar formato do XML ──────────────────────────────────────────────────
 
-function detectXmlFormat(xml) {
-  if (/<Carga\b/i.test(xml) || /<Imoveis>/i.test(xml)) return 'rnxml';   // portais / nossa feed portal
-  if (/<imoveis>/i.test(xml))                            return 'gtwimobi'; // nossa feed gtw-imoview
+function detectXmlFormat(xml, source = 'auto') {
+  if (source === 'praedium')  return 'vrsync';  // Praedium usa VRSync (VivaReal Sync)
+  if (source === 'kenlo')     return 'rnxml';
+  if (source === 'vistasoft') return 'rnxml';
+  if (source === 'rnxml')     return 'rnxml';
+
+  // Auto-detect
+  if (/<ListingDataFeed/i.test(xml))                      return 'vrsync'; // Praedium / VRSync
+  if (/<Carga\b/i.test(xml))                              return 'rnxml';
+  if (/<Imoveis\b/i.test(xml) && /<Imovel\b/i.test(xml)) return 'rnxml';
+  if (/<imoveis>/i.test(xml)  && /<imovel>/i.test(xml))  return 'gtwimobi';
   return 'unknown';
 }
 
@@ -73,6 +88,96 @@ function parseRnxmlBlock(block) {
     isFeatured:    false,
     amenities:     [],
     photos:        getAllBlocks(block, 'Foto').map(f => f.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/, '$1').trim()).filter(Boolean),
+  };
+}
+
+// ── Parser VRSync (Praedium / VivaReal Sync) ────────────────────────────────
+// Formato: <ListingDataFeed><Listings><Listing>
+// Praedium "central de conexões" usa este padrão (output vrsync.xml)
+
+function mapVRSyncType(v) {
+  if (!v) return 'outro';
+  const l = v.toLowerCase();
+  if (l.includes('apartment'))              return 'apartamento';
+  if (l.includes('penthouse'))              return 'cobertura';
+  if (l.includes('condominium'))            return 'casa_condominio';
+  if (l.includes('home') || l.includes('house') || l.includes('single family')) return 'casa';
+  if (l.includes('land') || l.includes('lot') || l.includes('terrain'))         return 'terreno_lote';
+  if (l.includes('office'))                 return 'sala_comercial';
+  if (l.includes('shop') || l.includes('store') || l.includes('retail'))        return 'loja';
+  if (l.includes('warehouse') || l.includes('storage') || l.includes('depot'))  return 'galpao';
+  if (l.includes('farm') || l.includes('rural') || l.includes('ranch'))         return 'fazenda_sitio_chacara';
+  if (l.includes('commercial'))             return 'sala_comercial';
+  if (l.includes('studio') || l.includes('kitnet'))                              return 'kitnet_studio';
+  return 'outro';
+}
+
+function parseVRSyncBlock(block) {
+  const details  = getTag(block, 'Details')  || '';
+  const location = getTag(block, 'Location') || '';
+  const media    = getTag(block, 'Media')    || '';
+
+  // TransactionType: "For Sale" / "For Rent" / "For Sale and Rent" / "Vacation Rental"
+  const tx = (getTag(block, 'TransactionType') || '').toLowerCase();
+  let purpose = 'venda';
+  if (/sale.*rent|rent.*sale/i.test(tx)) purpose = 'venda_locacao';
+  else if (/vacation/i.test(tx))         purpose = 'temporada';
+  else if (/rent/i.test(tx))             purpose = 'locacao';
+
+  // Location: displayAddress attr → hideAddress
+  const displayAddr = getAttr(block, 'Location', 'displayAddress') || 'All';
+  const hideAddress = displayAddr === 'None' || displayAddr === 'Street';
+
+  // State: prefer abbreviation attribute (e.g. <State abbreviation="SP">São Paulo</State>)
+  const stateAbbr = getAttr(location, 'State', 'abbreviation');
+  const state     = stateAbbr || getTag(location, 'State');
+
+  // Photos: <Item medium="image" primary="true">URL</Item>
+  const photoRe  = /<Item[^>]*medium="image"[^>]*>([^<\s][^<]*)<\/Item>/gi;
+  const coverStr = (() => {
+    const cm = media.match(/<Item[^>]*medium="image"[^>]*primary="true"[^>]*>([^<\s][^<]*)<\/Item>/i);
+    return cm ? cm[1].trim() : null;
+  })();
+  const photos = [];
+  let pm;
+  while ((pm = photoRe.exec(media)) !== null) {
+    const url = pm[1].trim();
+    if (url) photos.push({ url, isCover: url === coverStr });
+  }
+  // Ensure first photo is cover if none marked
+  if (photos.length > 0 && !photos.some(p => p.isCover)) photos[0].isCover = true;
+
+  return {
+    code:         getTag(block, 'ListingID'),
+    title:        getTag(block, 'Title'),
+    description:  getTag(details, 'Description'),
+    propertyType: mapVRSyncType(getTag(details, 'PropertyType')),
+    purpose,
+    status:       'disponivel',
+    zipCode:      getTag(location, 'PostalCode'),
+    street:       getTag(location, 'Address'),
+    number:       getTag(location, 'StreetNumber'),
+    complement:   getTag(location, 'Complement'),
+    neighborhood: getTag(location, 'Neighborhood'),
+    city:         getTag(location, 'City'),
+    state,
+    latitude:     parseNum(getTag(location, 'Latitude')),
+    longitude:    parseNum(getTag(location, 'Longitude')),
+    hideAddress,
+    salePrice:    parseNum(getTag(details, 'ListPrice') || getTag(details, 'ListPromotionalPrice')),
+    rentPrice:    parseNum(getTag(details, 'RentalPrice') || getTag(details, 'MonthlyAmount')),
+    condoFee:     parseNum(getTag(details, 'PropertyAdministrationFee')),
+    iptu:         parseNum(getTag(details, 'Iptu')),
+    totalArea:    parseNum(getTag(details, 'LotArea')),
+    builtArea:    parseNum(getTag(details, 'LivingArea')),
+    bedrooms:     parseNum(getTag(details, 'Bedrooms')),
+    suites:       parseNum(getTag(details, 'Suites')),
+    bathrooms:    parseNum(getTag(details, 'Bathrooms')),
+    parkingSpots: parseNum(getTag(details, 'Garage')),
+    yearBuilt:    null,
+    isFeatured:   false,
+    amenities:    [],
+    photos,       // [{ url, isCover }]
   };
 }
 
@@ -300,21 +405,56 @@ async function upsertRows(workspaceId, rows) {
       });
 
       // Se veio com código customizado, atualiza o gerado para o importado
+      let propId = null;
       if (row.code) {
         await query(
           `UPDATE properties SET code = $1 WHERE workspace_id = $2 AND code != $1 AND title = $3
            AND created_at >= NOW() - INTERVAL '10 seconds'`,
           [row.code, workspaceId, row.title || `Imóvel ${row.code}`]
         );
+        const pr = await query(
+          'SELECT id FROM properties WHERE workspace_id = $1 AND code = $2',
+          [workspaceId, row.code]
+        );
+        propId = pr.rows[0]?.id;
+      }
+
+      // Salva fotos na property_media (só na criação, URLs do Praedium CDN)
+      if (propId && row.photos && row.photos.length > 0) {
+        await savePhotos(propId, row.photos);
       }
 
       created++;
-    } catch {
+    } catch (e) {
+      logger.warn(`[import] Erro ao processar imóvel "${row.code || row.title}": ${e.message}`);
       errors++;
     }
   }
 
   return { created, updated, errors, total: rows.length };
+}
+
+async function savePhotos(propertyId, photos) {
+  // Não sobrescreve fotos manuais — só insere se não houver nenhuma
+  const existing = await query(
+    'SELECT COUNT(*)::int AS cnt FROM property_media WHERE property_id = $1',
+    [propertyId]
+  );
+  if (existing.rows[0].cnt > 0) return;
+
+  for (let i = 0; i < photos.length; i++) {
+    const p      = photos[i];
+    const url    = typeof p === 'string' ? p : p.url;
+    const isCover = typeof p === 'object' ? (p.isCover || i === 0) : i === 0;
+    if (!url) continue;
+    try {
+      await query(
+        `INSERT INTO property_media (property_id, url, media_type, position, is_cover)
+         VALUES ($1, $2, 'image', $3, $4)`,
+        [propertyId, url, i, isCover]
+      );
+    } catch { /* ignora duplicata */ }
+  }
 }
 
 // ── Import via URL ────────────────────────────────────────────────────────────
@@ -335,21 +475,51 @@ async function importFromUrl(workspaceId, url, source = 'auto') {
     });
     const text = resp.data;
 
+    logger.info(`[import] Recebido ${text.length} bytes de ${url} — Content-Type: ${resp.headers['content-type'] || '?'}`);
+    logger.info(`[import] Preview XML: ${text.slice(0, 500)}`);
+
     let rows = [];
     const contentType = resp.headers['content-type'] || '';
 
     if (contentType.includes('csv') || url.endsWith('.csv') || source === 'csv_url') {
       rows = parseCSV(text);
+      logger.info(`[import] CSV: ${rows.length} linhas detectadas`);
     } else {
-      const fmt = detectXmlFormat(text);
-      if (fmt === 'rnxml') {
-        rows = getAllBlocks(text, 'Imovel').map(parseRnxmlBlock);
+      const fmt = detectXmlFormat(text, source);
+      logger.info(`[import] Formato detectado: ${fmt} (source=${source})`);
+
+      if (fmt === 'vrsync') {
+        // Praedium VRSync: <ListingDataFeed><Listings><Listing>
+        const blocks = getAllBlocks(text, 'Listing');
+        logger.info(`[import] VRSync: ${blocks.length} blocos <Listing> encontrados`);
+        rows = blocks.map(parseVRSyncBlock);
+      } else if (fmt === 'rnxml') {
+        const blocksUp  = getAllBlocks(text, 'Imovel');
+        const blocksLow = getAllBlocks(text, 'imovel');
+        const blocks    = blocksUp.length >= blocksLow.length ? blocksUp : blocksLow;
+        logger.info(`[import] RNXML: ${blocks.length} blocos encontrados`);
+        rows = blocks.map(parseRnxmlBlock);
       } else {
-        rows = getAllBlocks(text, 'imovel').map(parseGtwBlock);
+        // gtwimobi ou unknown — tenta ambos os formatos
+        const blocksLow = getAllBlocks(text, 'imovel');
+        const blocksUp  = getAllBlocks(text, 'Imovel');
+        if (blocksUp.length > blocksLow.length) {
+          logger.info(`[import] Unknown → fallback RNXML: ${blocksUp.length} blocos`);
+          rows = blocksUp.map(parseRnxmlBlock);
+        } else {
+          logger.info(`[import] GTW/Unknown: ${blocksLow.length} blocos`);
+          rows = blocksLow.map(parseGtwBlock);
+        }
       }
     }
 
+    logger.info(`[import] ${rows.length} imóveis para processar`);
+    if (rows.length === 0) {
+      logger.warn(`[import] Nenhum imóvel encontrado. Verifique o formato do XML.`);
+    }
+
     const result = await upsertRows(workspaceId, rows);
+    logger.info(`[import] Resultado: ${result.created} criados, ${result.updated} atualizados, ${result.errors} erros`);
 
     await query(
       `UPDATE property_import_jobs
@@ -358,8 +528,15 @@ async function importFromUrl(workspaceId, url, source = 'auto') {
       [result.total, result.created, result.updated, result.errors, jobId]
     );
 
-    return { jobId, ...result };
+    return {
+      jobId,
+      created_count: result.created,
+      updated_count: result.updated,
+      error_count:   result.errors,
+      total:         result.total,
+    };
   } catch (err) {
+    logger.error(`[import] Erro: ${err.message}`);
     await query(
       `UPDATE property_import_jobs SET status = 'error', error_message = $1, finished_at = NOW() WHERE id = $2`,
       [err.message, jobId]
@@ -388,7 +565,13 @@ async function importFromCSV(workspaceId, csvText) {
       [result.total, result.created, result.updated, result.errors, jobId]
     );
 
-    return { jobId, ...result };
+    return {
+      jobId,
+      created_count: result.created,
+      updated_count: result.updated,
+      error_count:   result.errors,
+      total:         result.total,
+    };
   } catch (err) {
     await query(
       `UPDATE property_import_jobs SET status = 'error', error_message = $1, finished_at = NOW() WHERE id = $2`,
