@@ -98,6 +98,98 @@ function parseRnxmlBlock(block) {
 // Formato: <ListingDataFeed><Listings><Listing>
 // Praedium "central de conexões" usa este padrão (output vrsync.xml)
 
+// Mapeamento de <Feature> (inglês VRSync) → comodidade do sistema (PT-BR)
+// Os valores PT-BR devem coincidir exatamente com os disponíveis na UI
+const VRSYNC_FEATURE_MAP = {
+  // Lazer / área comum
+  'pool':                    'Piscina',
+  'adult pool':              'Piscina',
+  'childrens pool':          'Piscina',
+  "children's pool":         'Piscina',
+  'heated pool':             'Piscina aquecida',
+  'gym':                     'Academia',
+  'fitness':                 'Academia',
+  'bbq':                     'Churrasqueira',
+  'barbecue':                'Churrasqueira',
+  'gourmet area':            'Área gourmet',
+  'gourmet balcony':         'Varanda gourmet',
+  'party room':              'Salão de festas',
+  'playground':              'Playground',
+  'toys place':              'Playground',
+  "children's play area":    'Playground',
+  'sports court':            'Quadra esportiva',
+  'sauna':                   'Sauna',
+  'pet place':               'Espaço pet',
+  'pets allowed':            'Aceita pet',
+  'coworking':               'Coworking',
+  'game room':               'Espaço cinema/jogos',
+  'cinema':                  'Espaço cinema/jogos',
+  'playroom':                'Brinquedoteca',
+  'recreation area':         'Playground',
+  // Segurança
+  'concierge 24h':           'Portaria 24h',
+  '24h concierge':           'Portaria 24h',
+  'doorman':                 'Portaria 24h',
+  'electronic gate':         'Portão eletrônico',
+  'intercom':                'Interfone',
+  'tv security':             'Câmeras de segurança',
+  'security camera':         'Câmeras de segurança',
+  'cctv':                    'Câmeras de segurança',
+  'alarm system':            'Câmeras de segurança',
+  'generator':               'Gerador',
+  // Circulação
+  'elevator':                'Elevador',
+  'bicycles place':          'Bicicletário',
+  'bicycle storage':         'Bicicletário',
+  // Internas
+  'balcony':                 'Sacada/Varanda',
+  'gourmet terrace':         'Varanda gourmet',
+  'closet':                  'Closet',
+  'fireplace':               'Lareira',
+  'jacuzzi':                 'Hidromassagem/Banheira',
+  'bathtub':                 'Hidromassagem/Banheira',
+  'built-in wardrobe':       'Armários planejados',
+  'wardrobe':                'Armários planejados',
+  "maid's quarters":         'Área de serviço',
+  'service area':            'Área de serviço',
+  'laundry room':            'Lavanderia',
+  'laundry':                 'Lavanderia',
+  'storage room':            'Depósito/Despensa',
+  'storage':                 'Depósito/Despensa',
+  'backyard':                'Quintal',
+  'garden':                  'Jardim',
+  // Tecnologia / eficiência
+  'air conditioning':        'Ar condicionado',
+  'solar energy':            'Energia solar',
+  'solar heating':           'Aquecimento solar',
+  // Vista
+  'sea view':                'Vista para o mar',
+  'ocean view':              'Vista para o mar',
+  'mountain view':           'Vista para montanha',
+  'panoramic view':          'Vista panorâmica',
+  'near public transport':   'Próximo a transporte público',
+  // Mobília
+  'furnished':               'Mobiliado',
+  'semi-furnished':          'Semi-mobiliado',
+  'unfurnished':             'Não mobiliado',
+};
+
+function mapVRSyncAmenities(featuresBlock) {
+  if (!featuresBlock) return [];
+  const features = getAllBlocks(featuresBlock, 'Feature');
+  const seen = new Set();
+  const result = [];
+  for (const f of features) {
+    const key   = f.trim().toLowerCase();
+    const mapped = VRSYNC_FEATURE_MAP[key];
+    if (mapped && !seen.has(mapped)) {
+      seen.add(mapped);
+      result.push(mapped);
+    }
+  }
+  return result;
+}
+
 function mapVRSyncType(v) {
   if (!v) return 'outro';
   const l = v.toLowerCase();
@@ -179,7 +271,7 @@ function parseVRSyncBlock(block) {
     parkingSpots: parseNum(getTag(details, 'Garage')),
     yearBuilt:    null,
     isFeatured:   false,
-    amenities:    [],
+    amenities:    mapVRSyncAmenities(getTag(details, 'Features')),
     photos,       // [{ url, isCover }]
   };
 }
@@ -359,6 +451,12 @@ async function upsertRows(workspaceId, rows) {
               fields.push(`${col} = $${idx++}`);
               vals.push(row[key]);
             }
+          }
+
+          // Comodidades: só atualiza se o feed trouxer dados (não limpa o que foi editado manualmente)
+          if (Array.isArray(row.amenities) && row.amenities.length > 0) {
+            fields.push(`amenities = $${idx++}`);
+            vals.push(row.amenities);
           }
 
           if (fields.length) {
