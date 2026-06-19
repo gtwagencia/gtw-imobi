@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/store/auth';
 import Header from '@/components/layout/Header';
 import api from '@/lib/api';
@@ -21,7 +22,14 @@ const PERMISSION_MODULES: { key: PermissionModuleKey; label: string }[] = [
 ];
 
 export default function PermissionsPage() {
+  const router = useRouter();
   const { user, currentOrg, currentWorkspace } = useAuth();
+
+  const isPlatformAdmin = user?.is_super_admin || currentOrg?.role === 'owner' || currentOrg?.role === 'admin';
+  useEffect(() => {
+    if (user && !isPlatformAdmin) router.replace('/dashboard');
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, isPlatformAdmin]);
   const [profiles, setProfiles] = useState<PermissionProfile[]>([]);
   const [loading,  setLoading]  = useState(true);
   const [savingKey, setSavingKey] = useState<string | null>(null);

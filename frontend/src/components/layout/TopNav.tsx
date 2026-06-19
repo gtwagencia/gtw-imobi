@@ -87,6 +87,7 @@ interface NavItem {
   icon: React.ComponentType<{ className?: string }>;
   ticketsOnly: boolean;
   adminOnly: boolean;
+  platformAdminOnly?: boolean;
 }
 
 const CRM_ITEMS: NavItem[] = [
@@ -116,10 +117,10 @@ const TICKETS_ITEMS: NavItem[] = [
 ];
 
 const ADMIN_ITEMS: NavItem[] = [
-  { href: '/dashboard/members',     label: 'Agentes',       icon: Users,       ticketsOnly: false, adminOnly: true },
-  { href: '/dashboard/org',         label: 'Organização',   icon: Landmark,    ticketsOnly: false, adminOnly: true },
-  { href: '/dashboard/permissions', label: 'Permissões',    icon: ShieldCheck, ticketsOnly: false, adminOnly: true },
-  { href: '/dashboard/settings',    label: 'Configurações', icon: Settings,    ticketsOnly: false, adminOnly: true },
+  { href: '/dashboard/members',     label: 'Agentes',       icon: Users,       ticketsOnly: false, adminOnly: true,  platformAdminOnly: false },
+  { href: '/dashboard/org',         label: 'Organização',   icon: Landmark,    ticketsOnly: false, adminOnly: true,  platformAdminOnly: true  },
+  { href: '/dashboard/permissions', label: 'Permissões',    icon: ShieldCheck, ticketsOnly: false, adminOnly: true,  platformAdminOnly: true  },
+  { href: '/dashboard/settings',    label: 'Configurações', icon: Settings,    ticketsOnly: false, adminOnly: true,  platformAdminOnly: true  },
 ];
 
 // ─── Component ──────────────────────────────────────────────────────────────
@@ -142,11 +143,14 @@ export default function TopNav() {
 
   const navRef = useRef<HTMLElement>(null);
 
-  const isAdmin = !!(
+  const isPlatformAdmin = !!(
     user?.is_super_admin
     || currentOrg?.role === 'owner'
     || currentOrg?.role === 'admin'
-    || currentWorkspace?.role === 'admin'
+  );
+
+  const isAdmin = isPlatformAdmin || !!(
+    currentWorkspace?.role === 'admin'
     || currentWorkspace?.role === undefined
   );
 
@@ -176,7 +180,8 @@ export default function TopNav() {
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  function canShow(item: { href: string; adminOnly: boolean }) {
+  function canShow(item: { href: string; adminOnly: boolean; platformAdminOnly?: boolean }) {
+    if (item.platformAdminOnly) return isPlatformAdmin;
     if (isAdmin) return true;
     const permKey = NAV_PERMISSION_KEY[item.href];
     if (permKey) return !!permissions?.[permKey];

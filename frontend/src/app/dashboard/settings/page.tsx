@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, type ReactNode } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/store/auth';
 import Header from '@/components/layout/Header';
 import api, { API_URL } from '@/lib/api';
@@ -74,8 +75,20 @@ const DAY_KEYS = ['monday','tuesday','wednesday','thursday','friday','saturday',
 // ── Component ────────────────────────────────────────────────────────────────
 
 export default function SettingsPage() {
-  const { currentWorkspace, setWorkspace, user } = useAuth();
+  const { currentWorkspace, setWorkspace, user, currentOrg } = useAuth();
+  const router = useRouter();
   const isSuperAdmin = user?.is_super_admin === true;
+
+  const isPlatformAdmin = isSuperAdmin
+    || currentOrg?.role === 'owner'
+    || currentOrg?.role === 'admin';
+
+  useEffect(() => {
+    if (user && !isPlatformAdmin) {
+      router.replace('/dashboard');
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, isPlatformAdmin]);
 
   const [form, setForm] = useState({
     name:                 '',

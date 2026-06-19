@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/store/auth';
 import { useWorkspaceStore } from '@/store/workspace';
 import Header from '@/components/layout/Header';
@@ -96,7 +96,14 @@ const TEMPLATES: Record<BusinessModel, {
 
 export default function OrgPage() {
   const searchParams = useSearchParams();
-  const { currentOrg, currentWorkspace } = useAuth();
+  const router = useRouter();
+  const { currentOrg, currentWorkspace, user } = useAuth();
+
+  const isPlatformAdmin = user?.is_super_admin || currentOrg?.role === 'owner' || currentOrg?.role === 'admin';
+  useEffect(() => {
+    if (user && !isPlatformAdmin) router.replace('/dashboard');
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, isPlatformAdmin]);
   const { workspaces, fetchForOrg } = useWorkspaceStore();
   const showToast = useToast((s) => s.show);
 

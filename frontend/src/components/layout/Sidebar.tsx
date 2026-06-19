@@ -90,10 +90,10 @@ const NAV_PERMISSION_KEY: Record<string, PermissionModuleKey> = {
 };
 
 const bottomItems = [
-  { href: '/dashboard/org',         icon: Landmark,    label: 'Organização',   ticketsOnly: false, adminOnly: true  },
-  { href: '/dashboard/permissions', icon: ShieldCheck, label: 'Permissões',    ticketsOnly: false, adminOnly: true  },
-  { href: '/dashboard/settings',    icon: Settings,    label: 'Configurações', ticketsOnly: false, adminOnly: true  },
-  { href: '/dashboard/profile',     icon: User,        label: 'Perfil',        ticketsOnly: true,  adminOnly: false },
+  { href: '/dashboard/org',         icon: Landmark,    label: 'Organização',   ticketsOnly: false, adminOnly: true,  platformAdminOnly: true  },
+  { href: '/dashboard/permissions', icon: ShieldCheck, label: 'Permissões',    ticketsOnly: false, adminOnly: true,  platformAdminOnly: true  },
+  { href: '/dashboard/settings',    icon: Settings,    label: 'Configurações', ticketsOnly: false, adminOnly: true,  platformAdminOnly: true  },
+  { href: '/dashboard/profile',     icon: User,        label: 'Perfil',        ticketsOnly: true,  adminOnly: false, platformAdminOnly: false },
 ];
 
 export default function Sidebar() {
@@ -107,11 +107,14 @@ export default function Sidebar() {
   const dropRef = useRef<HTMLDivElement>(null);
   const [permissions, setPermissions] = useState<Record<PermissionModuleKey, boolean> | null>(null);
 
-  // Um usuário é "admin" se for owner/admin da org, ou admin do workspace,
-  // ou se não tiver workspace role definido (org admins não têm row na memberships).
-  const isAdmin = user?.is_super_admin
+  // isPlatformAdmin: super_admin, org owner ou org admin (agência/plataforma)
+  // NÃO inclui workspace admin (o cliente) — para itens sensíveis como Configurações
+  const isPlatformAdmin = user?.is_super_admin
     || currentOrg?.role === 'owner'
-    || currentOrg?.role === 'admin'
+    || currentOrg?.role === 'admin';
+
+  // isAdmin: inclui também workspace admin e org owners sem role definida
+  const isAdmin = isPlatformAdmin
     || currentWorkspace?.role === 'admin'
     || currentWorkspace?.role === undefined; // org owners não têm role na membership
 
@@ -152,11 +155,12 @@ export default function Sidebar() {
     return href === '/dashboard' ? pathname === href : pathname.startsWith(href);
   }
 
-  // Decide se um item do menu aparece para o usuário atual: admins veem tudo;
-  // itens mapeados em NAV_PERMISSION_KEY seguem o perfil de permissões; os
-  // demais adminOnly (Agentes, Organização, Configurações, Permissões) ficam
-  // ocultos para não-admins.
-  function canShow(item: { href: string; adminOnly: boolean }) {
+  // Decide se um item do menu aparece para o usuário atual.
+  // platformAdminOnly: exige isPlatformAdmin (super_admin / org owner / org admin).
+  // adminOnly: exige isAdmin (inclui workspace admin).
+  // Itens mapeados em NAV_PERMISSION_KEY seguem o perfil de permissões.
+  function canShow(item: { href: string; adminOnly: boolean; platformAdminOnly?: boolean }) {
+    if (item.platformAdminOnly) return isPlatformAdmin;
     if (isAdmin) return true;
     const permKey = NAV_PERMISSION_KEY[item.href];
     if (permKey) return !!permissions?.[permKey];
