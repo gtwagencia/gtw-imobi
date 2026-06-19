@@ -45,6 +45,9 @@ function detectXmlFormat(xml, source = 'auto') {
   if (source === 'vistasoft') return 'rnxml';
   if (source === 'rnxml')     return 'rnxml';
 
+  if (source === 'imoview')   return 'rnxml';  // Imoview exporta RNXML
+  if (source === 'vistasoft') return 'rnxml';
+
   // Auto-detect
   if (/<ListingDataFeed/i.test(xml))                      return 'vrsync'; // Praedium / VRSync
   if (/<Carga\b/i.test(xml))                              return 'rnxml';
