@@ -23,16 +23,33 @@ const MIME_EXT = {
   'video/mp4': '.mp4', 'video/webm': '.webm', 'video/quicktime': '.mov',
 };
 
+router.get('/filters', authenticate, workspaceContext, requirePermission('properties'), async (req, res, next) => {
+  try {
+    const options = await svc.getFilterOptions(req.params.workspaceId, { city: req.query.city });
+    res.json(options);
+  } catch (err) { next(err); }
+});
+
 router.get('/', authenticate, workspaceContext, requirePermission('properties'), async (req, res, next) => {
   try {
-    const { search, type, purpose, status, city, minPrice, maxPrice, bedrooms, ownerId, brokerId, page, limit } = req.query;
+    const {
+      search, type, purpose, status, city, neighborhood,
+      minPrice, maxPrice, bedrooms, suites, bathrooms, parkingSpots,
+      minArea, maxArea, ownerId, brokerId, page, limit,
+    } = req.query;
     const result = await svc.list(req.params.workspaceId, {
       search: search?.slice(0, 200),
       type, purpose, status,
-      city: city?.slice(0, 100),
-      minPrice: minPrice !== undefined ? Number(minPrice) : undefined,
-      maxPrice: maxPrice !== undefined ? Number(maxPrice) : undefined,
-      bedrooms: bedrooms ? parseInt(bedrooms, 10) : undefined,
+      city:         city?.slice(0, 100),
+      neighborhood: neighborhood?.slice(0, 100),
+      minPrice:     minPrice     !== undefined ? Number(minPrice)     : undefined,
+      maxPrice:     maxPrice     !== undefined ? Number(maxPrice)     : undefined,
+      bedrooms:     bedrooms     ? parseInt(bedrooms,     10) : undefined,
+      suites:       suites       ? parseInt(suites,       10) : undefined,
+      bathrooms:    bathrooms    ? parseInt(bathrooms,    10) : undefined,
+      parkingSpots: parkingSpots ? parseInt(parkingSpots, 10) : undefined,
+      minArea:      minArea      !== undefined ? Number(minArea)      : undefined,
+      maxArea:      maxArea      !== undefined ? Number(maxArea)      : undefined,
       ownerId, brokerId,
       page:  parseInt(page,  10) || 1,
       limit: Math.min(parseInt(limit, 10) || 50, 200),

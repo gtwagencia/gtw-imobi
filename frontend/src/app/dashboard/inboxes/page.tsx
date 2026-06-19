@@ -376,7 +376,7 @@ export default function InboxesPage() {
                         <div className="flex-1">
                           <div className="text-sm font-medium text-gray-700 flex items-center gap-1.5">
                             <Bot className="w-4 h-4 text-purple-500" />
-                            Chatbot IA (Claude)
+                            Chatbot IA
                           </div>
                           <p className="text-xs text-gray-400 mt-0.5">Responde automaticamente enquanto não há agente atribuído</p>
                         </div>
@@ -397,7 +397,7 @@ export default function InboxesPage() {
                             value={editForm.chatbotPrompt || ''}
                             onChange={e => setEditForm(prev => ({ ...prev, chatbotPrompt: e.target.value }))}
                           />
-                          <p className="text-xs text-gray-400 mt-1">Requer chave da API Anthropic configurada nas configurações do workspace.</p>
+                          <p className="text-xs text-gray-400 mt-1">Requer provedor de IA configurado em Configurações → Inteligência Artificial (OpenAI, Anthropic ou Gemini).</p>
                         </div>
                       )}
                     </div>

@@ -17,8 +17,9 @@ async function generateCode(workspaceId) {
 // ── List ──────────────────────────────────────────────────────────────────
 
 async function list(workspaceId, {
-  search, type, purpose, status, city,
-  minPrice, maxPrice, bedrooms, ownerId, brokerId,
+  search, type, purpose, status, city, neighborhood,
+  minPrice, maxPrice, bedrooms, suites, bathrooms, parkingSpots,
+  minArea, maxArea, ownerId, brokerId,
   page = 1, limit = 50,
 } = {}) {
   const offset = (page - 1) * limit;
@@ -42,12 +43,28 @@ async function list(workspaceId, {
     where += ` AND p.status = $${params.length}`;
   }
   if (city) {
-    params.push(`%${city}%`);
-    where += ` AND p.city ILIKE $${params.length}`;
+    params.push(city);
+    where += ` AND p.city = $${params.length}`;
+  }
+  if (neighborhood) {
+    params.push(neighborhood);
+    where += ` AND p.neighborhood = $${params.length}`;
   }
   if (bedrooms) {
-    params.push(bedrooms);
+    params.push(Number(bedrooms));
     where += ` AND p.bedrooms >= $${params.length}`;
+  }
+  if (suites) {
+    params.push(Number(suites));
+    where += ` AND p.suites >= $${params.length}`;
+  }
+  if (bathrooms) {
+    params.push(Number(bathrooms));
+    where += ` AND p.bathrooms >= $${params.length}`;
+  }
+  if (parkingSpots) {
+    params.push(Number(parkingSpots));
+    where += ` AND p.parking_spots >= $${params.length}`;
   }
   if (ownerId) {
     params.push(ownerId);
@@ -57,13 +74,21 @@ async function list(workspaceId, {
     params.push(brokerId);
     where += ` AND p.broker_id = $${params.length}`;
   }
-  if (minPrice != null) {
-    params.push(minPrice);
+  if (minPrice != null && minPrice !== '') {
+    params.push(Number(minPrice));
     where += ` AND COALESCE(p.sale_price, p.rent_price, 0) >= $${params.length}`;
   }
-  if (maxPrice != null) {
-    params.push(maxPrice);
+  if (maxPrice != null && maxPrice !== '') {
+    params.push(Number(maxPrice));
     where += ` AND COALESCE(p.sale_price, p.rent_price, 0) <= $${params.length}`;
+  }
+  if (minArea != null && minArea !== '') {
+    params.push(Number(minArea));
+    where += ` AND COALESCE(p.built_area, p.total_area, 0) >= $${params.length}`;
+  }
+  if (maxArea != null && maxArea !== '') {
+    params.push(Number(maxArea));
+    where += ` AND COALESCE(p.built_area, p.total_area, 0) <= $${params.length}`;
   }
 
   const countRes = await query(`SELECT COUNT(*) FROM properties p ${where}`, params);
@@ -86,6 +111,42 @@ async function list(workspaceId, {
   );
 
   return { data: r.rows, total, page, limit };
+}
+
+// ── Opções de filtro (cidades/bairros reais do workspace) ─────────────────
+
+async function getFilterOptions(workspaceId, { city } = {}) {
+  const cityRes = await query(
+    `SELECT DISTINCT city FROM properties
+     WHERE workspace_id = $1 AND city IS NOT NULL AND city <> ''
+     ORDER BY city`,
+    [workspaceId]
+  );
+
+  let neighborhoods = [];
+  if (city) {
+    const nbRes = await query(
+      `SELECT DISTINCT neighborhood FROM properties
+       WHERE workspace_id = $1 AND city = $2
+         AND neighborhood IS NOT NULL AND neighborhood <> ''
+       ORDER BY neighborhood`,
+      [workspaceId, city]
+    );
+    neighborhoods = nbRes.rows.map(r => r.neighborhood);
+  } else {
+    const nbRes = await query(
+      `SELECT DISTINCT neighborhood FROM properties
+       WHERE workspace_id = $1 AND neighborhood IS NOT NULL AND neighborhood <> ''
+       ORDER BY neighborhood`,
+      [workspaceId]
+    );
+    neighborhoods = nbRes.rows.map(r => r.neighborhood);
+  }
+
+  return {
+    cities:        cityRes.rows.map(r => r.city),
+    neighborhoods,
+  };
 }
 
 // ── Get by id ─────────────────────────────────────────────────────────────
@@ -358,5 +419,5 @@ async function generateSignQrCode(propertyId, workspaceId) {
 module.exports = {
   list, getById, getByCode, create, update, remove,
   addMedia, removeMedia, reorderMedia, setCover, setShowOnSite,
-  listForFeed, generateSignQrCode,
+  listForFeed, generateSignQrCode, getFilterOptions,
 };

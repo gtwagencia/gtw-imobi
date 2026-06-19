@@ -458,7 +458,7 @@ async function autoAssignAgent(workspaceId, inboxId, departmentId) {
  */
 async function dispatchChatbotResponse(inbox, conversation, contact, io) {
   const wsRes = await query(
-    `SELECT w.anthropic_api_key, w.openai_api_key, w.custom_ai_api_key, w.ai_base_url,
+    `SELECT w.anthropic_api_key, w.openai_api_key, w.gemini_api_key, w.custom_ai_api_key, w.ai_base_url,
             w.ai_provider, w.ai_model, w.ai_ignore_groups, w.ai_tools_enabled, w.business_model,
             w.ai_agent_name,
             d.ai_persona AS department_ai_persona
@@ -471,12 +471,29 @@ async function dispatchChatbotResponse(inbox, conversation, contact, io) {
   const provider = ws.ai_provider || 'anthropic';
   const apiKey   = provider === 'custom' ? (ws.custom_ai_api_key || 'ollama')
                  : provider === 'openai' ? ws.openai_api_key
+                 : provider === 'gemini' ? ws.gemini_api_key
                  : ws.anthropic_api_key;
   const canRun   = provider === 'custom' ? !!ws.ai_base_url : !!apiKey;
 
+  logger.info('dispatchChatbotResponse: config check', {
+    conversationId: conversation.id,
+    provider,
+    hasApiKey: !!apiKey,
+    canRun,
+    isGroup: conversation.is_group,
+    aiIgnoreGroups: ws.ai_ignore_groups,
+    aiToolsEnabled: ws.ai_tools_enabled,
+  });
+
   // Respeita configuração de ignorar grupos no funil de IA
-  if (ws.ai_ignore_groups && conversation.is_group) return;
-  if (!canRun) return;
+  if (ws.ai_ignore_groups && conversation.is_group) {
+    logger.info('dispatchChatbotResponse: skipped — group conversation ignored');
+    return;
+  }
+  if (!canRun) {
+    logger.warn('dispatchChatbotResponse: skipped — no API key configured for provider', { provider });
+    return;
+  }
 
   await query('UPDATE conversations SET bot_active = true WHERE id = $1', [conversation.id]);
 
@@ -511,7 +528,11 @@ async function dispatchChatbotResponse(inbox, conversation, contact, io) {
     : aiSvc.generateChatbotResponse(conversation.id, systemPrompt, apiKey, provider, ws.ai_model || null, ws.ai_base_url);
 
   responsePromise.then(async (botReply) => {
-    if (!botReply) return;
+    if (!botReply) {
+      logger.warn('dispatchChatbotResponse: AI returned empty reply', { conversationId: conversation.id, provider });
+      return;
+    }
+    logger.info('dispatchChatbotResponse: sending reply', { conversationId: conversation.id, provider, replyLength: botReply.length });
     const botMsg = await msgSvc.send(conversation.id, null, { content: botReply, messageType: 'text', isPrivate: false });
     io?.to(`conv:${conversation.id}`).emit('message:new', botMsg);
     io?.to(`ws:${inbox.workspace_id}`).emit('message:new', botMsg);

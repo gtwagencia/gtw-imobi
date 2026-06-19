@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/store/auth';
 import Header from '@/components/layout/Header';
@@ -12,12 +12,18 @@ import {
 } from '@/lib/propertyConstants';
 import {
   Search, Plus, Building2, BedDouble, Bath, Car, Ruler,
-  ChevronLeft, ChevronRight, SlidersHorizontal, Star, GitCompare, X, Check,
+  ChevronLeft, ChevronRight, SlidersHorizontal, Star, GitCompare,
+  X, Check, ChevronDown, ChevronUp, MapPin,
 } from 'lucide-react';
 import EmptyState from '@/components/ui/EmptyState';
 import clsx from 'clsx';
 
 const LIMIT = 24;
+
+interface FilterOptions {
+  cities: string[];
+  neighborhoods: string[];
+}
 
 export default function PropertiesPage() {
   const { currentWorkspace } = useAuth();
@@ -27,59 +33,112 @@ export default function PropertiesPage() {
   const [total,      setTotal]      = useState(0);
   const [page,       setPage]       = useState(1);
   const [loading,    setLoading]    = useState(true);
-  const [showFilters, setShowFilters] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
   const [compareMode, setCompareMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
-  const [search,    setSearch]    = useState('');
-  const [type,      setType]      = useState<PropertyType | ''>('');
-  const [purpose,   setPurpose]   = useState<PropertyPurpose | ''>('');
-  const [status,    setStatus]    = useState<PropertyStatus | ''>('');
-  const [city,      setCity]      = useState('');
-  const [minPrice,  setMinPrice]  = useState('');
-  const [maxPrice,  setMaxPrice]  = useState('');
-  const [bedrooms,  setBedrooms]  = useState('');
+  // Filter options from API
+  const [filterOptions, setFilterOptions]         = useState<FilterOptions>({ cities: [], neighborhoods: [] });
+  const [loadingNeighborhoods, setLoadingNeighborhoods] = useState(false);
 
-  const load = useCallback(async () => {
+  // Filter state
+  const [search,       setSearch]       = useState('');
+  const [type,         setType]         = useState<PropertyType | ''>('');
+  const [purpose,      setPurpose]      = useState<PropertyPurpose | ''>('');
+  const [status,       setStatus]       = useState<PropertyStatus | ''>('');
+  const [city,         setCity]         = useState('');
+  const [neighborhood, setNeighborhood] = useState('');
+  const [minPrice,     setMinPrice]     = useState('');
+  const [maxPrice,     setMaxPrice]     = useState('');
+  const [bedrooms,     setBedrooms]     = useState('');
+  const [suites,       setSuites]       = useState('');
+  const [bathrooms,    setBathrooms]    = useState('');
+  const [parkingSpots, setParkingSpots] = useState('');
+  const [minArea,      setMinArea]      = useState('');
+  const [maxArea,      setMaxArea]      = useState('');
+
+  const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Load cities on mount
+  useEffect(() => {
+    if (!currentWorkspace) return;
+    api.get(`/workspaces/${currentWorkspace.id}/properties/filters`)
+      .then(({ data }) => setFilterOptions(prev => ({ ...prev, cities: data.cities || [], neighborhoods: data.neighborhoods || [] })))
+      .catch(() => {});
+  }, [currentWorkspace]);
+
+  // Load neighborhoods when city changes
+  useEffect(() => {
+    if (!currentWorkspace) return;
+    setNeighborhood('');
+    setLoadingNeighborhoods(true);
+    api.get(`/workspaces/${currentWorkspace.id}/properties/filters`, { params: city ? { city } : undefined })
+      .then(({ data }) => setFilterOptions(prev => ({ ...prev, neighborhoods: data.neighborhoods || [] })))
+      .catch(() => {})
+      .finally(() => setLoadingNeighborhoods(false));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [city, currentWorkspace?.id]);
+
+  const fetchProperties = useCallback((pg: number) => {
     if (!currentWorkspace) return;
     setLoading(true);
-    try {
-      const { data } = await api.get(`/workspaces/${currentWorkspace.id}/properties`, {
-        params: {
-          search: search || undefined,
-          type: type || undefined,
-          purpose: purpose || undefined,
-          status: status || undefined,
-          city: city || undefined,
-          minPrice: minPrice || undefined,
-          maxPrice: maxPrice || undefined,
-          bedrooms: bedrooms || undefined,
-          page,
-          limit: LIMIT,
-        },
-      });
+    api.get(`/workspaces/${currentWorkspace.id}/properties`, {
+      params: {
+        search:       search       || undefined,
+        type:         type         || undefined,
+        purpose:      purpose      || undefined,
+        status:       status       || undefined,
+        city:         city         || undefined,
+        neighborhood: neighborhood || undefined,
+        minPrice:     minPrice     || undefined,
+        maxPrice:     maxPrice     || undefined,
+        bedrooms:     bedrooms     || undefined,
+        suites:       suites       || undefined,
+        bathrooms:    bathrooms    || undefined,
+        parkingSpots: parkingSpots || undefined,
+        minArea:      minArea      || undefined,
+        maxArea:      maxArea      || undefined,
+        page:         pg,
+        limit:        LIMIT,
+      },
+    }).then(({ data }) => {
       setProperties(data.data);
       setTotal(data.total);
-    } finally {
-      setLoading(false);
-    }
-  }, [currentWorkspace, search, type, purpose, status, city, minPrice, maxPrice, bedrooms, page]);
+    }).catch(() => {})
+    .finally(() => setLoading(false));
+  }, [currentWorkspace, search, type, purpose, status, city, neighborhood,
+      minPrice, maxPrice, bedrooms, suites, bathrooms, parkingSpots, minArea, maxArea]);
 
-  useEffect(() => { load(); }, [load]);
+  // Page change: immediate fetch
+  useEffect(() => { fetchProperties(page); }, [page, fetchProperties]);
 
-  // Debounce search/filters
+  // Select filters: reset page + immediate fetch
   useEffect(() => {
-    const t = setTimeout(() => { setPage(1); load(); }, 300);
-    return () => clearTimeout(t);
+    setPage(1);
+    fetchProperties(1);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [search, type, purpose, status, city, minPrice, maxPrice, bedrooms]);
+  }, [type, purpose, status, city, neighborhood, bedrooms, suites, bathrooms, parkingSpots]);
 
-  const activeFilterCount = [type, purpose, status, city, minPrice, maxPrice, bedrooms].filter(Boolean).length;
+  // Text filters: debounced reset + fetch
+  useEffect(() => {
+    if (debounceTimer.current) clearTimeout(debounceTimer.current);
+    debounceTimer.current = setTimeout(() => {
+      setPage(1);
+      fetchProperties(1);
+    }, 400);
+    return () => { if (debounceTimer.current) clearTimeout(debounceTimer.current); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search, minPrice, maxPrice, minArea, maxArea]);
+
+  const basicFilterCount    = [type, purpose, status, city, neighborhood].filter(Boolean).length;
+  const advancedFilterCount = [minPrice, maxPrice, bedrooms, suites, bathrooms, parkingSpots, minArea, maxArea].filter(Boolean).length;
+  const activeFilterCount   = basicFilterCount + advancedFilterCount;
 
   function clearFilters() {
-    setType(''); setPurpose(''); setStatus(''); setCity('');
-    setMinPrice(''); setMaxPrice(''); setBedrooms('');
+    setType(''); setPurpose(''); setStatus(''); setCity(''); setNeighborhood('');
+    setMinPrice(''); setMaxPrice(''); setBedrooms(''); setSuites('');
+    setBathrooms(''); setParkingSpots(''); setMinArea(''); setMaxArea('');
   }
 
   function toggleSelected(id: string) {
@@ -113,7 +172,7 @@ export default function PropertiesPage() {
               onClick={toggleCompareMode}
             >
               {compareMode ? <X className="w-4 h-4" /> : <GitCompare className="w-4 h-4" />}
-              {compareMode ? 'Cancelar' : 'Comparar imóveis'}
+              {compareMode ? 'Cancelar' : 'Comparar'}
             </button>
             <button className="btn-primary text-sm" onClick={() => router.push('/dashboard/imoveis/novo')}>
               <Plus className="w-4 h-4" />
@@ -124,75 +183,149 @@ export default function PropertiesPage() {
       />
 
       <div className="flex-1 overflow-y-auto p-4 md:p-6">
-        {/* Search + filter toggle */}
-        <div className="flex flex-wrap items-center gap-2 mb-4">
-          <div className="relative flex-1 max-w-sm">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input
-              className="input pl-9"
-              placeholder="Buscar por título, código, bairro ou cidade..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-          </div>
-          <button
-            className={clsx('btn-secondary text-sm', activeFilterCount > 0 && 'border-brand-300 text-brand-700')}
-            onClick={() => setShowFilters(v => !v)}
-          >
-            <SlidersHorizontal className="w-4 h-4" />
-            Filtros{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
-          </button>
-          {activeFilterCount > 0 && (
-            <button className="text-sm text-gray-400 hover:text-gray-600" onClick={clearFilters}>
-              Limpar filtros
-            </button>
-          )}
-        </div>
 
-        {/* Filter bar */}
-        {showFilters && (
-          <div className="card p-4 mb-4 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
+        {/* ── Barra de busca + filtros principais ─────────────────────────── */}
+        <div className="card p-3 mb-4 space-y-3">
+          {/* Linha 1: busca + limpar */}
+          <div className="flex items-center gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input
+                className="input pl-9"
+                placeholder="Buscar por título, código, bairro ou cidade..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
+            {activeFilterCount > 0 && (
+              <button className="text-sm text-gray-400 hover:text-gray-700 flex items-center gap-1 shrink-0" onClick={clearFilters}>
+                <X className="w-3.5 h-3.5" />
+                Limpar ({activeFilterCount})
+              </button>
+            )}
+          </div>
+
+          {/* Linha 2: filtros principais */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Tipo</label>
-              <select className="input" value={type} onChange={e => setType(e.target.value as PropertyType | '')}>
-                <option value="">Todos</option>
+              <label className="block text-[11px] font-medium text-gray-500 mb-1">Tipo</label>
+              <select className="input text-sm py-1.5" value={type} onChange={e => setType(e.target.value as PropertyType | '')}>
+                <option value="">Todos os tipos</option>
                 {Object.entries(PROPERTY_TYPE_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Finalidade</label>
-              <select className="input" value={purpose} onChange={e => setPurpose(e.target.value as PropertyPurpose | '')}>
+              <label className="block text-[11px] font-medium text-gray-500 mb-1">Finalidade</label>
+              <select className="input text-sm py-1.5" value={purpose} onChange={e => setPurpose(e.target.value as PropertyPurpose | '')}>
                 <option value="">Todas</option>
                 {Object.entries(PURPOSE_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Status</label>
-              <select className="input" value={status} onChange={e => setStatus(e.target.value as PropertyStatus | '')}>
+              <label className="block text-[11px] font-medium text-gray-500 mb-1">Status</label>
+              <select className="input text-sm py-1.5" value={status} onChange={e => setStatus(e.target.value as PropertyStatus | '')}>
                 <option value="">Todos</option>
                 {Object.entries(STATUS_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Cidade</label>
-              <input className="input" value={city} onChange={e => setCity(e.target.value)} placeholder="Cidade" />
+              <label className="block text-[11px] font-medium text-gray-500 mb-1 flex items-center gap-1">
+                <MapPin className="w-3 h-3" /> Cidade
+              </label>
+              <select className="input text-sm py-1.5" value={city} onChange={e => setCity(e.target.value)}>
+                <option value="">Todas as cidades</option>
+                {filterOptions.cities.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Preço mín.</label>
-              <input className="input" type="number" min="0" value={minPrice} onChange={e => setMinPrice(e.target.value)} placeholder="R$" />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Preço máx.</label>
-              <input className="input" type="number" min="0" value={maxPrice} onChange={e => setMaxPrice(e.target.value)} placeholder="R$" />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Quartos (mín.)</label>
-              <input className="input" type="number" min="0" value={bedrooms} onChange={e => setBedrooms(e.target.value)} placeholder="0" />
+              <label className="block text-[11px] font-medium text-gray-500 mb-1 flex items-center gap-1">
+                <MapPin className="w-3 h-3" /> Bairro
+              </label>
+              <select
+                className="input text-sm py-1.5"
+                value={neighborhood}
+                onChange={e => setNeighborhood(e.target.value)}
+                disabled={loadingNeighborhoods || filterOptions.neighborhoods.length === 0}
+              >
+                <option value="">
+                  {loadingNeighborhoods
+                    ? 'Carregando...'
+                    : filterOptions.neighborhoods.length === 0
+                      ? city ? 'Sem bairros' : 'Todos os bairros'
+                      : 'Todos os bairros'}
+                </option>
+                {filterOptions.neighborhoods.map(n => <option key={n} value={n}>{n}</option>)}
+              </select>
             </div>
           </div>
-        )}
 
-        {/* Grid */}
+          {/* Linha 3: toggle filtros avançados */}
+          <button
+            className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-800 transition-colors"
+            onClick={() => setShowAdvanced(v => !v)}
+          >
+            <SlidersHorizontal className="w-3.5 h-3.5" />
+            Filtros avançados
+            {advancedFilterCount > 0 && (
+              <span className="bg-brand-100 text-brand-700 text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+                {advancedFilterCount}
+              </span>
+            )}
+            {showAdvanced ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+          </button>
+
+          {/* Filtros avançados colapsáveis */}
+          {showAdvanced && (
+            <div className="border-t border-gray-100 pt-3 grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2">
+              <div>
+                <label className="block text-[11px] font-medium text-gray-500 mb-1">Preço mín.</label>
+                <input className="input text-sm py-1.5" type="number" min="0" step="10000" value={minPrice} onChange={e => setMinPrice(e.target.value)} placeholder="R$" />
+              </div>
+              <div>
+                <label className="block text-[11px] font-medium text-gray-500 mb-1">Preço máx.</label>
+                <input className="input text-sm py-1.5" type="number" min="0" step="10000" value={maxPrice} onChange={e => setMaxPrice(e.target.value)} placeholder="R$" />
+              </div>
+              <div>
+                <label className="block text-[11px] font-medium text-gray-500 mb-1">Quartos (mín.)</label>
+                <select className="input text-sm py-1.5" value={bedrooms} onChange={e => setBedrooms(e.target.value)}>
+                  <option value="">Qualquer</option>
+                  {[1,2,3,4,5].map(n => <option key={n} value={n}>{n}+</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-[11px] font-medium text-gray-500 mb-1">Suítes (mín.)</label>
+                <select className="input text-sm py-1.5" value={suites} onChange={e => setSuites(e.target.value)}>
+                  <option value="">Qualquer</option>
+                  {[1,2,3,4,5].map(n => <option key={n} value={n}>{n}+</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-[11px] font-medium text-gray-500 mb-1">Banheiros (mín.)</label>
+                <select className="input text-sm py-1.5" value={bathrooms} onChange={e => setBathrooms(e.target.value)}>
+                  <option value="">Qualquer</option>
+                  {[1,2,3,4,5].map(n => <option key={n} value={n}>{n}+</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-[11px] font-medium text-gray-500 mb-1">Vagas (mín.)</label>
+                <select className="input text-sm py-1.5" value={parkingSpots} onChange={e => setParkingSpots(e.target.value)}>
+                  <option value="">Qualquer</option>
+                  {[1,2,3,4,5].map(n => <option key={n} value={n}>{n}+</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-[11px] font-medium text-gray-500 mb-1">Área mín. (m²)</label>
+                <input className="input text-sm py-1.5" type="number" min="0" value={minArea} onChange={e => setMinArea(e.target.value)} placeholder="m²" />
+              </div>
+              <div>
+                <label className="block text-[11px] font-medium text-gray-500 mb-1">Área máx. (m²)</label>
+                <input className="input text-sm py-1.5" type="number" min="0" value={maxArea} onChange={e => setMaxArea(e.target.value)} placeholder="m²" />
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* ── Grid de imóveis ──────────────────────────────────────────────── */}
         {loading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {Array.from({ length: 8 }).map((_, i) => (
@@ -227,7 +360,6 @@ export default function PropertiesPage() {
                   compareMode && selectedIds.includes(p.id) && 'ring-2 ring-brand-400',
                 )}
               >
-                {/* Hero photo — 56% do card */}
                 <div className="relative h-48 bg-gray-100 flex items-center justify-center overflow-hidden">
                   {p.cover_url ? (
                     // eslint-disable-next-line @next/next/no-img-element
@@ -238,21 +370,15 @@ export default function PropertiesPage() {
                       <span className="text-xs">Sem foto</span>
                     </div>
                   )}
-                  {/* Gradient overlay */}
-                  {p.cover_url && (
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
-                  )}
-                  {/* Status badge */}
+                  {p.cover_url && <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />}
                   <span className={clsx('absolute top-2.5 left-2.5 text-xs font-semibold px-2.5 py-1 rounded-full shadow-soft', STATUS_COLORS[p.status])}>
                     {STATUS_LABELS[p.status]}
                   </span>
-                  {/* Featured star */}
                   {p.is_featured && !compareMode && (
                     <span className="absolute top-2.5 right-2.5 bg-gradient-to-br from-accent-300 to-accent-500 text-accent-900 rounded-full p-1.5 shadow-soft">
                       <Star className="w-3.5 h-3.5" fill="currentColor" />
                     </span>
                   )}
-                  {/* Compare checkbox */}
                   {compareMode && (
                     <span className={clsx(
                       'absolute top-2.5 right-2.5 w-7 h-7 rounded-full border-2 flex items-center justify-center shadow-soft',
@@ -261,7 +387,6 @@ export default function PropertiesPage() {
                       {selectedIds.includes(p.id) && <Check className="w-4 h-4" />}
                     </span>
                   )}
-                  {/* Price overlay at bottom */}
                   {p.cover_url && (
                     <div className="absolute bottom-0 left-0 right-0 px-3 py-2">
                       <p className="font-bold text-white text-sm drop-shadow">{propertyPriceLabel(p)}</p>
@@ -269,7 +394,6 @@ export default function PropertiesPage() {
                   )}
                 </div>
 
-                {/* Info area */}
                 <div className="p-3.5">
                   <div className="flex items-center justify-between mb-1">
                     <span className="text-[10px] font-mono text-gray-400 tracking-wider">{p.code}</span>
@@ -324,15 +448,15 @@ export default function PropertiesPage() {
           </div>
         )}
 
-        {/* Pagination */}
+        {/* Paginação */}
         {total > LIMIT && (
-          <div className="flex justify-center gap-2 mt-6">
+          <div className="flex justify-center items-center gap-2 mt-6">
             <button className="btn-secondary" disabled={page === 1} onClick={() => setPage(p => p - 1)}>
               <ChevronLeft className="w-4 h-4" />
               Anterior
             </button>
-            <span className="flex items-center text-sm text-gray-600">
-              {page} / {Math.ceil(total / LIMIT)}
+            <span className="text-sm text-gray-600">
+              Página {page} de {Math.ceil(total / LIMIT)} &nbsp;·&nbsp; {total} imóveis
             </span>
             <button className="btn-secondary" disabled={page >= Math.ceil(total / LIMIT)} onClick={() => setPage(p => p + 1)}>
               Próxima
