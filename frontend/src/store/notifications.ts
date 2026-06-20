@@ -149,9 +149,13 @@ export const useNotifications = create<NotificationState>((set, get) => ({
 
     _handlerMsgNew = (msg: {
       id?: string; direction: string; content: string; contact_name?: string;
-      conversation_id?: string; is_group?: boolean;
+      conversation_id?: string; is_group?: boolean; assignee_id?: string | null;
     }) => {
       if (msg.direction !== 'inbound') return;
+
+      // Só notifica se a conversa está atribuída ao usuário atual ou a ninguém
+      const me = useAuth.getState().user?.id;
+      if (msg.assignee_id && msg.assignee_id !== me) return;
 
       // Não notifica a conversa que está aberta no momento
       const active = get().activeConversationId;

@@ -355,8 +355,8 @@ async function handleGroupMessage(msg, inbox, io, event) {
       await query('UPDATE contacts SET name = $1 WHERE id = $2', [groupName, contact.id]);
     }
 
-    io?.to(`conv:${conversation.id}`).emit('message:new', { ...message, is_group: true, contact_name: groupName });
-    io?.to(`ws:${inbox.workspace_id}`).emit('message:new', { ...message, is_group: true, contact_name: groupName });
+    io?.to(`conv:${conversation.id}`).emit('message:new', { ...message, is_group: true, contact_name: groupName, assignee_id: conversation.assignee_id });
+    io?.to(`ws:${inbox.workspace_id}`).emit('message:new', { ...message, is_group: true, contact_name: groupName, assignee_id: conversation.assignee_id });
     io?.to(`ws:${inbox.workspace_id}`).emit('conversation:updated', {
       conversationId:  conversation.id,
       lastMessageAt:   new Date(),
@@ -745,8 +745,8 @@ router.post('/evolution/:inboxId', async (req, res) => {
           const kanbanSvc = require('../kanban/kanban.service');
           kanbanSvc.moveToAttending(conversation.id).catch(() => {});
 
-          io?.to(`conv:${conversation.id}`).emit('message:new', { ...message, contact_name: contact.name });
-          io?.to(`ws:${inbox.workspace_id}`).emit('message:new', { ...message, contact_name: contact.name });
+          io?.to(`conv:${conversation.id}`).emit('message:new', { ...message, contact_name: contact.name, assignee_id: conversation.assignee_id });
+          io?.to(`ws:${inbox.workspace_id}`).emit('message:new', { ...message, contact_name: contact.name, assignee_id: conversation.assignee_id });
           io?.to(`ws:${inbox.workspace_id}`).emit('conversation:updated', {
             conversationId:  conversation.id,
             lastMessageAt:   new Date(),
@@ -971,9 +971,8 @@ router.post('/evolution/:inboxId', async (req, res) => {
           ? inbox.chatbot_test_number.trim().split(',').map(n => n.trim().replace(/\D/g, '')).filter(Boolean)
           : [];
         const phoneStr = String(phone || '');
-        // bot_active=false sem dono = IA encerrou atendimento (roteou ou parou) — não reativa
+        // bot_active só bloqueia quando há humano atribuído; sem atendente o bot sempre pode retomar
         const botShouldRun = inbox.chatbot_enabled && !conversation.assignee_id
-          && (conversation.bot_active !== false || created)
           && (!testNumbers.length || testNumbers.some(n => phoneStr === n || phoneStr.endsWith(n) || n.endsWith(phoneStr)));
         logger.info('[chatbot] condition check', {
           conversationId: conversation.id,
@@ -1000,8 +999,8 @@ router.post('/evolution/:inboxId', async (req, res) => {
             url:   `/dashboard/conversations?id=${conversation.id}`,
           }).catch(err => logger.warn('Push notification failed', { err: err.message }));
         }
-        io?.to(`conv:${conversation.id}`).emit('message:new', { ...message, contact_name: contact.name });
-        io?.to(`ws:${inbox.workspace_id}`).emit('message:new', { ...message, contact_name: contact.name });
+        io?.to(`conv:${conversation.id}`).emit('message:new', { ...message, contact_name: contact.name, assignee_id: conversation.assignee_id });
+        io?.to(`ws:${inbox.workspace_id}`).emit('message:new', { ...message, contact_name: contact.name, assignee_id: conversation.assignee_id });
         io?.to(`ws:${inbox.workspace_id}`).emit('conversation:updated', {
           conversationId:  conversation.id,
           lastMessageAt:   new Date(),
@@ -1217,14 +1216,14 @@ router.post('/waba', async (req, res) => {
         ? inbox.chatbot_test_number.trim().split(',').map(n => n.trim().replace(/\D/g, '')).filter(Boolean)
         : [];
       const wabaPhoneStr = String(phone || '');
-      if (inbox.chatbot_enabled && !conversation.assignee_id && (created || conversation.bot_active)
+      if (inbox.chatbot_enabled && !conversation.assignee_id
           && (!wabaTestNumbers.length || wabaTestNumbers.some(n => wabaPhoneStr === n || wabaPhoneStr.endsWith(n) || n.endsWith(wabaPhoneStr)))) {
         dispatchChatbotResponse(inbox, conversation, contact, io)
           .catch(err => logger.warn('Chatbot dispatch failed (WABA)', { err: err.message }));
       }
 
-      io?.to(`conv:${conversation.id}`).emit('message:new', { ...message, contact_name: contact.name });
-      io?.to(`ws:${inbox.workspace_id}`).emit('message:new', { ...message, contact_name: contact.name });
+      io?.to(`conv:${conversation.id}`).emit('message:new', { ...message, contact_name: contact.name, assignee_id: conversation.assignee_id });
+      io?.to(`ws:${inbox.workspace_id}`).emit('message:new', { ...message, contact_name: contact.name, assignee_id: conversation.assignee_id });
       io?.to(`ws:${inbox.workspace_id}`).emit('conversation:updated', {
         conversationId: conversation.id, lastMessageAt: new Date(),
         lastMessageText: content, unreadCount: (conversation.unread_count || 0) + 1,
