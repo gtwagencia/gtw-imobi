@@ -943,10 +943,11 @@ router.post('/evolution/:inboxId', async (req, res) => {
         // atribuição não podem ficar sem resposta.
         // chatbot_test_number: quando definido, bot só responde aos números listados (vírgula como separador).
         const testNumbers = inbox.chatbot_test_number
-          ? inbox.chatbot_test_number.split(',').map(n => n.replace(/\D/g, '')).filter(Boolean)
+          ? inbox.chatbot_test_number.trim().split(',').map(n => n.trim().replace(/\D/g, '')).filter(Boolean)
           : [];
+        const phoneStr = String(phone || '');
         const botShouldRun = inbox.chatbot_enabled && !conversation.assignee_id
-          && (!testNumbers.length || testNumbers.includes(phone));
+          && (!testNumbers.length || testNumbers.some(n => phoneStr === n || phoneStr.endsWith(n) || n.endsWith(phoneStr)));
         logger.info('[chatbot] condition check', {
           conversationId: conversation.id,
           chatbotEnabled: inbox.chatbot_enabled,
@@ -1186,10 +1187,11 @@ router.post('/waba', async (req, res) => {
       }
 
       const wabaTestNumbers = inbox.chatbot_test_number
-        ? inbox.chatbot_test_number.split(',').map(n => n.replace(/\D/g, '')).filter(Boolean)
+        ? inbox.chatbot_test_number.trim().split(',').map(n => n.trim().replace(/\D/g, '')).filter(Boolean)
         : [];
+      const wabaPhoneStr = String(phone || '');
       if (inbox.chatbot_enabled && !conversation.assignee_id && (created || conversation.bot_active)
-          && (!wabaTestNumbers.length || wabaTestNumbers.includes(phone))) {
+          && (!wabaTestNumbers.length || wabaTestNumbers.some(n => wabaPhoneStr === n || wabaPhoneStr.endsWith(n) || n.endsWith(wabaPhoneStr)))) {
         dispatchChatbotResponse(inbox, conversation, contact, io)
           .catch(err => logger.warn('Chatbot dispatch failed (WABA)', { err: err.message }));
       }
