@@ -141,7 +141,7 @@ export default function LeadsPage() {
 
   return (
     <div className="flex flex-col h-full">
-      <Header title="Leads Qualificados" subtitle={`${total} contatos com perfil identificado pela IA`} />
+      <Header title={`Leads Qualificados${total ? ` (${total})` : ''}`} />
 
       <div className="flex-1 overflow-auto p-4 md:p-6 space-y-4">
 
