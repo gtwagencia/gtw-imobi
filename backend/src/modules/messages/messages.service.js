@@ -150,6 +150,10 @@ async function send(conversationId, senderId, { content, messageType = 'text', m
         const instance = conv.evolution_instance;
         const headers  = { apikey: conv.evolution_api_key };
 
+        require('../../utils/logger').info('Evolution API send attempt', {
+          conversationId, instance, number, messageType,
+        });
+
         let evoRes;
         if (messageType && messageType !== 'text' && mediaUrl) {
           const filename = path.basename(new URL(mediaUrl).pathname);
@@ -186,10 +190,21 @@ async function send(conversationId, senderId, { content, messageType = 'text', m
         }
       } catch (err) {
         const errMsg = err?.response?.data || err?.message;
-        require('../../utils/logger').error('Evolution API send failed', { errMsg, conversationId });
+        require('../../utils/logger').error('Evolution API send failed', {
+          errMsg, conversationId,
+          status: err?.response?.status,
+          url: err?.config?.url,
+        });
         await query('UPDATE messages SET status = $1 WHERE id = $2', ['failed', message.id]);
         message.status = 'failed';
       }
+    } else {
+      require('../../utils/logger').warn('send: no channel configured to deliver message', {
+        conversationId,
+        hasEvolutionUrl: !!conv.evolution_api_url,
+        hasInstance: !!conv.evolution_instance,
+        channelType: conv.channel_type,
+      });
     }
   }
 
