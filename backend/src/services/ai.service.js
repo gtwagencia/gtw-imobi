@@ -300,34 +300,37 @@ const AGENT_TOOL_DEFS = [
   },
   {
     name: 'rotear_para_grupo',
-    description: 'Roteia o lead para o grupo de atendimento especializado (ex: Compra e Venda, Locação, Empreendimentos). Use quando o cliente já revelou seu perfil e está pronto para falar com um especialista. Retorna o nome do corretor atribuído.',
+    description: 'Roteia o lead para o grupo de atendimento especializado. Use quando o cliente já revelou seu perfil e está pronto para falar com um especialista. Inclua sempre um resumo detalhado do atendimento para o corretor que assumirá.',
     input_schema: {
       type: 'object',
       properties: {
         grupo:  { type: 'string', description: 'Nome exato do grupo de atendimento conforme informado no contexto' },
         perfil: { type: 'string', description: 'Resumo do perfil do cliente (intenção, tipo de imóvel, orçamento, localização)' },
+        resumo: { type: 'string', description: 'Resumo completo do atendimento para o corretor: o que o cliente quer, quais imóveis/empreendimentos foram apresentados, quais geraram interesse, qual a intenção real e os próximos passos sugeridos. Seja detalhado — este texto aparecerá para o corretor que assumir a conversa.' },
       },
       required: ['grupo'],
     },
   },
   {
     name: 'transferir_para_setor',
-    description: 'Transfere a conversa para um setor/departamento específico da equipe quando o assunto não é sobre buscar/conhecer imóveis (ex: financeiro, jurídico, suporte pós-venda). Use o nome exato do setor conforme informado no contexto.',
+    description: 'Transfere a conversa para um departamento específico da equipe. Use o nome exato do departamento conforme informado no contexto. Inclua sempre um resumo do atendimento para quem assumir.',
     input_schema: {
       type: 'object',
       properties: {
-        setor:  { type: 'string', description: 'Nome exato do setor/departamento' },
+        setor:  { type: 'string', description: 'Nome exato do departamento' },
         motivo: { type: 'string', description: 'Breve motivo da transferência' },
+        resumo: { type: 'string', description: 'Resumo completo do atendimento para o agente que assumirá: o que o cliente quer, o que foi apresentado, interesse demonstrado e próximos passos. Este texto aparecerá para o agente na tela da conversa.' },
       },
       required: ['setor'],
     },
   },
   {
     name: 'atualizar_perfil_lead',
-    description: 'Salva no sistema informações qualificadas do lead coletadas durante a conversa (cidade de interesse, empreendimento, perfil, tipo de imóvel, faixa de valores). Chame silenciosamente sempre que identificar pelo menos um desses dados — o cliente não precisa saber. Pode ser chamado múltiplas vezes conforme mais informações surgem.',
+    description: 'Salva no sistema informações qualificadas do lead. Chame silenciosamente sempre que identificar nome real, cidade, empreendimento, perfil, tipo de imóvel ou faixa de valores. Pode ser chamado múltiplas vezes.',
     input_schema: {
       type: 'object',
       properties: {
+        nome_lead:                  { type: 'string', description: 'Nome real do lead identificado na conversa — use quando o cliente disser o nome dele e for diferente do nome salvo no sistema (ex: número de telefone ou nome genérico do WhatsApp)' },
         cidade_interesse:           { type: 'string', description: 'Cidade ou região onde quer o imóvel' },
         empreendimento_interesse:   { type: 'string', description: 'Nome ou código do empreendimento de interesse' },
         perfil:                     { type: 'string', enum: ['investidor', 'morador', 'empresa'], description: 'Perfil do comprador' },
@@ -1298,6 +1301,16 @@ async function executeAgentTool(name, input, ctx) {
       case 'atualizar_perfil_lead': {
         if (!ctx.contactId) return { success: false, error: 'Conversa sem contato associado' };
         const contactsSvc = require('../modules/contacts/contacts.service');
+
+        // Atualiza nome real do lead se identificado
+        if (input.nome_lead?.trim()) {
+          await query(
+            'UPDATE contacts SET name = $1 WHERE id = $2 AND workspace_id = $3',
+            [input.nome_lead.trim(), ctx.contactId, ctx.workspaceId]
+          );
+          ctx.io?.to(`ws:${ctx.workspaceId}`).emit('contact:updated', { contactId: ctx.contactId, name: input.nome_lead.trim() });
+        }
+
         const patch = {};
         if (input.cidade_interesse)         patch.cidade_interesse         = input.cidade_interesse;
         if (input.empreendimento_interesse) patch.empreendimento_interesse = input.empreendimento_interesse;
@@ -1305,8 +1318,9 @@ async function executeAgentTool(name, input, ctx) {
         if (input.tipo_imovel)              patch.tipo_imovel              = input.tipo_imovel;
         if (input.faixa_valor_min != null)  patch.faixa_valor_min          = input.faixa_valor_min;
         if (input.faixa_valor_max != null)  patch.faixa_valor_max          = input.faixa_valor_max;
-        if (!Object.keys(patch).length) return { success: false, error: 'Nenhum campo fornecido' };
-        await contactsSvc.updateAiProfile(ctx.contactId, ctx.workspaceId, patch);
+        if (Object.keys(patch).length) {
+          await contactsSvc.updateAiProfile(ctx.contactId, ctx.workspaceId, patch);
+        }
         return { success: true };
       }
       case 'rotear_para_grupo': {
@@ -1386,6 +1400,11 @@ async function executeAgentTool(name, input, ctx) {
           ctx.io?.to(`conv:${ctx.conversationId}`).emit('conversation:updated', payload);
         }
 
+        const handoffSummary = input.resumo?.trim() || null;
+        if (handoffSummary) {
+          await query('UPDATE conversations SET bot_handoff_summary = $1 WHERE id = $2', [handoffSummary, ctx.conversationId]);
+          ctx.io?.to(`conv:${ctx.conversationId}`).emit('conversation:updated', { conversationId: ctx.conversationId, botHandoffSummary: handoffSummary });
+        }
         if (input.perfil) {
           await query(
             `UPDATE deals SET ai_summary = $1 WHERE conversation_id = $2`,
@@ -1431,6 +1450,11 @@ async function executeAgentTool(name, input, ctx) {
         }
         if (!agentId) {
           await query('UPDATE conversations SET department_id = $1, bot_active = false WHERE id = $2', [target.id, ctx.conversationId]);
+        }
+        const handoffSummarySetor = input.resumo?.trim() || null;
+        if (handoffSummarySetor) {
+          await query('UPDATE conversations SET bot_handoff_summary = $1 WHERE id = $2', [handoffSummarySetor, ctx.conversationId]);
+          ctx.io?.to(`conv:${ctx.conversationId}`).emit('conversation:updated', { conversationId: ctx.conversationId, botHandoffSummary: handoffSummarySetor });
         }
 
         const payload = { conversationId: ctx.conversationId, departmentId: target.id, assigneeId: agentId, botActive: false };

@@ -622,6 +622,7 @@ export interface Conversation {
   meta_adset_name: string | null;
   meta_campaign_name: string | null;
   meta_source_url: string | null;
+  bot_handoff_summary: string | null;
 }
 
 export interface Message {

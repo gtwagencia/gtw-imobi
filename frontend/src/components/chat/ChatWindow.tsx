@@ -10,7 +10,7 @@ import { joinConversation, getSocket } from '@/lib/socket';
 import type { Conversation, Message, Label, CannedResponse } from '@/types';
 import {
   Send, Check, CheckCheck, AlertCircle,
-  Archive, UserCheck, ChevronDown, Lock, Tag, X, Star, FileText, Paperclip, Ticket, Megaphone, ArrowLeft,
+  Archive, UserCheck, ChevronDown, Lock, Tag, X, Star, FileText, Paperclip, Ticket, Megaphone, ArrowLeft, Bot, ChevronUp,
 } from 'lucide-react';
 
 interface Props {
@@ -56,6 +56,9 @@ export default function ChatWindow({ conversation, onStatusChange, onBack }: Pro
   // Seleção múltipla de mensagens
   const [selectionMode,   setSelectionMode]   = useState(false);
   const [selectedMsgIds,  setSelectedMsgIds]  = useState<Set<string>>(new Set());
+  // Resumo de handoff gerado pela IA
+  const [handoffSummary,  setHandoffSummary]  = useState<string | null>(conversation.bot_handoff_summary ?? null);
+  const [summaryExpanded, setSummaryExpanded] = useState(true);
   const fileInputRef    = useRef<HTMLInputElement>(null);
   const bottomRef       = useRef<HTMLDivElement>(null);
   const assignRef       = useRef<HTMLDivElement>(null);
@@ -67,6 +70,12 @@ export default function ChatWindow({ conversation, onStatusChange, onBack }: Pro
   useEffect(() => {
     conversationRef.current = conversation.id;
   }, [conversation.id]);
+
+  // Atualiza resumo quando troca de conversa ou quando chega via prop
+  useEffect(() => {
+    setHandoffSummary(conversation.bot_handoff_summary ?? null);
+    setSummaryExpanded(true);
+  }, [conversation.id, conversation.bot_handoff_summary]);
 
   // ── Load messages ──────────────────────────────────────────────
   useEffect(() => {
@@ -104,6 +113,14 @@ export default function ChatWindow({ conversation, onStatusChange, onBack }: Pro
       ));
     };
 
+    // Atualiza resumo de handoff quando a IA roteou esta conversa em tempo real
+    const onConvUpdated = (data: { conversationId: string; botHandoffSummary?: string }) => {
+      if (data.conversationId === conversationRef.current && data.botHandoffSummary) {
+        setHandoffSummary(data.botHandoffSummary);
+        setSummaryExpanded(true);
+      }
+    };
+
     // Ao reconectar o socket, recarrega mensagens da conversa ativa
     const onReconnect = () => {
       joinConversation(conversationRef.current);
@@ -112,9 +129,10 @@ export default function ChatWindow({ conversation, onStatusChange, onBack }: Pro
         .catch(() => {});
     };
 
-    socket.on('message:new',    onNew);
-    socket.on('message:status', onStatus);
-    socket.on('connect',        onReconnect);
+    socket.on('message:new',          onNew);
+    socket.on('message:status',       onStatus);
+    socket.on('conversation:updated', onConvUpdated);
+    socket.on('connect',              onReconnect);
 
     // Polling de fallback: recarrega a cada 15s caso o socket não entregue
     const poll = setInterval(() => {
@@ -131,9 +149,10 @@ export default function ChatWindow({ conversation, onStatusChange, onBack }: Pro
     }, 15000);
 
     return () => {
-      socket.off('message:new',    onNew);
-      socket.off('message:status', onStatus);
-      socket.off('connect',        onReconnect);
+      socket.off('message:new',          onNew);
+      socket.off('message:status',       onStatus);
+      socket.off('conversation:updated', onConvUpdated);
+      socket.off('connect',              onReconnect);
       clearInterval(poll);
     };
   }, []);
@@ -614,6 +633,25 @@ export default function ChatWindow({ conversation, onStatusChange, onBack }: Pro
               </a>
             )}
           </div>
+        </div>
+      )}
+
+      {/* ── Resumo de handoff da IA ──────────────────────────── */}
+      {handoffSummary && (
+        <div className="bg-violet-50 border-b border-violet-200 flex-shrink-0">
+          <button
+            onClick={() => setSummaryExpanded(v => !v)}
+            className="w-full flex items-center gap-2 px-4 py-2.5 text-left hover:bg-violet-100 transition-colors"
+          >
+            <Bot className="w-4 h-4 text-violet-500 flex-shrink-0" />
+            <span className="text-xs font-semibold text-violet-700 flex-1">Resumo do atendimento pela IA</span>
+            <ChevronUp className={`w-3.5 h-3.5 text-violet-400 transition-transform ${summaryExpanded ? '' : 'rotate-180'}`} />
+          </button>
+          {summaryExpanded && (
+            <div className="px-4 pb-3">
+              <p className="text-xs text-violet-700 whitespace-pre-wrap leading-relaxed">{handoffSummary}</p>
+            </div>
+          )}
         </div>
       )}
 
