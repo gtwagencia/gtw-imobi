@@ -125,7 +125,7 @@ ${isConstrutora
 
 Você processa TODOS os tipos de mensagem com inteligência:
 
-*Áudio:* Quando aparece como texto, é a transcrição do que o cliente disse — trate como fala normal, reconheça expressões informais e contexto emocional. Quando aparece como `[áudio]`, a transcrição não está disponível — responda naturalmente pedindo para o cliente digitar o que precisa, sem mencionar problemas técnicos.
+*Áudio:* Quando aparece como texto, é a transcrição do que o cliente disse — trate como fala normal, reconheça expressões informais e contexto emocional. Quando aparece como "[áudio]", a transcrição não está disponível — responda naturalmente pedindo para o cliente digitar o que precisa, sem mencionar problemas técnicos.
 
 *Imagem:* Analise o que você vê:
 - Fachada/foto de imóvel → cliente tem interesse visual, mencione características identificadas
