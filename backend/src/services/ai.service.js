@@ -914,8 +914,7 @@ function buildPropertyCaption(p) {
   // ── Narrativa ────────────────────────────────────────────────────────────
   let narrative;
   if (p.description?.trim()) {
-    const d = p.description.trim();
-    narrative = d.length > 420 ? d.slice(0, 417).trimEnd() + '...' : d;
+    narrative = p.description.trim();
   } else {
     const typeName = PROP_TYPE_LABELS[p.property_type] || 'Imóvel';
     const specs = [];
@@ -965,8 +964,7 @@ function buildDevelopmentCaption(d) {
   // Narrativa — usa description se tiver
   let narrative;
   if (d.description?.trim()) {
-    const desc = d.description.trim();
-    narrative = desc.length > 420 ? desc.slice(0, 417).trimEnd() + '...' : desc;
+    narrative = d.description.trim();
   } else {
     const parts = [];
     if (d.builder_name) parts.push(`Construtora ${d.builder_name}`);
@@ -1018,27 +1016,27 @@ async function executeAgentTool(name, input, ctx) {
       case 'enviar_ficha_imovel': {
         const property = await propertiesSvc.getByCode(ctx.workspaceId, input.property_code);
         if (!property) return { success: false, error: 'Imóvel não encontrado' };
-        const caption = buildPropertyCaption(property);
-        // Capa com legenda — se a imagem falhar, manda só o texto
-        try {
-          await messagesSvc.send(ctx.conversationId, null, property.cover_url
-            ? { content: caption, messageType: 'image', mediaUrl: property.cover_url }
-            : { content: caption, messageType: 'text' });
-        } catch {
-          await messagesSvc.send(ctx.conversationId, null, { content: caption, messageType: 'text' });
-        }
-        // Fotos adicionais — cada uma isolada para que falhas individuais não abortam o envio
-        const extraPhotos = (property.media || [])
-          .filter(m => m.media_type === 'image' && m.url && !m.is_cover && m.show_on_site !== false);
-        for (const photo of extraPhotos) {
+
+        // 1. Descrição completa como texto (sem imagem)
+        await messagesSvc.send(ctx.conversationId, null, {
+          content: buildPropertyCaption(property), messageType: 'text',
+        });
+
+        // 2. Todas as fotos sem legenda: capa + extras (show_on_site)
+        const allPhotos = [
+          property.cover_url ? { url: property.cover_url } : null,
+          ...(property.media || []).filter(m => m.media_type === 'image' && m.url && !m.is_cover && m.show_on_site !== false),
+        ].filter(Boolean);
+        for (const photo of allPhotos) {
           try {
             await messagesSvc.send(ctx.conversationId, null, { content: '', messageType: 'image', mediaUrl: photo.url });
           } catch { /* foto individual falhou — continua */ }
         }
+
+        // 3. Tour virtual (se disponível)
         if (property.video_url) {
           await messagesSvc.send(ctx.conversationId, null, {
-            content: `🎬 Tour virtual: ${property.video_url}`,
-            messageType: 'text',
+            content: `🎬 Tour virtual: ${property.video_url}`, messageType: 'text',
           });
         }
         return { success: true };
@@ -1072,27 +1070,27 @@ async function executeAgentTool(name, input, ctx) {
       case 'enviar_ficha_empreendimento': {
         const development = await developmentsSvc.getByCode(ctx.workspaceId, input.development_code);
         if (!development) return { success: false, error: 'Empreendimento não encontrado' };
-        const caption = buildDevelopmentCaption(development);
-        // Capa com legenda — se a imagem falhar, manda só o texto
-        try {
-          await messagesSvc.send(ctx.conversationId, null, development.cover_url
-            ? { content: caption, messageType: 'image', mediaUrl: development.cover_url }
-            : { content: caption, messageType: 'text' });
-        } catch {
-          await messagesSvc.send(ctx.conversationId, null, { content: caption, messageType: 'text' });
-        }
-        // Fotos adicionais — cada uma isolada para que falhas individuais não abortam o envio
-        const extraDevPhotos = (development.media || [])
-          .filter(m => m.media_type === 'image' && m.url && !m.is_cover && m.show_on_site !== false);
-        for (const photo of extraDevPhotos) {
+
+        // 1. Descrição completa como texto (sem imagem)
+        await messagesSvc.send(ctx.conversationId, null, {
+          content: buildDevelopmentCaption(development), messageType: 'text',
+        });
+
+        // 2. Todas as fotos sem legenda: capa + extras (show_on_site)
+        const allDevPhotos = [
+          development.cover_url ? { url: development.cover_url } : null,
+          ...(development.media || []).filter(m => m.media_type === 'image' && m.url && !m.is_cover && m.show_on_site !== false),
+        ].filter(Boolean);
+        for (const photo of allDevPhotos) {
           try {
             await messagesSvc.send(ctx.conversationId, null, { content: '', messageType: 'image', mediaUrl: photo.url });
           } catch { /* foto individual falhou — continua */ }
         }
+
+        // 3. Tour virtual (se disponível)
         if (development.video_url) {
           await messagesSvc.send(ctx.conversationId, null, {
-            content: `🎬 Tour virtual: ${development.video_url}`,
-            messageType: 'text',
+            content: `🎬 Tour virtual: ${development.video_url}`, messageType: 'text',
           });
         }
         return { success: true };
