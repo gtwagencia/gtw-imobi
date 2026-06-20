@@ -209,7 +209,18 @@ async function listForFeed(workspaceId) {
 // ── Get by code ───────────────────────────────────────────────────────────
 
 async function getByCode(workspaceId, code) {
-  const r = await query('SELECT id FROM properties WHERE workspace_id = $1 AND code = $2', [workspaceId, code]);
+  // Tenta match exato primeiro; depois variantes comuns (IM-754, IM-0754, 754)
+  const numericOnly = String(code).replace(/\D/g, '');
+  const r = await query(
+    `SELECT id FROM properties
+     WHERE workspace_id = $1
+       AND (code = $2
+            OR code = $3
+            OR code = 'IM-' || $3
+            OR code = 'IM-' || LPAD($3, 4, '0'))
+     LIMIT 1`,
+    [workspaceId, String(code), numericOnly]
+  );
   if (!r.rows.length) return null;
 
   const property = await getById(r.rows[0].id, workspaceId);

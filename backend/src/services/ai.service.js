@@ -1019,15 +1019,21 @@ async function executeAgentTool(name, input, ctx) {
         const property = await propertiesSvc.getByCode(ctx.workspaceId, input.property_code);
         if (!property) return { success: false, error: 'Imóvel não encontrado' };
         const caption = buildPropertyCaption(property);
-        // Capa com legenda (ou só texto se não tiver foto)
-        await messagesSvc.send(ctx.conversationId, null, property.cover_url
-          ? { content: caption, messageType: 'image', mediaUrl: property.cover_url }
-          : { content: caption, messageType: 'text' });
-        // Fotos adicionais — todas liberadas para exibição (show_on_site), excluindo a capa
+        // Capa com legenda — se a imagem falhar, manda só o texto
+        try {
+          await messagesSvc.send(ctx.conversationId, null, property.cover_url
+            ? { content: caption, messageType: 'image', mediaUrl: property.cover_url }
+            : { content: caption, messageType: 'text' });
+        } catch {
+          await messagesSvc.send(ctx.conversationId, null, { content: caption, messageType: 'text' });
+        }
+        // Fotos adicionais — cada uma isolada para que falhas individuais não abortam o envio
         const extraPhotos = (property.media || [])
           .filter(m => m.media_type === 'image' && m.url && !m.is_cover && m.show_on_site !== false);
         for (const photo of extraPhotos) {
-          await messagesSvc.send(ctx.conversationId, null, { content: '', messageType: 'image', mediaUrl: photo.url });
+          try {
+            await messagesSvc.send(ctx.conversationId, null, { content: '', messageType: 'image', mediaUrl: photo.url });
+          } catch { /* foto individual falhou — continua */ }
         }
         if (property.video_url) {
           await messagesSvc.send(ctx.conversationId, null, {
@@ -1067,15 +1073,21 @@ async function executeAgentTool(name, input, ctx) {
         const development = await developmentsSvc.getByCode(ctx.workspaceId, input.development_code);
         if (!development) return { success: false, error: 'Empreendimento não encontrado' };
         const caption = buildDevelopmentCaption(development);
-        // Capa com legenda (ou só texto se não tiver foto)
-        await messagesSvc.send(ctx.conversationId, null, development.cover_url
-          ? { content: caption, messageType: 'image', mediaUrl: development.cover_url }
-          : { content: caption, messageType: 'text' });
-        // Fotos adicionais — todas liberadas para exibição (show_on_site), excluindo a capa
+        // Capa com legenda — se a imagem falhar, manda só o texto
+        try {
+          await messagesSvc.send(ctx.conversationId, null, development.cover_url
+            ? { content: caption, messageType: 'image', mediaUrl: development.cover_url }
+            : { content: caption, messageType: 'text' });
+        } catch {
+          await messagesSvc.send(ctx.conversationId, null, { content: caption, messageType: 'text' });
+        }
+        // Fotos adicionais — cada uma isolada para que falhas individuais não abortam o envio
         const extraDevPhotos = (development.media || [])
           .filter(m => m.media_type === 'image' && m.url && !m.is_cover && m.show_on_site !== false);
         for (const photo of extraDevPhotos) {
-          await messagesSvc.send(ctx.conversationId, null, { content: '', messageType: 'image', mediaUrl: photo.url });
+          try {
+            await messagesSvc.send(ctx.conversationId, null, { content: '', messageType: 'image', mediaUrl: photo.url });
+          } catch { /* foto individual falhou — continua */ }
         }
         if (development.video_url) {
           await messagesSvc.send(ctx.conversationId, null, {
