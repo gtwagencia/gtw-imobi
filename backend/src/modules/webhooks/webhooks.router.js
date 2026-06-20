@@ -966,15 +966,14 @@ router.post('/evolution/:inboxId', async (req, res) => {
         }
 
         // ── Chatbot response ──────────────────────────────────────────
-        // bot_active=false só bloqueia quando um agente está atribuído.
-        // Sem agente, o bot responde sempre — conversas existentes sem
-        // atribuição não podem ficar sem resposta.
         // chatbot_test_number: quando definido, bot só responde aos números listados (vírgula como separador).
         const testNumbers = inbox.chatbot_test_number
           ? inbox.chatbot_test_number.trim().split(',').map(n => n.trim().replace(/\D/g, '')).filter(Boolean)
           : [];
         const phoneStr = String(phone || '');
+        // bot_active=false sem dono = IA encerrou atendimento (roteou ou parou) — não reativa
         const botShouldRun = inbox.chatbot_enabled && !conversation.assignee_id
+          && (conversation.bot_active !== false || created)
           && (!testNumbers.length || testNumbers.some(n => phoneStr === n || phoneStr.endsWith(n) || n.endsWith(phoneStr)));
         logger.info('[chatbot] condition check', {
           conversationId: conversation.id,

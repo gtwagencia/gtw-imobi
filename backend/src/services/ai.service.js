@@ -1316,13 +1316,56 @@ async function executeAgentTool(name, input, ctx) {
         const target = groupsRes.rows.find(g => g.name.toLowerCase() === wanted)
           || groupsRes.rows.find(g => g.name.toLowerCase().includes(wanted) || wanted.includes(g.name.toLowerCase()));
 
+        // Grupo não encontrado: tenta fallback para departamento com mesmo nome
         if (!target) {
-          return { success: false, error: 'Grupo não encontrado', grupos_disponiveis: groupsRes.rows.map(g => g.name) };
+          const deptRes = await query(
+            `SELECT id, name FROM departments WHERE workspace_id = $1`,
+            [ctx.workspaceId]
+          );
+          const deptTarget = deptRes.rows.find(d => d.name.toLowerCase() === wanted)
+            || deptRes.rows.find(d => d.name.toLowerCase().includes(wanted) || wanted.includes(d.name.toLowerCase()))
+            || deptRes.rows[0];
+
+          if (!deptTarget) {
+            await query('UPDATE conversations SET bot_active = false WHERE id = $1', [ctx.conversationId]);
+            ctx.io?.to(`ws:${ctx.workspaceId}`).emit('conversation:updated', { conversationId: ctx.conversationId, botActive: false });
+            return { success: false, error: 'Grupo não encontrado — conversa encaminhada para fila geral', grupos_disponiveis: groupsRes.rows.map(g => g.name) };
+          }
+
+          let deptAgentId = null;
+          const deptAgentRes = await query(
+            `SELECT wm.user_id, COUNT(c.id)::int AS open_count
+             FROM workspace_memberships wm
+             LEFT JOIN conversations c ON c.assignee_id = wm.user_id AND c.workspace_id = $1 AND c.status = 'open'
+             WHERE wm.workspace_id = $1 AND wm.role IN ('agent','member') AND wm.department_id = $2
+             GROUP BY wm.user_id ORDER BY open_count ASC, RANDOM() LIMIT 1`,
+            [ctx.workspaceId, deptTarget.id]
+          );
+          if (deptAgentRes.rows.length) {
+            deptAgentId = deptAgentRes.rows[0].user_id;
+            const deptAssigned = await query(
+              'UPDATE conversations SET department_id = $1, assignee_id = $2, bot_active = false WHERE id = $3 AND assignee_id IS NULL RETURNING id',
+              [deptTarget.id, deptAgentId, ctx.conversationId]
+            );
+            if (!deptAssigned.rows.length) deptAgentId = null;
+          }
+          if (!deptAgentId) {
+            await query('UPDATE conversations SET department_id = $1, bot_active = false WHERE id = $2', [deptTarget.id, ctx.conversationId]);
+          }
+          const deptUserRes = deptAgentId ? await query('SELECT name FROM users WHERE id = $1', [deptAgentId]) : null;
+          const deptAgentName = deptUserRes?.rows[0]?.name || null;
+          const deptPayload = { conversationId: ctx.conversationId, departmentId: deptTarget.id, assigneeId: deptAgentId, botActive: false };
+          ctx.io?.to(`ws:${ctx.workspaceId}`).emit('conversation:updated', deptPayload);
+          ctx.io?.to(`conv:${ctx.conversationId}`).emit('conversation:updated', deptPayload);
+          return { success: true, grupo: deptTarget.name, corretor: deptAgentName || 'equipe' };
         }
 
         const userId = await routingGroupSvc.pickNextMember(target.id);
         if (!userId) {
-          return { success: false, error: 'Nenhum corretor ativo no grupo', grupo: target.name };
+          // Sem membros no grupo: encerra bot, conversa entra na fila para atendimento humano
+          await query('UPDATE conversations SET bot_active = false WHERE id = $1', [ctx.conversationId]);
+          ctx.io?.to(`ws:${ctx.workspaceId}`).emit('conversation:updated', { conversationId: ctx.conversationId, botActive: false });
+          return { success: false, error: 'Nenhum corretor disponível agora — sua conversa ficará na fila para o próximo atendente', grupo: target.name };
         }
 
         const assigned = await query(
@@ -1334,7 +1377,7 @@ async function executeAgentTool(name, input, ctx) {
         const agentName = userRes.rows[0]?.name || 'da equipe';
 
         if (assigned.rows.length) {
-          const payload = { conversationId: ctx.conversationId, assigneeId: userId };
+          const payload = { conversationId: ctx.conversationId, assigneeId: userId, botActive: false };
           ctx.io?.to(`ws:${ctx.workspaceId}`).emit('conversation:updated', payload);
           ctx.io?.to(`conv:${ctx.conversationId}`).emit('conversation:updated', payload);
         }
@@ -1351,16 +1394,18 @@ async function executeAgentTool(name, input, ctx) {
       case 'transferir_para_setor': {
         const departments = ctx.departments || [];
         if (!departments.length) {
+          await query('UPDATE conversations SET bot_active = false WHERE id = $1', [ctx.conversationId]);
+          ctx.io?.to(`ws:${ctx.workspaceId}`).emit('conversation:updated', { conversationId: ctx.conversationId, botActive: false });
           return { success: false, error: 'Nenhum setor configurado para transferência' };
         }
         const wanted = String(input.setor || '').toLowerCase().trim();
         const target = departments.find(d => d.name.toLowerCase() === wanted)
           || departments.find(d => d.name.toLowerCase().includes(wanted) || wanted.includes(d.name.toLowerCase()));
         if (!target) {
+          await query('UPDATE conversations SET bot_active = false WHERE id = $1', [ctx.conversationId]);
+          ctx.io?.to(`ws:${ctx.workspaceId}`).emit('conversation:updated', { conversationId: ctx.conversationId, botActive: false });
           return { success: false, error: 'Setor não encontrado', setores_disponiveis: departments.map(d => d.name) };
         }
-
-        await query('UPDATE conversations SET department_id = $1 WHERE id = $2', [target.id, ctx.conversationId]);
 
         // Auto-assign: agente do setor com menos conversas abertas
         let agentId = null;
@@ -1375,13 +1420,16 @@ async function executeAgentTool(name, input, ctx) {
         if (agentRes.rows.length) {
           agentId = agentRes.rows[0].user_id;
           const assigned = await query(
-            'UPDATE conversations SET assignee_id = $1 WHERE id = $2 AND assignee_id IS NULL RETURNING id',
-            [agentId, ctx.conversationId]
+            'UPDATE conversations SET department_id = $1, assignee_id = $2, bot_active = false WHERE id = $3 AND assignee_id IS NULL RETURNING id',
+            [target.id, agentId, ctx.conversationId]
           );
           if (!assigned.rows.length) agentId = null;
         }
+        if (!agentId) {
+          await query('UPDATE conversations SET department_id = $1, bot_active = false WHERE id = $2', [target.id, ctx.conversationId]);
+        }
 
-        const payload = { conversationId: ctx.conversationId, departmentId: target.id, assigneeId: agentId };
+        const payload = { conversationId: ctx.conversationId, departmentId: target.id, assigneeId: agentId, botActive: false };
         ctx.io?.to(`ws:${ctx.workspaceId}`).emit('conversation:updated', payload);
         ctx.io?.to(`conv:${ctx.conversationId}`).emit('conversation:updated', payload);
 

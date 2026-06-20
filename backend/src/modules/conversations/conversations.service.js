@@ -26,14 +26,15 @@ async function buildVisibilityClause(params, { isSuperAdmin, orgRole, workspaceR
     // Cast explícito ::uuid[] necessário pois node-postgres serializa como text[]
     params.push(inboxIds);
     const arrIdx = params.length;
+    // Conversas com bot_active=true e sem dono são gerenciadas pela IA — invisíveis para agentes
     return `AND (
       c.assignee_id = $${userIdx}
-      OR (c.assignee_id IS NULL AND c.inbox_id = ANY($${arrIdx}::uuid[]))
+      OR (c.assignee_id IS NULL AND c.bot_active = false AND c.inbox_id = ANY($${arrIdx}::uuid[]))
     )`;
   }
 
-  // Agente sem vínculo de inbox: vê atribuídas a ele + não atribuídas do workspace
-  return `AND (c.assignee_id = $${userIdx} OR c.assignee_id IS NULL)`;
+  // Agente sem vínculo de inbox: vê atribuídas a ele + não atribuídas sem bot ativo
+  return `AND (c.assignee_id = $${userIdx} OR (c.assignee_id IS NULL AND c.bot_active = false))`;
 }
 
 async function list(workspaceId, filters = {}, caller = {}) {
