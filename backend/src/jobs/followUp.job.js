@@ -189,43 +189,110 @@ async function runAiAnalysis() {
   }
 }
 
-// ── SLA breach detection ───────────────────────────────────────────────────
+// ── SLA breach detection + reassignment ───────────────────────────────────
 
 async function runSlaCheck(io) {
-  // Find workspaces with SLA configured
   const wsRes = await query(
     `SELECT id, sla_response_minutes FROM workspaces
      WHERE sla_response_minutes IS NOT NULL AND sla_response_minutes > 0`
   );
 
   for (const ws of wsRes.rows) {
+    // Inclui conversas recém-vencidas (sla_reassigned_at IS NULL) e já redistribuídas
+    // onde o novo corretor também não respondeu no prazo
     const r = await query(
-      `UPDATE conversations c
-       SET sla_breached = true
+      `SELECT c.id, c.assignee_id, c.contact_id, c.department_id
+       FROM conversations c
        WHERE c.workspace_id = $1
          AND c.status = 'open'
          AND c.sla_breached = false
          AND c.first_response_at IS NULL
-         AND c.created_at <= NOW() - ($2 * INTERVAL '1 minute')
-       RETURNING c.id, c.assignee_id, c.contact_id`,
+         AND COALESCE(c.sla_reassigned_at, c.created_at) <= NOW() - ($2 * INTERVAL '1 minute')`,
       [ws.id, ws.sla_response_minutes]
     );
 
     for (const conv of r.rows) {
-      if (!conv.assignee_id) continue;
       try {
         const contactRes = await query('SELECT name FROM contacts WHERE id = $1', [conv.contact_id]);
-        const contactName = contactRes.rows[0]?.name || 'Um lead';
-        await notifSvc.create({
-          workspaceId:    ws.id,
-          userId:         conv.assignee_id,
-          conversationId: conv.id,
-          type:           'sla_breached',
-          title:          'SLA de resposta vencido',
-          message:        `${contactName} está aguardando resposta há mais de ${ws.sla_response_minutes} minutos.`,
-        }, io);
+        const contactName = contactRes.rows[0]?.name || 'Lead';
+
+        // Busca próximo corretor do mesmo departamento com menos conversas abertas
+        let nextAgentId = null;
+        if (conv.department_id) {
+          const agentRes = await query(
+            `SELECT wm.user_id
+             FROM workspace_memberships wm
+             LEFT JOIN conversations c2 ON c2.assignee_id = wm.user_id
+               AND c2.workspace_id = $1 AND c2.status = 'open'
+             WHERE wm.workspace_id = $1
+               AND wm.role IN ('agent','member')
+               AND wm.department_id = $2
+               AND wm.user_id != $3
+             GROUP BY wm.user_id
+             ORDER BY COUNT(c2.id) ASC, RANDOM()
+             LIMIT 1`,
+            [ws.id, conv.department_id, conv.assignee_id || '00000000-0000-0000-0000-000000000000']
+          );
+          nextAgentId = agentRes.rows[0]?.user_id || null;
+        }
+
+        if (nextAgentId) {
+          // Reatribui ao próximo corretor e reinicia o contador de SLA
+          await query(
+            `UPDATE conversations
+             SET assignee_id = $1, sla_reassigned_at = NOW(), sla_breached = false
+             WHERE id = $2`,
+            [nextAgentId, conv.id]
+          );
+
+          // Notifica o corretor anterior
+          if (conv.assignee_id) {
+            await notifSvc.create({
+              workspaceId:    ws.id,
+              userId:         conv.assignee_id,
+              conversationId: conv.id,
+              type:           'sla_breached',
+              title:          'Atendimento redistribuído por SLA',
+              message:        `${contactName} foi redirecionado para outro corretor por falta de resposta no prazo.`,
+            }, io);
+          }
+
+          // Notifica o novo corretor
+          await notifSvc.create({
+            workspaceId:    ws.id,
+            userId:         nextAgentId,
+            conversationId: conv.id,
+            type:           'conversation_assigned',
+            title:          'Lead atribuído por SLA',
+            message:        `${contactName} foi redirecionado para você. Responda o quanto antes.`,
+          }, io);
+
+          io?.to(`ws:${ws.id}`).emit('conversation:updated', {
+            conversationId: conv.id,
+            assigneeId:     nextAgentId,
+          });
+
+          logger.info('SLA reassignment', { conversationId: conv.id, from: conv.assignee_id, to: nextAgentId });
+        } else {
+          // Sem próximo corretor — marca como vencido e notifica o atual (ou admins)
+          await query(
+            `UPDATE conversations SET sla_breached = true WHERE id = $1`,
+            [conv.id]
+          );
+
+          if (conv.assignee_id) {
+            await notifSvc.create({
+              workspaceId:    ws.id,
+              userId:         conv.assignee_id,
+              conversationId: conv.id,
+              type:           'sla_breached',
+              title:          'SLA de resposta vencido',
+              message:        `${contactName} está aguardando resposta há mais de ${ws.sla_response_minutes} minutos.`,
+            }, io);
+          }
+        }
       } catch (err) {
-        logger.warn('SLA notification failed', { conversationId: conv.id, err: err.message });
+        logger.warn('SLA check failed', { conversationId: conv.id, err: err.message });
       }
     }
   }

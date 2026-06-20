@@ -14,27 +14,10 @@ async function buildVisibilityClause(params, { isSuperAdmin, orgRole, workspaceR
 
   if (isAdmin) return '';
 
-  // Verifica se o agente tem inboxes vinculados
-  const inboxIds = workspaceId ? await inboxesSvc.getUserInboxIds(userId, workspaceId) : [];
-
-  logger.info('[visibility] inboxIds for agent', { userId, inboxIds });
-
+  // Corretor/agente: vê somente conversas atribuídas a ele
   params.push(userId);
   const userIdx = params.length;
-
-  if (inboxIds.length > 0) {
-    // Cast explícito ::uuid[] necessário pois node-postgres serializa como text[]
-    params.push(inboxIds);
-    const arrIdx = params.length;
-    // Conversas com bot_active=true e sem dono são gerenciadas pela IA — invisíveis para agentes
-    return `AND (
-      c.assignee_id = $${userIdx}
-      OR (c.assignee_id IS NULL AND c.bot_active = false AND c.inbox_id = ANY($${arrIdx}::uuid[]))
-    )`;
-  }
-
-  // Agente sem vínculo de inbox: vê atribuídas a ele + não atribuídas sem bot ativo
-  return `AND (c.assignee_id = $${userIdx} OR (c.assignee_id IS NULL AND c.bot_active = false))`;
+  return `AND c.assignee_id = $${userIdx}`;
 }
 
 async function list(workspaceId, filters = {}, caller = {}) {
