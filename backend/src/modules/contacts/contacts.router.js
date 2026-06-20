@@ -77,13 +77,24 @@ router.get('/:contactId', authenticate, workspaceContext, requirePermission('con
 router.put('/:contactId', authenticate, workspaceContext, requirePermission('contacts'), async (req, res, next) => {
   try {
     const c = await svc.update(req.params.contactId, req.params.workspaceId, req.body);
+    logAudit({
+      workspaceId: req.params.workspaceId, userId: req.user.sub,
+      action: 'contact.updated', entityType: 'contact', entityId: c.id,
+      entityName: c.name, metadata: { fields: Object.keys(req.body) }, ip: req.ip,
+    });
     res.json(c);
   } catch (err) { next(err); }
 });
 
 router.delete('/:contactId', authenticate, workspaceContext, requirePermission('contacts'), async (req, res, next) => {
   try {
+    const c = await svc.getById(req.params.contactId, req.params.workspaceId);
     await svc.remove(req.params.contactId, req.params.workspaceId);
+    logAudit({
+      workspaceId: req.params.workspaceId, userId: req.user.sub,
+      action: 'contact.deleted', entityType: 'contact', entityId: req.params.contactId,
+      entityName: c?.name || req.params.contactId, ip: req.ip,
+    });
     res.json({ ok: true });
   } catch (err) { next(err); }
 });

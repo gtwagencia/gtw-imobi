@@ -143,7 +143,17 @@ router.get('/:workspaceId/audit-logs', authenticate, orgContext, workspaceContex
     if (req.workspaceRole !== 'admin' && !['owner', 'admin'].includes(req.orgRole) && !req.user.isSuperAdmin) {
       return res.status(403).json({ error: 'Apenas administradores podem ver o log de auditoria' });
     }
-    res.json(await listForWorkspace(req.params.workspaceId, { limit: 200 }));
+    const { userId, action, entityType, search, from, to, limit, offset } = req.query;
+    res.json(await listForWorkspace(req.params.workspaceId, {
+      userId:     userId     || undefined,
+      action:     action     || undefined,
+      entityType: entityType || undefined,
+      search:     search     || undefined,
+      from:       from       || undefined,
+      to:         to         || undefined,
+      limit:      Math.min(Number(limit)  || 100, 500),
+      offset:     Number(offset) || 0,
+    }));
   } catch (err) { next(err); }
 });
 

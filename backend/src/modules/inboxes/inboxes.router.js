@@ -3,6 +3,7 @@
 const { Router } = require('express');
 const { authenticate }         = require('../../middleware/auth');
 const { workspaceContext, requirePermission } = require('../../middleware/workspaceContext');
+const { logAudit }             = require('../../services/audit.service');
 const svc = require('./inboxes.service');
 
 const router = Router({ mergeParams: true });
@@ -22,6 +23,11 @@ router.post('/', authenticate, workspaceContext, requirePermission('inboxes'), a
     const { name } = req.body;
     if (!name) return res.status(400).json({ error: 'name é obrigatório' });
     const inbox = await svc.create(req.params.workspaceId, req.body);
+    logAudit({
+      workspaceId: req.params.workspaceId, userId: req.user.sub,
+      action: 'inbox.created', entityType: 'inbox', entityId: inbox.id,
+      entityName: inbox.name, ip: req.ip,
+    });
     res.status(201).json(inbox);
   } catch (err) { next(err); }
 });
@@ -37,13 +43,24 @@ router.get('/:inboxId', authenticate, workspaceContext, requirePermission('inbox
 router.put('/:inboxId', authenticate, workspaceContext, requirePermission('inboxes'), async (req, res, next) => {
   try {
     const inbox = await svc.update(req.params.inboxId, req.params.workspaceId, req.body);
+    logAudit({
+      workspaceId: req.params.workspaceId, userId: req.user.sub,
+      action: 'inbox.updated', entityType: 'inbox', entityId: inbox.id,
+      entityName: inbox.name, metadata: { fields: Object.keys(req.body) }, ip: req.ip,
+    });
     res.json(inbox);
   } catch (err) { next(err); }
 });
 
 router.delete('/:inboxId', authenticate, workspaceContext, requirePermission('inboxes'), async (req, res, next) => {
   try {
+    const inbox = await svc.getById(req.params.inboxId, req.params.workspaceId);
     await svc.remove(req.params.inboxId, req.params.workspaceId);
+    logAudit({
+      workspaceId: req.params.workspaceId, userId: req.user.sub,
+      action: 'inbox.deleted', entityType: 'inbox', entityId: req.params.inboxId,
+      entityName: inbox?.name || req.params.inboxId, ip: req.ip,
+    });
     res.json({ ok: true });
   } catch (err) { next(err); }
 });

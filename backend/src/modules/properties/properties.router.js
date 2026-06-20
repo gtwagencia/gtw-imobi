@@ -6,6 +6,7 @@ const path    = require('path');
 const { v4: uuidv4 } = require('uuid');
 const { authenticate }     = require('../../middleware/auth');
 const { workspaceContext, requirePermission } = require('../../middleware/workspaceContext');
+const { logAudit }         = require('../../services/audit.service');
 const storageSvc = require('../../services/storage.service');
 const svc = require('./properties.service');
 const docsSvc = require('./documents.service');
@@ -63,6 +64,12 @@ router.post('/', authenticate, workspaceContext, requirePermission('properties')
     const { title } = req.body;
     if (!title) return res.status(400).json({ error: 'title é obrigatório' });
     const property = await svc.create(req.params.workspaceId, req.body);
+    logAudit({
+      workspaceId: req.params.workspaceId, userId: req.user.sub,
+      action: 'property.created', entityType: 'property', entityId: property.id,
+      entityName: `${property.code ? property.code + ' — ' : ''}${property.title}`,
+      ip: req.ip,
+    });
     res.status(201).json(property);
   } catch (err) { next(err); }
 });
@@ -78,13 +85,26 @@ router.get('/:propertyId', authenticate, workspaceContext, requirePermission('pr
 router.put('/:propertyId', authenticate, workspaceContext, requirePermission('properties'), async (req, res, next) => {
   try {
     const p = await svc.update(req.params.propertyId, req.params.workspaceId, req.body);
+    logAudit({
+      workspaceId: req.params.workspaceId, userId: req.user.sub,
+      action: 'property.updated', entityType: 'property', entityId: p.id,
+      entityName: `${p.code ? p.code + ' — ' : ''}${p.title}`,
+      metadata: { fields: Object.keys(req.body) }, ip: req.ip,
+    });
     res.json(p);
   } catch (err) { next(err); }
 });
 
 router.delete('/:propertyId', authenticate, workspaceContext, requirePermission('properties'), async (req, res, next) => {
   try {
+    const p = await svc.getById(req.params.propertyId, req.params.workspaceId);
     await svc.remove(req.params.propertyId, req.params.workspaceId);
+    logAudit({
+      workspaceId: req.params.workspaceId, userId: req.user.sub,
+      action: 'property.deleted', entityType: 'property', entityId: req.params.propertyId,
+      entityName: p ? `${p.code ? p.code + ' — ' : ''}${p.title}` : req.params.propertyId,
+      ip: req.ip,
+    });
     res.json({ ok: true });
   } catch (err) { next(err); }
 });
