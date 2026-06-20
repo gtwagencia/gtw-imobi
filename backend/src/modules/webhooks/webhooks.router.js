@@ -941,13 +941,17 @@ router.post('/evolution/:inboxId', async (req, res) => {
         // bot_active=false só bloqueia quando um agente está atribuído.
         // Sem agente, o bot responde sempre — conversas existentes sem
         // atribuição não podem ficar sem resposta.
-        const botShouldRun = inbox.chatbot_enabled && !conversation.assignee_id;
+        // chatbot_test_number: quando definido, bot só responde àquele número.
+        const testNumber = inbox.chatbot_test_number ? inbox.chatbot_test_number.replace(/\D/g, '') : null;
+        const botShouldRun = inbox.chatbot_enabled && !conversation.assignee_id
+          && (!testNumber || phone === testNumber);
         logger.info('[chatbot] condition check', {
           conversationId: conversation.id,
           chatbotEnabled: inbox.chatbot_enabled,
           assigneeId: conversation.assignee_id,
           created,
           botActive: conversation.bot_active,
+          testNumber: testNumber || null,
           botShouldRun,
         });
         if (botShouldRun) {
@@ -1179,7 +1183,9 @@ router.post('/waba', async (req, res) => {
         }).catch(err => logger.warn('Push notification failed (WABA)', { err: err.message }));
       }
 
-      if (inbox.chatbot_enabled && !conversation.assignee_id && (created || conversation.bot_active)) {
+      const wabaTestNumber = inbox.chatbot_test_number ? inbox.chatbot_test_number.replace(/\D/g, '') : null;
+      if (inbox.chatbot_enabled && !conversation.assignee_id && (created || conversation.bot_active)
+          && (!wabaTestNumber || phone === wabaTestNumber)) {
         dispatchChatbotResponse(inbox, conversation, contact, io)
           .catch(err => logger.warn('Chatbot dispatch failed (WABA)', { err: err.message }));
       }

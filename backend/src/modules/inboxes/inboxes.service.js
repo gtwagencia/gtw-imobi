@@ -59,6 +59,7 @@ async function update(inboxId, workspaceId, body) {
     autoAssign:          'auto_assign',
     chatbotEnabled:      'chatbot_enabled',
     chatbotPrompt:       'chatbot_prompt',
+    chatbotTestNumber:   'chatbot_test_number',
     groupsEnabled:       'groups_enabled',
     wabaPhoneNumberId:   'waba_phone_number_id',
     wabaAccessToken:     'waba_access_token',

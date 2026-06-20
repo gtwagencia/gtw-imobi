@@ -11,6 +11,7 @@ interface InboxEditForm {
   autoAssign?: boolean;
   chatbotEnabled?: boolean;
   chatbotPrompt?: string;
+  chatbotTestNumber?: string;
   groupsEnabled?: boolean;
   wabaPhoneNumberId?: string;
   wabaAccessToken?: string;
@@ -122,6 +123,7 @@ export default function InboxesPage() {
         autoAssign:        inbox.auto_assign,
         chatbotEnabled:    inbox.chatbot_enabled,
         chatbotPrompt:     inbox.chatbot_prompt || '',
+        chatbotTestNumber: (inbox as any).chatbot_test_number || '',
         groupsEnabled:     (inbox as any).groups_enabled ?? false,
         wabaPhoneNumberId: (inbox as any).waba_phone_number_id || '',
         wabaAccessToken:   '',
@@ -388,16 +390,30 @@ export default function InboxesPage() {
                         </button>
                       </div>
                       {editForm.chatbotEnabled && (
-                        <div>
-                          <label className="block text-xs font-medium text-gray-600 mb-1">Prompt do chatbot</label>
-                          <textarea
-                            rows={4}
-                            className="input text-sm resize-none"
-                            placeholder="Você é um assistente de atendimento. Responda em português de forma educada e direcione o cliente para..."
-                            value={editForm.chatbotPrompt || ''}
-                            onChange={e => setEditForm(prev => ({ ...prev, chatbotPrompt: e.target.value }))}
-                          />
-                          <p className="text-xs text-gray-400 mt-1">Requer provedor de IA configurado em Configurações → Inteligência Artificial (OpenAI, Anthropic ou Gemini).</p>
+                        <div className="space-y-3">
+                          <div>
+                            <label className="block text-xs font-medium text-gray-600 mb-1">Prompt do chatbot</label>
+                            <textarea
+                              rows={4}
+                              className="input text-sm resize-none"
+                              placeholder="Você é um assistente de atendimento. Responda em português de forma educada e direcione o cliente para..."
+                              value={editForm.chatbotPrompt || ''}
+                              onChange={e => setEditForm(prev => ({ ...prev, chatbotPrompt: e.target.value }))}
+                            />
+                            <p className="text-xs text-gray-400 mt-1">Requer provedor de IA configurado em Configurações → Inteligência Artificial (OpenAI, Anthropic ou Gemini).</p>
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-gray-600 mb-1">
+                              Número de teste <span className="text-gray-400 font-normal">(opcional)</span>
+                            </label>
+                            <input
+                              className="input text-sm font-mono"
+                              placeholder="5511999999999 — deixe vazio para responder a todos"
+                              value={editForm.chatbotTestNumber || ''}
+                              onChange={e => setEditForm(prev => ({ ...prev, chatbotTestNumber: e.target.value }))}
+                            />
+                            <p className="text-xs text-gray-400 mt-1">Quando preenchido, o bot só responde a esse número. Útil para testes sem afetar clientes reais.</p>
+                          </div>
                         </div>
                       )}
                     </div>
