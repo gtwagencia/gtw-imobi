@@ -910,35 +910,29 @@ function plural(n, singular, pluralForm) {
 
 function buildPropertyCaption(p) {
   const location = [p.neighborhood, p.city].filter(Boolean).join(', ');
+  const typeName = PROP_TYPE_LABELS[p.property_type] || 'Imóvel';
 
-  // ── Narrativa ────────────────────────────────────────────────────────────
-  let narrative;
-  if (p.description?.trim()) {
-    narrative = p.description.trim();
-  } else {
-    const typeName = PROP_TYPE_LABELS[p.property_type] || 'Imóvel';
-    const specs = [];
-    if (p.bedrooms) {
-      const suiteTxt = p.suites > 0
-        ? `, sendo ${plural(p.suites, 'suíte')}`
-        : '';
-      specs.push(`${plural(p.bedrooms, 'quarto')}${suiteTxt}`);
-    }
-    if (p.bathrooms)     specs.push(plural(p.bathrooms, 'banheiro'));
-    if (p.parking_spots) specs.push(`${plural(p.parking_spots, 'vaga')} na garagem`);
-    if (p.built_area || p.total_area) specs.push(`${p.built_area || p.total_area}m²`);
-
-    narrative = specs.length
-      ? `${typeName} com ${specs.join(', ')}${location ? `, localizado no ${location}` : ''}.`
-      : null;
+  // Características principais a partir dos campos estruturados
+  const specs = [];
+  if (p.bedrooms) {
+    const suiteTxt = p.suites > 0 ? ` (${plural(p.suites, 'suíte')})` : '';
+    specs.push(`${plural(p.bedrooms, 'quarto')}${suiteTxt}`);
   }
+  if (p.bathrooms)     specs.push(plural(p.bathrooms, 'banheiro'));
+  if (p.parking_spots) specs.push(`${plural(p.parking_spots, 'vaga')} na garagem`);
+  const area = p.built_area || p.total_area;
+  if (area) specs.push(`${area}m²`);
 
-  // ── Diferenciais ─────────────────────────────────────────────────────────
-  const amenitiesLine = p.amenities?.length
-    ? `✨ *Diferenciais:* ${p.amenities.slice(0, 6).join(', ')}`
+  const specLine = specs.length
+    ? `${typeName} com ${specs.join(', ')}${location ? `, no ${location}` : ''}.`
     : null;
 
-  // ── Preço ─────────────────────────────────────────────────────────────────
+  // Diferenciais relevantes (até 5)
+  const amenitiesLine = p.amenities?.length
+    ? `✨ *Diferenciais:* ${p.amenities.slice(0, 5).join(', ')}`
+    : null;
+
+  // Preço
   const prices = [];
   if (p.sale_price) prices.push(`💰 *Venda:* ${formatBRL(p.sale_price)}`);
   if (p.rent_price) prices.push(`💰 *Locação:* ${formatBRL(p.rent_price)}/mês`);
@@ -946,7 +940,7 @@ function buildPropertyCaption(p) {
   return [
     `*${p.code} — ${p.title}*`,
     location ? `📍 ${location}` : null,
-    narrative,
+    specLine,
     amenitiesLine,
     prices.length ? prices.join('  ·  ') : null,
   ].filter(Boolean).join('\n\n');
@@ -961,34 +955,27 @@ function buildDevelopmentCaption(d) {
   const availableUnits = (d.units || []).filter(u => u.status === 'disponivel');
   const statusLabel = CONSTRUCTION_STATUS_LABELS[d.construction_status] || d.construction_status;
 
-  // Narrativa — usa description se tiver
-  let narrative;
-  if (d.description?.trim()) {
-    narrative = d.description.trim();
-  } else {
-    const parts = [];
-    if (d.builder_name) parts.push(`Construtora ${d.builder_name}`);
-    parts.push(statusLabel);
-    if (availableUnits.length) parts.push(`${availableUnits.length} unidade${availableUnits.length !== 1 ? 's' : ''} disponível`);
-    narrative = parts.join(' · ') || null;
-  }
+  // Resumo estruturado: construtora, status e unidades
+  const summaryParts = [];
+  if (d.builder_name) summaryParts.push(`Construtora ${d.builder_name}`);
+  summaryParts.push(statusLabel);
+  const summaryLine = summaryParts.join(' · ') || null;
 
-  // Diferenciais
-  const amenitiesLine = d.amenities?.length
-    ? `✨ *Diferenciais:* ${d.amenities.slice(0, 6).join(', ')}`
+  const unitsLine = availableUnits.length
+    ? `🏠 ${availableUnits.length} unidade${availableUnits.length !== 1 ? 's' : ''} disponível${availableUnits.length !== 1 ? 'eis' : ''}`
     : null;
 
-  // Unidades disponíveis (quando tem description, mostra como linha separada)
-  const unitsLine = (d.description?.trim() && availableUnits.length)
-    ? `🏠 ${availableUnits.length} unidade${availableUnits.length !== 1 ? 's' : ''} disponível${availableUnits.length !== 1 ? 'eis' : ''}`
+  // Diferenciais relevantes (até 5)
+  const amenitiesLine = d.amenities?.length
+    ? `✨ *Diferenciais:* ${d.amenities.slice(0, 5).join(', ')}`
     : null;
 
   return [
     `*${d.code} — ${d.name}*`,
     location ? `📍 ${location}` : null,
-    narrative,
-    amenitiesLine,
+    summaryLine,
     unitsLine,
+    amenitiesLine,
   ].filter(Boolean).join('\n\n');
 }
 
