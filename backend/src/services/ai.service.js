@@ -565,6 +565,32 @@ NÃO use emojis excessivos. Seja profissional mas caloroso.`,
 }
 
 /**
+ * Gera um resumo de handoff atualizado pela IA quando o SLA redistribui a conversa
+ * para o próximo corretor. Retorna o summary anterior em caso de falha.
+ */
+async function generateHandoffSummary(conversationId, existingSummary, apiKey, provider = 'anthropic', model = null, baseUrl = null) {
+  const messages = await getConversationMessages(conversationId);
+  if (!messages.length) return existingSummary || null;
+
+  const transcript  = formatTranscript(messages.slice(-20));
+  const summaryCtx  = existingSummary ? `Resumo anterior:\n${existingSummary}\n\n` : '';
+
+  try {
+    return await callLLM({
+      provider, apiKey, baseUrl, model, maxTokens: 300,
+      system: 'Você é um assistente de CRM imobiliário. Gere resumos concisos de atendimentos para que o próximo corretor entenda rapidamente o contexto e continue o atendimento sem repetir perguntas ao lead.',
+      messages: [{
+        role: 'user',
+        content: `${summaryCtx}Histórico recente:\n${transcript}\n\nGere um resumo objetivo em até 5 linhas cobrindo: interesse do lead, imóveis ou empreendimentos discutidos, estágio de interesse e próximos passos sugeridos.`,
+      }],
+    }) || existingSummary || null;
+  } catch (err) {
+    logger.warn('Handoff summary generation failed', { conversationId, err: err.message });
+    return existingSummary || null;
+  }
+}
+
+/**
  * Generate a chatbot response for the last inbound message.
  */
 async function generateChatbotResponse(conversationId, systemPrompt, apiKey, provider = 'anthropic', model = null, baseUrl = null) {
@@ -1715,7 +1741,7 @@ async function recalcLeadScore(workspace, deal) {
 
 module.exports = {
   callLLM,
-  analyzeConversation, generateFollowUp, generateChatbotResponse, analyzeDeal,
+  analyzeConversation, generateFollowUp, generateHandoffSummary, generateChatbotResponse, analyzeDeal,
   generateChatbotResponseWithTools, DEFAULT_AGENT_PERSONA, buildAgentPersona,
   generateCMA, generatePropertyDescription, recalcLeadScore,
 };

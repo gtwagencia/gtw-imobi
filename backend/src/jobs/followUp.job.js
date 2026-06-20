@@ -193,37 +193,74 @@ async function runAiAnalysis() {
 
 async function runSlaCheck(io) {
   const wsRes = await query(
-    `SELECT id, sla_response_minutes FROM workspaces
+    `SELECT id, sla_response_minutes, business_hours,
+            anthropic_api_key, openai_api_key, custom_ai_api_key, ai_base_url, ai_provider, ai_model
+     FROM workspaces
      WHERE sla_response_minutes IS NOT NULL AND sla_response_minutes > 0`
   );
 
   for (const ws of wsRes.rows) {
-    // Inclui conversas recém-vencidas (sla_reassigned_at IS NULL) e já redistribuídas
-    // onde o novo corretor também não respondeu no prazo
+    // Fora do horário de atendimento humano: não redistribui leads
+    if (!isWithinBusinessHours(ws.business_hours)) {
+      logger.debug('SLA check skipped: outside business hours', { workspaceId: ws.id });
+      continue;
+    }
+
+    // Carimba sla_effective_start_at para conversas que chegaram fora do horário.
+    // O timer começa quando o atendimento humano abre, não na criação da conversa.
+    await query(
+      `UPDATE conversations
+       SET sla_effective_start_at = NOW()
+       WHERE workspace_id = $1
+         AND status = 'open'
+         AND sla_breached = false
+         AND first_response_at IS NULL
+         AND sla_effective_start_at IS NULL
+         AND sla_reassigned_at IS NULL`,
+      [ws.id]
+    );
+
+    // Conversas que venceram o SLA (novas ou já redistribuídas onde o novo corretor também não respondeu)
     const r = await query(
-      `SELECT c.id, c.assignee_id, c.contact_id, c.department_id
+      `SELECT c.id, c.assignee_id, c.contact_id, c.department_id, c.bot_handoff_summary
        FROM conversations c
        WHERE c.workspace_id = $1
          AND c.status = 'open'
          AND c.sla_breached = false
          AND c.first_response_at IS NULL
-         AND COALESCE(c.sla_reassigned_at, c.created_at) <= NOW() - ($2 * INTERVAL '1 minute')`,
+         AND c.sla_effective_start_at IS NOT NULL
+         AND COALESCE(c.sla_reassigned_at, c.sla_effective_start_at) <= NOW() - ($2 * INTERVAL '1 minute')`,
       [ws.id, ws.sla_response_minutes]
     );
+
+    const provider = ws.ai_provider || 'anthropic';
+    const apiKey   = provider === 'custom' ? ws.custom_ai_api_key
+                   : provider === 'openai'  ? ws.openai_api_key
+                   : ws.anthropic_api_key;
+    const baseUrl  = provider === 'custom' ? ws.ai_base_url : null;
+    const canAi    = !!(apiKey || baseUrl);
 
     for (const conv of r.rows) {
       try {
         const contactRes = await query('SELECT name FROM contacts WHERE id = $1', [conv.contact_id]);
         const contactName = contactRes.rows[0]?.name || 'Lead';
 
-        // Busca próximo corretor do mesmo departamento com menos conversas abertas
+        // IA gera novo resumo atualizado para o próximo corretor
+        let newSummary = conv.bot_handoff_summary;
+        if (canAi) {
+          newSummary = await aiSvc.generateHandoffSummary(
+            conv.id, conv.bot_handoff_summary, apiKey, provider, ws.ai_model || null, baseUrl
+          ) || conv.bot_handoff_summary;
+        }
+
+        // Próximo corretor no departamento com menos conversas abertas
         let nextAgentId = null;
         if (conv.department_id) {
           const agentRes = await query(
             `SELECT wm.user_id
              FROM workspace_memberships wm
-             LEFT JOIN conversations c2 ON c2.assignee_id = wm.user_id
-               AND c2.workspace_id = $1 AND c2.status = 'open'
+             LEFT JOIN conversations c2
+               ON c2.assignee_id = wm.user_id AND c2.workspace_id = $1 AND c2.status = 'open'
              WHERE wm.workspace_id = $1
                AND wm.role IN ('agent','member')
                AND wm.department_id = $2
@@ -237,63 +274,98 @@ async function runSlaCheck(io) {
         }
 
         if (nextAgentId) {
-          // Reatribui ao próximo corretor e reinicia o contador de SLA
+          const summaryClause = newSummary ? ', bot_handoff_summary = $3' : '';
+          const params = newSummary ? [nextAgentId, conv.id, newSummary] : [nextAgentId, conv.id];
           await query(
             `UPDATE conversations
-             SET assignee_id = $1, sla_reassigned_at = NOW(), sla_breached = false
+             SET assignee_id = $1, assignee_assigned_at = NOW(),
+                 sla_reassigned_at = NOW(), sla_breached = false${summaryClause}
              WHERE id = $2`,
-            [nextAgentId, conv.id]
+            params
           );
 
-          // Notifica o corretor anterior
           if (conv.assignee_id) {
             await notifSvc.create({
-              workspaceId:    ws.id,
-              userId:         conv.assignee_id,
-              conversationId: conv.id,
-              type:           'sla_breached',
-              title:          'Atendimento redistribuído por SLA',
-              message:        `${contactName} foi redirecionado para outro corretor por falta de resposta no prazo.`,
+              workspaceId: ws.id, userId: conv.assignee_id, conversationId: conv.id,
+              type: 'sla_breached', title: 'Atendimento redistribuído por SLA',
+              message: `${contactName} foi redirecionado para outro corretor por falta de resposta no prazo.`,
             }, io);
           }
-
-          // Notifica o novo corretor
           await notifSvc.create({
-            workspaceId:    ws.id,
-            userId:         nextAgentId,
-            conversationId: conv.id,
-            type:           'conversation_assigned',
-            title:          'Lead atribuído por SLA',
-            message:        `${contactName} foi redirecionado para você. Responda o quanto antes.`,
+            workspaceId: ws.id, userId: nextAgentId, conversationId: conv.id,
+            type: 'conversation_assigned', title: 'Lead atribuído por SLA',
+            message: `${contactName} foi redirecionado para você. Responda o quanto antes.`,
           }, io);
 
-          io?.to(`ws:${ws.id}`).emit('conversation:updated', {
-            conversationId: conv.id,
-            assigneeId:     nextAgentId,
-          });
+          const payload = { conversationId: conv.id, assigneeId: nextAgentId, botHandoffSummary: newSummary || undefined };
+          io?.to(`ws:${ws.id}`).emit('conversation:updated', payload);
+          io?.to(`conv:${conv.id}`).emit('conversation:updated', payload);
 
           logger.info('SLA reassignment', { conversationId: conv.id, from: conv.assignee_id, to: nextAgentId });
         } else {
-          // Sem próximo corretor — marca como vencido e notifica o atual (ou admins)
-          await query(
-            `UPDATE conversations SET sla_breached = true WHERE id = $1`,
-            [conv.id]
-          );
+          // Sem próximo corretor disponível — estado terminal
+          await query(`UPDATE conversations SET sla_breached = true WHERE id = $1`, [conv.id]);
 
           if (conv.assignee_id) {
             await notifSvc.create({
-              workspaceId:    ws.id,
-              userId:         conv.assignee_id,
-              conversationId: conv.id,
-              type:           'sla_breached',
-              title:          'SLA de resposta vencido',
-              message:        `${contactName} está aguardando resposta há mais de ${ws.sla_response_minutes} minutos.`,
+              workspaceId: ws.id, userId: conv.assignee_id, conversationId: conv.id,
+              type: 'sla_breached', title: 'SLA de resposta vencido',
+              message: `${contactName} está aguardando resposta há mais de ${ws.sla_response_minutes} minutos.`,
             }, io);
           }
         }
       } catch (err) {
         logger.warn('SLA check failed', { conversationId: conv.id, err: err.message });
       }
+    }
+  }
+}
+
+// ── Auto-encerramento 24h após último contato humano sem resposta do lead ──
+
+async function runAutoClose(io) {
+  // Encerra conversas onde um humano (corretor/agente) respondeu,
+  // mas o lead ficou em silêncio por 24h desde a última mensagem humana.
+  // sla_effective_start_at garante que só fechamos conversas que estavam
+  // dentro do período de atendimento humano configurado.
+  const r = await query(
+    `SELECT c.id, c.workspace_id
+     FROM conversations c,
+          LATERAL (
+            SELECT MAX(m.created_at) AS last_human_at
+            FROM messages m
+            WHERE m.conversation_id = c.id
+              AND m.direction = 'outbound'
+              AND m.is_private = false
+              AND m.sender_id IS NOT NULL
+          ) lh
+     WHERE c.status = 'open'
+       AND c.bot_active = false
+       AND c.sla_effective_start_at IS NOT NULL
+       AND lh.last_human_at IS NOT NULL
+       AND lh.last_human_at <= NOW() - INTERVAL '24 hours'
+       AND NOT EXISTS (
+         SELECT 1 FROM messages m
+         WHERE m.conversation_id = c.id
+           AND m.direction = 'inbound'
+           AND m.is_private = false
+           AND m.created_at > lh.last_human_at
+       )`
+  );
+
+  for (const conv of r.rows) {
+    try {
+      await query(
+        `UPDATE conversations SET status = 'resolved', resolved_at = NOW() WHERE id = $1`,
+        [conv.id]
+      );
+      io?.to(`ws:${conv.workspace_id}`).emit('conversation:updated', {
+        conversationId: conv.id,
+        status: 'resolved',
+      });
+      logger.info('Auto-closed: 24h sem resposta do lead após atendimento humano', { conversationId: conv.id });
+    } catch (err) {
+      logger.warn('Auto-close failed', { conversationId: conv.id, err: err.message });
     }
   }
 }
@@ -529,6 +601,11 @@ function startJobs(io) {
     broadcastSvc.runScheduledBroadcasts().catch(err => logger.error('Scheduled broadcasts error', { err: err.message }));
   });
 
+  // Auto-encerramento 24h após último contato humano sem resposta — every 30 minutes
+  cron.schedule('*/30 * * * *', () => {
+    runAutoClose(io).catch(err => logger.error('Auto-close error', { err: err.message }));
+  });
+
   // Expiração de reservas de lotes/imóveis — every 5 minutes
   cron.schedule('*/5 * * * *', () => {
     runExpireReservations().catch(err => logger.error('Expire reservations error', { err: err.message }));
@@ -551,7 +628,7 @@ function startJobs(io) {
     importSvc.runDueFeeds().catch(err => logger.error('Feed sync error', { err: err.message }));
   });
 
-  logger.info('Background jobs started (follow-up + AI analysis + SLA check + stale lead alerts + ticket reminders + scheduled broadcasts + reservation expiry + document expiry + development proposals expiry + feed sync)');
+  logger.info('Background jobs started (follow-up + AI analysis + SLA check + auto-close + stale lead alerts + ticket reminders + scheduled broadcasts + reservation expiry + document expiry + development proposals expiry + feed sync)');
 }
 
-module.exports = { startJobs, backfillAttending, runExpireReservations, runDocumentExpiryCheck };
+module.exports = { startJobs, backfillAttending, runExpireReservations, runDocumentExpiryCheck, runAutoClose };
