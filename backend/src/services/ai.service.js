@@ -896,22 +896,61 @@ function formatBRL(v) {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
 }
 
+const PROP_TYPE_LABELS = {
+  apartamento: 'Apartamento', casa: 'Casa', casa_condominio: 'Casa em condomínio',
+  cobertura: 'Cobertura', kitnet_studio: 'Kitnet/Studio', sobrado: 'Sobrado',
+  terreno_lote: 'Terreno', sala_comercial: 'Sala comercial', loja: 'Loja',
+  galpao: 'Galpão', predio_comercial: 'Prédio comercial',
+  fazenda_sitio_chacara: 'Fazenda/Sítio', outro: 'Imóvel',
+};
+
+function plural(n, singular, pluralForm) {
+  return n === 1 ? `${n} ${singular}` : `${n} ${pluralForm || singular + 's'}`;
+}
+
 function buildPropertyCaption(p) {
-  const price = [
-    p.sale_price ? `Venda: ${formatBRL(p.sale_price)}` : null,
-    p.rent_price ? `Aluguel: ${formatBRL(p.rent_price)}/mês` : null,
-  ].filter(Boolean).join(' · ');
-  const features = [
-    p.bedrooms      ? `${p.bedrooms} quarto(s)`    : null,
-    p.bathrooms     ? `${p.bathrooms} banheiro(s)` : null,
-    p.parking_spots ? `${p.parking_spots} vaga(s)` : null,
-    p.total_area    ? `${p.total_area}m²`          : null,
-  ].filter(Boolean).join(' · ');
+  const location = [p.neighborhood, p.city].filter(Boolean).join(', ');
+
+  // ── Narrativa ────────────────────────────────────────────────────────────
+  let narrative;
+  if (p.description?.trim()) {
+    const d = p.description.trim();
+    narrative = d.length > 420 ? d.slice(0, 417).trimEnd() + '...' : d;
+  } else {
+    const typeName = PROP_TYPE_LABELS[p.property_type] || 'Imóvel';
+    const specs = [];
+    if (p.bedrooms) {
+      const suiteTxt = p.suites > 0
+        ? `, sendo ${plural(p.suites, 'suíte')}`
+        : '';
+      specs.push(`${plural(p.bedrooms, 'quarto')}${suiteTxt}`);
+    }
+    if (p.bathrooms)     specs.push(plural(p.bathrooms, 'banheiro'));
+    if (p.parking_spots) specs.push(`${plural(p.parking_spots, 'vaga')} na garagem`);
+    if (p.built_area || p.total_area) specs.push(`${p.built_area || p.total_area}m²`);
+
+    narrative = specs.length
+      ? `${typeName} com ${specs.join(', ')}${location ? `, localizado no ${location}` : ''}.`
+      : null;
+  }
+
+  // ── Diferenciais ─────────────────────────────────────────────────────────
+  const amenitiesLine = p.amenities?.length
+    ? `✨ *Diferenciais:* ${p.amenities.slice(0, 6).join(', ')}`
+    : null;
+
+  // ── Preço ─────────────────────────────────────────────────────────────────
+  const prices = [];
+  if (p.sale_price) prices.push(`💰 *Venda:* ${formatBRL(p.sale_price)}`);
+  if (p.rent_price) prices.push(`💰 *Locação:* ${formatBRL(p.rent_price)}/mês`);
+
   return [
     `*${p.code} — ${p.title}*`,
-    [p.neighborhood, p.city].filter(Boolean).join(', '),
-    price, features,
-  ].filter(Boolean).join('\n');
+    location ? `📍 ${location}` : null,
+    narrative,
+    amenitiesLine,
+    prices.length ? prices.join('  ·  ') : null,
+  ].filter(Boolean).join('\n\n');
 }
 
 const CONSTRUCTION_STATUS_LABELS = {
@@ -919,14 +958,40 @@ const CONSTRUCTION_STATUS_LABELS = {
 };
 
 function buildDevelopmentCaption(d) {
+  const location = [d.neighborhood, d.city].filter(Boolean).join(', ');
   const availableUnits = (d.units || []).filter(u => u.status === 'disponivel');
+  const statusLabel = CONSTRUCTION_STATUS_LABELS[d.construction_status] || d.construction_status;
+
+  // Narrativa — usa description se tiver
+  let narrative;
+  if (d.description?.trim()) {
+    const desc = d.description.trim();
+    narrative = desc.length > 420 ? desc.slice(0, 417).trimEnd() + '...' : desc;
+  } else {
+    const parts = [];
+    if (d.builder_name) parts.push(`Construtora ${d.builder_name}`);
+    parts.push(statusLabel);
+    if (availableUnits.length) parts.push(`${availableUnits.length} unidade${availableUnits.length !== 1 ? 's' : ''} disponível`);
+    narrative = parts.join(' · ') || null;
+  }
+
+  // Diferenciais
+  const amenitiesLine = d.amenities?.length
+    ? `✨ *Diferenciais:* ${d.amenities.slice(0, 6).join(', ')}`
+    : null;
+
+  // Unidades disponíveis (quando tem description, mostra como linha separada)
+  const unitsLine = (d.description?.trim() && availableUnits.length)
+    ? `🏠 ${availableUnits.length} unidade${availableUnits.length !== 1 ? 's' : ''} disponível${availableUnits.length !== 1 ? 'eis' : ''}`
+    : null;
+
   return [
     `*${d.code} — ${d.name}*`,
-    [d.neighborhood, d.city].filter(Boolean).join(', '),
-    d.builder_name ? `Construtora: ${d.builder_name}` : null,
-    `Status: ${CONSTRUCTION_STATUS_LABELS[d.construction_status] || d.construction_status}`,
-    availableUnits.length ? `Unidades disponíveis: ${availableUnits.length}` : null,
-  ].filter(Boolean).join('\n');
+    location ? `📍 ${location}` : null,
+    narrative,
+    amenitiesLine,
+    unitsLine,
+  ].filter(Boolean).join('\n\n');
 }
 
 /**
@@ -958,10 +1023,9 @@ async function executeAgentTool(name, input, ctx) {
         await messagesSvc.send(ctx.conversationId, null, property.cover_url
           ? { content: caption, messageType: 'image', mediaUrl: property.cover_url }
           : { content: caption, messageType: 'text' });
-        // Fotos adicionais (até 4, excluindo a capa)
+        // Fotos adicionais — todas liberadas para exibição (show_on_site), excluindo a capa
         const extraPhotos = (property.media || [])
-          .filter(m => m.media_type === 'image' && m.url && !m.is_cover)
-          .slice(0, 4);
+          .filter(m => m.media_type === 'image' && m.url && !m.is_cover && m.show_on_site !== false);
         for (const photo of extraPhotos) {
           await messagesSvc.send(ctx.conversationId, null, { content: '', messageType: 'image', mediaUrl: photo.url });
         }
@@ -1007,10 +1071,9 @@ async function executeAgentTool(name, input, ctx) {
         await messagesSvc.send(ctx.conversationId, null, development.cover_url
           ? { content: caption, messageType: 'image', mediaUrl: development.cover_url }
           : { content: caption, messageType: 'text' });
-        // Fotos adicionais (até 4, excluindo a capa)
+        // Fotos adicionais — todas liberadas para exibição (show_on_site), excluindo a capa
         const extraDevPhotos = (development.media || [])
-          .filter(m => m.media_type === 'image' && m.url && !m.is_cover)
-          .slice(0, 4);
+          .filter(m => m.media_type === 'image' && m.url && !m.is_cover && m.show_on_site !== false);
         for (const photo of extraDevPhotos) {
           await messagesSvc.send(ctx.conversationId, null, { content: '', messageType: 'image', mediaUrl: photo.url });
         }
