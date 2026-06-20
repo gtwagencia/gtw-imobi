@@ -938,16 +938,19 @@ router.post('/evolution/:inboxId', async (req, res) => {
         }
 
         // ── Chatbot response ──────────────────────────────────────────
-        const isNewOrBotActive = created || conversation.bot_active;
+        // bot_active=false só bloqueia quando um agente está atribuído.
+        // Sem agente, o bot responde sempre — conversas existentes sem
+        // atribuição não podem ficar sem resposta.
+        const botShouldRun = inbox.chatbot_enabled && !conversation.assignee_id;
         logger.info('[chatbot] condition check', {
           conversationId: conversation.id,
           chatbotEnabled: inbox.chatbot_enabled,
           assigneeId: conversation.assignee_id,
-          isNewOrBotActive,
           created,
           botActive: conversation.bot_active,
+          botShouldRun,
         });
-        if (inbox.chatbot_enabled && !conversation.assignee_id && isNewOrBotActive) {
+        if (botShouldRun) {
           dispatchChatbotResponse(inbox, conversation, contact, io)
             .catch(err => logger.warn('Chatbot dispatch failed', { err: err.message }));
         }
