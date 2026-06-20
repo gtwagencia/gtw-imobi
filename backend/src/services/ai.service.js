@@ -160,6 +160,9 @@ Dicas práticas:
 - "Só o preço" → objeção de compromisso; mostre valor antes de dar número`;
 
   // ── FERRAMENTAS ────────────────────────────────────────────────────────────
+  const deptList  = (departments   || []).filter(d => d?.name);
+  const groupList = (routingGroups || []).filter(g => g?.name);
+
   const toolsBlock = isConstrutora
     ? `## FERRAMENTAS
 
@@ -168,8 +171,8 @@ Use as ferramentas de forma natural, *sem anunciar que vai usar*. O resultado ch
 - *buscar_empreendimentos* → quando quer mostrar opções de empreendimentos/lançamentos
 - *enviar_ficha_empreendimento* → para detalhar um empreendimento específico
 - *propor_visita* → quando o cliente demonstrou interesse em visitar stand/decorado
-- *rotear_para_grupo* → quando identificou o perfil e quer conectar com especialista
-- *transferir_para_setor* → para pós-venda, financeiro, jurídico, obras
+${groupList.length ? '- *rotear_para_grupo* → quando identificou o perfil e quer conectar com especialista do grupo' : ''}
+- *transferir_para_setor* → para encaminhar ao departamento correto (vendas, pós-venda, financeiro, jurídico, obras)
 - *atualizar_perfil_lead* → use silenciosamente sempre que identificar cidade, empreendimento, perfil (investidor/morador/empresa), tipo de imóvel ou faixa de valores. Não anuncie ao cliente.`
     : `## FERRAMENTAS
 
@@ -180,30 +183,31 @@ Use as ferramentas de forma natural, *sem anunciar que vai usar*. O resultado ch
 - *buscar_empreendimentos* → quando o cliente tem interesse em lançamento ou imóvel na planta
 - *enviar_ficha_empreendimento* → para detalhar um empreendimento específico
 - *propor_visita* → quando o cliente confirmou interesse e sugeriu/aceitou data
-- *rotear_para_grupo* → quando identificou o perfil e quer conectar com o especialista certo
-- *transferir_para_setor* → para administrativo, jurídico, financeiro ou suporte
+${groupList.length ? '- *rotear_para_grupo* → quando identificou o perfil e quer conectar com o especialista do grupo certo' : ''}
+- *transferir_para_setor* → para encaminhar ao departamento correto (vendas, locação, jurídico, financeiro, suporte)
 - *atualizar_perfil_lead* → use silenciosamente sempre que identificar cidade, empreendimento, perfil (investidor/morador/empresa), tipo de imóvel ou faixa de valores. Não anuncie ao cliente.`;
 
   // ── ROTEAMENTO INTELIGENTE ─────────────────────────────────────────────────
-  const deptList    = (departments   || []).filter(d => d?.name);
-  const groupList   = (routingGroups || []).filter(g => g?.name);
-
-  const routingBlock = `## ROTEAMENTO
+  const routingBlock = groupList.length
+    ? `## ROTEAMENTO
 
 Identifique o perfil e acione o roteamento *após* ter ao menos intenção + localização. Não transfira antes.
 
 *Grupos de atendimento* (ferramenta "rotear_para_grupo") — para novos leads de vendas/locação:
-${groupList.length
-  ? groupList.map(g => `- *${g.name}*: ${g.description || g.group_type}`).join('\n')
-  : `- Compra e Venda: quer comprar imóvel
-- Locação: quer alugar
-- Empreendimentos: interesse em lançamentos/planta
-- Plantão Geral: demandas diversas`}
+${groupList.map(g => `- *${g.name}*: ${g.description || g.group_type}`).join('\n')}
 
-*Setores da empresa* (ferramenta "transferir_para_setor") — para assuntos pós-negócio ou administrativos:
+*Departamentos da empresa* (ferramenta "transferir_para_setor") — para assuntos pós-negócio ou administrativos:
 ${deptList.length
   ? deptList.map(d => `- *${d.name}*${d.ai_routing_description ? `: ${d.ai_routing_description}` : ''}`).join('\n')
-  : '- Financeiro, Jurídico, Suporte e demais áreas administrativas'}`;
+  : '- Financeiro, Jurídico, Suporte e demais áreas administrativas'}`
+    : `## ROTEAMENTO
+
+Identifique o perfil e acione o roteamento *após* ter ao menos intenção + localização. Não transfira antes.
+
+Use a ferramenta *transferir_para_setor* para encaminhar o cliente ao departamento correto:
+${deptList.length
+  ? deptList.map(d => `- *${d.name}*${d.ai_routing_description ? `: ${d.ai_routing_description}` : ''}`).join('\n')
+  : '- Vendas, Locação, Financeiro, Jurídico, Suporte'}`;
 
   // ── INTELIGÊNCIA EMOCIONAL ────────────────────────────────────────────────
   const intelligenceBlock = `## INTELIGÊNCIA EMOCIONAL
