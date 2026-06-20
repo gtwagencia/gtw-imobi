@@ -404,15 +404,15 @@ export default function InboxesPage() {
                           </div>
                           <div>
                             <label className="block text-xs font-medium text-gray-600 mb-1">
-                              Número de teste <span className="text-gray-400 font-normal">(opcional)</span>
+                              Números de teste <span className="text-gray-400 font-normal">(opcional)</span>
                             </label>
                             <input
                               className="input text-sm font-mono"
-                              placeholder="5511999999999 — deixe vazio para responder a todos"
+                              placeholder="5511999999999, 5511888888888 — deixe vazio para responder a todos"
                               value={editForm.chatbotTestNumber || ''}
                               onChange={e => setEditForm(prev => ({ ...prev, chatbotTestNumber: e.target.value }))}
                             />
-                            <p className="text-xs text-gray-400 mt-1">Quando preenchido, o bot só responde a esse número. Útil para testes sem afetar clientes reais.</p>
+                            <p className="text-xs text-gray-400 mt-1">Separe múltiplos números por vírgula. Quando preenchido, o bot só responde a esses números.</p>
                           </div>
                         </div>
                       )}
