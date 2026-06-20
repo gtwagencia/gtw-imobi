@@ -954,9 +954,17 @@ async function executeAgentTool(name, input, ctx) {
         const property = await propertiesSvc.getByCode(ctx.workspaceId, input.property_code);
         if (!property) return { success: false, error: 'Imóvel não encontrado' };
         const caption = buildPropertyCaption(property);
+        // Capa com legenda (ou só texto se não tiver foto)
         await messagesSvc.send(ctx.conversationId, null, property.cover_url
           ? { content: caption, messageType: 'image', mediaUrl: property.cover_url }
           : { content: caption, messageType: 'text' });
+        // Fotos adicionais (até 4, excluindo a capa)
+        const extraPhotos = (property.media || [])
+          .filter(m => m.media_type === 'image' && m.url && !m.is_cover)
+          .slice(0, 4);
+        for (const photo of extraPhotos) {
+          await messagesSvc.send(ctx.conversationId, null, { content: '', messageType: 'image', mediaUrl: photo.url });
+        }
         if (property.video_url) {
           await messagesSvc.send(ctx.conversationId, null, {
             content: `🎬 Tour virtual: ${property.video_url}`,
@@ -995,9 +1003,17 @@ async function executeAgentTool(name, input, ctx) {
         const development = await developmentsSvc.getByCode(ctx.workspaceId, input.development_code);
         if (!development) return { success: false, error: 'Empreendimento não encontrado' };
         const caption = buildDevelopmentCaption(development);
+        // Capa com legenda (ou só texto se não tiver foto)
         await messagesSvc.send(ctx.conversationId, null, development.cover_url
           ? { content: caption, messageType: 'image', mediaUrl: development.cover_url }
           : { content: caption, messageType: 'text' });
+        // Fotos adicionais (até 4, excluindo a capa)
+        const extraDevPhotos = (development.media || [])
+          .filter(m => m.media_type === 'image' && m.url && !m.is_cover)
+          .slice(0, 4);
+        for (const photo of extraDevPhotos) {
+          await messagesSvc.send(ctx.conversationId, null, { content: '', messageType: 'image', mediaUrl: photo.url });
+        }
         if (development.video_url) {
           await messagesSvc.send(ctx.conversationId, null, {
             content: `🎬 Tour virtual: ${development.video_url}`,
