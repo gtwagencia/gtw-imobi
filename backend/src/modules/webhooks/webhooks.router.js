@@ -954,7 +954,7 @@ router.post('/evolution/:inboxId', async (req, res) => {
           assigneeId: conversation.assignee_id,
           created,
           botActive: conversation.bot_active,
-          testNumber: testNumber || null,
+          testNumbers: testNumbers.length ? testNumbers : null,
           botShouldRun,
         });
         if (botShouldRun) {
