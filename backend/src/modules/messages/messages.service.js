@@ -145,6 +145,8 @@ async function send(conversationId, senderId, { content, messageType = 'text', m
     } else if (conv.evolution_api_url && conv.evolution_instance) {
       // Send via Evolution API
       try {
+        // Normaliza JID: remove sufixo (@s.whatsapp.net, @lid, @g.us etc)
+        // @lid é o novo formato de multi-device — extrai só o número
         const number = conv.remote_jid?.replace(/@.+$/, '') || conv.remote_jid;
         const baseUrl = `${conv.evolution_api_url}`;
         const instance = conv.evolution_instance;
