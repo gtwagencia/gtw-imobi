@@ -125,7 +125,7 @@ ${isConstrutora
 
 Você processa TODOS os tipos de mensagem com inteligência:
 
-*Áudio:* O conteúdo já foi transcrito e aparece como texto na conversa. Trate como fala normal do cliente — reconheça expressões informais, hesitações e contexto emocional.
+*Áudio:* Quando aparece como texto, é a transcrição do que o cliente disse — trate como fala normal, reconheça expressões informais e contexto emocional. Quando aparece como `[áudio]`, a transcrição não está disponível — responda naturalmente pedindo para o cliente digitar o que precisa, sem mencionar problemas técnicos.
 
 *Imagem:* Analise o que você vê:
 - Fachada/foto de imóvel → cliente tem interesse visual, mencione características identificadas
@@ -599,12 +599,90 @@ function buildChatHistory(messages) {
   const history = [];
   for (const m of messages.slice(-15)) {
     const role = m.direction === 'inbound' ? 'user' : 'assistant';
-    if (history.length && history[history.length - 1].role === role) {
-      history[history.length - 1].content += '\n' + (m.content || '');
+
+    let content;
+    if (m.message_type === 'audio') {
+      content = m.extracted_text || '[áudio]';
+    } else if (m.message_type === 'image') {
+      content = m.content?.trim() || '[imagem]';
+    } else if (m.message_type === 'document') {
+      content = m.extracted_text
+        ? m.extracted_text.slice(0, 2000)
+        : (m.content || '[documento]');
     } else {
-      history.push({ role, content: m.content || '' });
+      content = m.content || '';
+    }
+
+    if (!content.trim()) continue;
+
+    if (history.length && history[history.length - 1].role === role) {
+      history[history.length - 1].content += '\n' + content;
+    } else {
+      history.push({ role, content });
     }
   }
+  return history;
+}
+
+/**
+ * Versão multimodal do histórico para Anthropic: embute imagens e PDFs inline
+ * para que Claude possa analisá-los visualmente.
+ */
+async function buildAnthropicAgentHistory(messages) {
+  const history = [];
+
+  for (const m of messages.slice(-15)) {
+    const role = m.direction === 'inbound' ? 'user' : 'assistant';
+    const parts = [];
+
+    if (m.message_type === 'image' && m.media_url) {
+      const media = await fetchMediaAsBase64(m.media_url).catch(() => null);
+      if (media) {
+        if (m.content?.trim()) parts.push({ type: 'text', text: m.content });
+        parts.push({ type: 'image', source: { type: 'base64', media_type: media.mime.split(';')[0] || 'image/jpeg', data: media.base64 } });
+      } else {
+        parts.push({ type: 'text', text: '[imagem]' });
+      }
+    } else if (m.message_type === 'document' && m.media_url) {
+      const mime = m.media_mime_type || '';
+      if (mime.includes('pdf') || m.media_url.toLowerCase().endsWith('.pdf')) {
+        const media = await fetchMediaAsBase64(m.media_url).catch(() => null);
+        if (media) {
+          parts.push({ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: media.base64 } });
+        } else if (m.extracted_text) {
+          parts.push({ type: 'text', text: m.extracted_text.slice(0, 2000) });
+        } else {
+          parts.push({ type: 'text', text: '[documento PDF]' });
+        }
+      } else {
+        parts.push({ type: 'text', text: m.extracted_text ? m.extracted_text.slice(0, 2000) : (m.content || '[documento]') });
+      }
+    } else if (m.message_type === 'audio') {
+      parts.push({ type: 'text', text: m.extracted_text || '[áudio]' });
+    } else {
+      const text = m.content || '';
+      if (!text.trim()) continue;
+      parts.push({ type: 'text', text });
+    }
+
+    if (!parts.length) continue;
+
+    const content = parts.length === 1 && parts[0].type === 'text' ? parts[0].text : parts;
+
+    if (history.length && history[history.length - 1].role === role) {
+      const prev = history[history.length - 1];
+      if (typeof prev.content === 'string' && typeof content === 'string') {
+        prev.content += '\n' + content;
+      } else {
+        const a = typeof prev.content === 'string' ? [{ type: 'text', text: prev.content }] : prev.content;
+        const b = typeof content === 'string' ? [{ type: 'text', text: content }] : content;
+        prev.content = [...a, ...b];
+      }
+    } else {
+      history.push({ role, content });
+    }
+  }
+
   return history;
 }
 
@@ -1333,10 +1411,16 @@ async function generateChatbotResponseWithTools(conversationId, systemPrompt, ws
   const messages = await getConversationMessages(conversationId);
   if (!messages.length) return null;
 
-  const history = buildChatHistory(messages);
+  const provider = ws.ai_provider || 'anthropic';
+
+  // Anthropic: usa histórico multimodal (embute imagens e PDFs inline)
+  // Outros provedores: histórico texto com descrições de fallback
+  const history = provider === 'anthropic'
+    ? await buildAnthropicAgentHistory(messages)
+    : buildChatHistory(messages);
+
   if (!history.length || history[history.length - 1].role !== 'user') return null;
 
-  const provider = ws.ai_provider || 'anthropic';
   try {
     if (provider === 'anthropic') {
       return await runAnthropicToolLoop({ apiKey: ws.anthropic_api_key, model: ws.ai_model, system: systemPrompt, history, ctx });

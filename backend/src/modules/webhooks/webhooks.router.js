@@ -893,6 +893,34 @@ router.post('/evolution/:inboxId', async (req, res) => {
           require('../../services/pdf.service').extractPdfText(message.id, mediaUrl).catch(() => {});
         }
 
+        // Transcreve áudio via Whisper (OpenAI) antes de responder, se chave disponível
+        if (messageType === 'audio' && mediaUrl && message.id) {
+          try {
+            const wsKeyRes = await query('SELECT openai_api_key FROM workspaces WHERE id = $1', [inbox.workspace_id]);
+            const openaiKey = wsKeyRes.rows[0]?.openai_api_key;
+            if (openaiKey) {
+              const FormData  = require('form-data');
+              const dlRes     = await axios.get(mediaUrl, { responseType: 'arraybuffer', timeout: 20000 });
+              const audioMime = (dlRes.headers['content-type'] || mediaMimeType || 'audio/ogg').split(';')[0];
+              const ext       = { 'audio/ogg': '.ogg', 'audio/mpeg': '.mp3', 'audio/mp4': '.m4a', 'audio/webm': '.webm' }[audioMime] || '.ogg';
+              const form      = new FormData();
+              form.append('file', Buffer.from(dlRes.data), { filename: `audio${ext}`, contentType: audioMime });
+              form.append('model', 'whisper-1');
+              form.append('language', 'pt');
+              const transcResp = await axios.post('https://api.openai.com/v1/audio/transcriptions', form, {
+                headers: { ...form.getHeaders(), Authorization: `Bearer ${openaiKey}` },
+                timeout: 30000,
+              });
+              const transcript = transcResp.data?.text?.trim();
+              if (transcript) {
+                await query('UPDATE messages SET extracted_text = $1 WHERE id = $2', [transcript, message.id]);
+              }
+            }
+          } catch (err) {
+            logger.warn('Whisper transcription failed', { messageId: message.id, err: err.message });
+          }
+        }
+
         await convSvc.refreshLastMessage(conversation.id);
         await query(`UPDATE conversations SET last_inbound_at = NOW() WHERE id = $1`, [conversation.id]);
 
