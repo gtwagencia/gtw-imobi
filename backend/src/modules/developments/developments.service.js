@@ -149,6 +149,7 @@ const UPDATE_FIELD_MAP = {
   latitude: 'latitude', longitude: 'longitude',
   amenities: 'amenities',
   videoUrl: 'video_url',
+  aiInstructions: 'ai_instructions',
   isFeatured: 'is_featured', publishedAt: 'published_at',
   mapImageUrl: 'map_image_url',
   commissionPct:   'commission_pct',

@@ -13,16 +13,22 @@ const upload  = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10
 
 router.get('/', authenticate, workspaceContext, requirePermission('contacts'), async (req, res, next) => {
   try {
-    const { search, tags, contactType, brokerId, page, limit } = req.query;
+    const { search, tags, contactType, brokerId, page, limit,
+            aiCity, aiDevelopment, aiPerfil, aiTipoImovel, hasAiProfile } = req.query;
     const tagsArr = tags ? tags.split(',').map(t => t.trim()).filter(Boolean) : undefined;
     const contactTypeArr = contactType ? contactType.split(',').map(t => t.trim()).filter(Boolean) : undefined;
     const result = await svc.list(req.params.workspaceId, {
-      search:      search?.slice(0, 200),
-      tags:        tagsArr,
-      contactType: contactTypeArr,
-      brokerId:    brokerId || undefined,
-      page:        parseInt(page,  10) || 1,
-      limit:       Math.min(parseInt(limit, 10) || 50, 200),
+      search:        search?.slice(0, 200),
+      tags:          tagsArr,
+      contactType:   contactTypeArr,
+      brokerId:      brokerId || undefined,
+      aiCity:        aiCity || undefined,
+      aiDevelopment: aiDevelopment || undefined,
+      aiPerfil:      aiPerfil || undefined,
+      aiTipoImovel:  aiTipoImovel || undefined,
+      hasAiProfile:  hasAiProfile === 'true' ? true : undefined,
+      page:          parseInt(page,  10) || 1,
+      limit:         Math.min(parseInt(limit, 10) || 50, 200),
     });
     res.json(result);
   } catch (err) { next(err); }
@@ -119,6 +125,65 @@ router.get('/:contactId/conversations', authenticate, workspaceContext, requireP
   try {
     const convs = await svc.listConversations(req.params.contactId, req.params.workspaceId);
     res.json(convs);
+  } catch (err) { next(err); }
+});
+
+// PATCH /contacts/:contactId/ai-profile — atualiza perfil de IA (merge parcial)
+router.patch('/:contactId/ai-profile', authenticate, workspaceContext, async (req, res, next) => {
+  try {
+    const c = await svc.updateAiProfile(req.params.contactId, req.params.workspaceId, req.body);
+    res.json(c);
+  } catch (err) { next(err); }
+});
+
+// POST /contacts/mass-message — dispara mensagem para lista de contatos
+router.post('/mass-message', authenticate, workspaceContext, requirePermission('contacts'), async (req, res, next) => {
+  try {
+    const { contactIds, message, inboxId } = req.body;
+    if (!contactIds?.length) return res.status(400).json({ error: 'contactIds obrigatório' });
+    if (!message?.trim())    return res.status(400).json({ error: 'message obrigatório' });
+
+    const { query: dbQuery } = require('../../config/database');
+    const messagesSvc = require('../messages/messages.service');
+
+    let sent = 0;
+    const errors = [];
+
+    for (const contactId of contactIds) {
+      try {
+        const contact = await svc.getById(contactId, req.params.workspaceId);
+        if (!contact) continue;
+
+        // Busca ou cria conversa ativa para este contato no inbox especificado
+        let convRow;
+        if (inboxId) {
+          const existing = await dbQuery(
+            `SELECT id FROM conversations WHERE contact_id = $1 AND inbox_id = $2 AND workspace_id = $3
+             ORDER BY last_message_at DESC NULLS LAST LIMIT 1`,
+            [contactId, inboxId, req.params.workspaceId]
+          );
+          convRow = existing.rows[0];
+        }
+
+        if (!convRow) {
+          const convRes = await dbQuery(
+            `SELECT id FROM conversations WHERE contact_id = $1 AND workspace_id = $2
+             ORDER BY last_message_at DESC NULLS LAST LIMIT 1`,
+            [contactId, req.params.workspaceId]
+          );
+          convRow = convRes.rows[0];
+        }
+
+        if (!convRow) { errors.push({ contactId, error: 'Sem conversa ativa' }); continue; }
+
+        await messagesSvc.send(convRow.id, req.user.sub, { content: message, messageType: 'text' });
+        sent++;
+      } catch (err) {
+        errors.push({ contactId, error: err.message });
+      }
+    }
+
+    res.json({ sent, errors });
   } catch (err) { next(err); }
 });
 

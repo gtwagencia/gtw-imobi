@@ -169,7 +169,8 @@ Use as ferramentas de forma natural, *sem anunciar que vai usar*. O resultado ch
 - *enviar_ficha_empreendimento* → para detalhar um empreendimento específico
 - *propor_visita* → quando o cliente demonstrou interesse em visitar stand/decorado
 - *rotear_para_grupo* → quando identificou o perfil e quer conectar com especialista
-- *transferir_para_setor* → para pós-venda, financeiro, jurídico, obras`
+- *transferir_para_setor* → para pós-venda, financeiro, jurídico, obras
+- *atualizar_perfil_lead* → use silenciosamente sempre que identificar cidade, empreendimento, perfil (investidor/morador/empresa), tipo de imóvel ou faixa de valores. Não anuncie ao cliente.`
     : `## FERRAMENTAS
 
 Use as ferramentas de forma natural, *sem anunciar que vai usar*. O resultado chega ao cliente automaticamente.
@@ -180,7 +181,8 @@ Use as ferramentas de forma natural, *sem anunciar que vai usar*. O resultado ch
 - *enviar_ficha_empreendimento* → para detalhar um empreendimento específico
 - *propor_visita* → quando o cliente confirmou interesse e sugeriu/aceitou data
 - *rotear_para_grupo* → quando identificou o perfil e quer conectar com o especialista certo
-- *transferir_para_setor* → para administrativo, jurídico, financeiro ou suporte`;
+- *transferir_para_setor* → para administrativo, jurídico, financeiro ou suporte
+- *atualizar_perfil_lead* → use silenciosamente sempre que identificar cidade, empreendimento, perfil (investidor/morador/empresa), tipo de imóvel ou faixa de valores. Não anuncie ao cliente.`;
 
   // ── ROTEAMENTO INTELIGENTE ─────────────────────────────────────────────────
   const deptList    = (departments   || []).filter(d => d?.name);
@@ -314,6 +316,21 @@ const AGENT_TOOL_DEFS = [
         motivo: { type: 'string', description: 'Breve motivo da transferência' },
       },
       required: ['setor'],
+    },
+  },
+  {
+    name: 'atualizar_perfil_lead',
+    description: 'Salva no sistema informações qualificadas do lead coletadas durante a conversa (cidade de interesse, empreendimento, perfil, tipo de imóvel, faixa de valores). Chame silenciosamente sempre que identificar pelo menos um desses dados — o cliente não precisa saber. Pode ser chamado múltiplas vezes conforme mais informações surgem.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        cidade_interesse:           { type: 'string', description: 'Cidade ou região onde quer o imóvel' },
+        empreendimento_interesse:   { type: 'string', description: 'Nome ou código do empreendimento de interesse' },
+        perfil:                     { type: 'string', enum: ['investidor', 'morador', 'empresa'], description: 'Perfil do comprador' },
+        tipo_imovel:                { type: 'string', description: 'Tipo de imóvel desejado (apartamento, casa, lote, etc.)' },
+        faixa_valor_min:            { type: 'number', description: 'Valor mínimo de orçamento em reais' },
+        faixa_valor_max:            { type: 'number', description: 'Valor máximo de orçamento em reais' },
+      },
     },
   },
 ];
@@ -1051,6 +1068,7 @@ async function executeAgentTool(name, input, ctx) {
             code: d.code, name: d.name, builder: d.builder_name,
             construction_status: d.construction_status,
             city: d.city, neighborhood: d.neighborhood, units_count: d.units_count,
+            ...(d.ai_instructions ? { instrucoes_ia: d.ai_instructions } : {}),
           })),
         };
       }
@@ -1080,6 +1098,24 @@ async function executeAgentTool(name, input, ctx) {
             content: `🎬 Tour virtual: ${development.video_url}`, messageType: 'text',
           });
         }
+        // Retorna ai_instructions para que a IA use ao responder sobre financiamento/pagamento/lançamento
+        return {
+          success: true,
+          ...(development.ai_instructions ? { instrucoes_ia: development.ai_instructions } : {}),
+        };
+      }
+      case 'atualizar_perfil_lead': {
+        if (!ctx.contactId) return { success: false, error: 'Conversa sem contato associado' };
+        const contactsSvc = require('../modules/contacts/contacts.service');
+        const patch = {};
+        if (input.cidade_interesse)         patch.cidade_interesse         = input.cidade_interesse;
+        if (input.empreendimento_interesse) patch.empreendimento_interesse = input.empreendimento_interesse;
+        if (input.perfil)                   patch.perfil                   = input.perfil;
+        if (input.tipo_imovel)              patch.tipo_imovel              = input.tipo_imovel;
+        if (input.faixa_valor_min != null)  patch.faixa_valor_min          = input.faixa_valor_min;
+        if (input.faixa_valor_max != null)  patch.faixa_valor_max          = input.faixa_valor_max;
+        if (!Object.keys(patch).length) return { success: false, error: 'Nenhum campo fornecido' };
+        await contactsSvc.updateAiProfile(ctx.contactId, ctx.workspaceId, patch);
         return { success: true };
       }
       case 'rotear_para_grupo': {

@@ -36,6 +36,7 @@ interface FormState {
   isFeatured: boolean;
   commissionPct: string;
   videoUrl: string;
+  aiInstructions: string;
 }
 
 function toFormState(d?: Development): FormState {
@@ -61,6 +62,7 @@ function toFormState(d?: Development): FormState {
     isFeatured:         d?.is_featured || false,
     commissionPct:      d?.commission_pct != null ? String(d.commission_pct) : '',
     videoUrl:           (d as any)?.video_url || '',
+    aiInstructions:     (d as any)?.ai_instructions || '',
   };
 }
 
@@ -163,6 +165,7 @@ export default function DevelopmentForm({ development, workspaceId, onSave }: De
         developmentType:    form.developmentType || null,
         totalUnits:         form.totalUnits.trim() === '' ? null : Number(form.totalUnits),
         videoUrl:           form.videoUrl.trim() || null,
+        aiInstructions:     form.aiInstructions.trim() || null,
       };
 
       const { data } = development
@@ -361,6 +364,16 @@ export default function DevelopmentForm({ development, workspaceId, onSave }: De
             placeholder="https://www.youtube.com/watch?v=... ou link direto do vídeo"
           />
           <p className="text-xs text-gray-400 mt-1">O chatbot envia este link automaticamente ao apresentar o empreendimento.</p>
+        </div>
+        <div>
+          <label className="label">Instruções para a IA</label>
+          <textarea
+            className="input min-h-[100px] resize-y"
+            value={form.aiInstructions}
+            onChange={e => set('aiInstructions', e.target.value)}
+            placeholder={`Informações que o chatbot pode compartilhar com o lead:\n- Formas de pagamento disponíveis\n- Condições de financiamento\n- Previsão de lançamento\n- O que pode/não pode ser divulgado por enquanto`}
+          />
+          <p className="text-xs text-gray-400 mt-1">Visível apenas internamente. O chatbot usa essas informações ao responder perguntas sobre o empreendimento — não vai para o site.</p>
         </div>
       </div>
 

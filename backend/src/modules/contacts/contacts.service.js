@@ -2,7 +2,12 @@
 
 const { query, pool } = require('../../config/database');
 
-async function list(workspaceId, { search, tags, contactType, brokerId, page = 1, limit = 50 } = {}) {
+async function list(workspaceId, {
+  search, tags, contactType, brokerId,
+  aiCity, aiDevelopment, aiPerfil, aiTipoImovel,
+  hasAiProfile,
+  page = 1, limit = 50,
+} = {}) {
   const offset = (page - 1) * limit;
   const params = [workspaceId];
   let where = 'WHERE c.workspace_id = $1';
@@ -25,6 +30,27 @@ async function list(workspaceId, { search, tags, contactType, brokerId, page = 1
   if (brokerId) {
     params.push(brokerId);
     where += ` AND c.assigned_broker_id = $${params.length}`;
+  }
+
+  // Filtros por perfil de IA
+  if (hasAiProfile) {
+    where += ` AND c.ai_profile != '{}'::jsonb`;
+  }
+  if (aiCity) {
+    params.push(aiCity);
+    where += ` AND c.ai_profile->>'cidade_interesse' ILIKE $${params.length}`;
+  }
+  if (aiDevelopment) {
+    params.push(aiDevelopment);
+    where += ` AND c.ai_profile->>'empreendimento_interesse' ILIKE $${params.length}`;
+  }
+  if (aiPerfil) {
+    params.push(aiPerfil);
+    where += ` AND c.ai_profile->>'perfil' = $${params.length}`;
+  }
+  if (aiTipoImovel) {
+    params.push(aiTipoImovel);
+    where += ` AND c.ai_profile->>'tipo_imovel' ILIKE $${params.length}`;
   }
 
   const countRes = await query(`SELECT COUNT(*) FROM contacts c ${where}`, params);
@@ -425,4 +451,18 @@ async function csvImport(workspaceId, csvText, { defaultTag } = {}) {
   return results;
 }
 
-module.exports = { list, getById, create, update, remove, listConversations, csvImport, listDuplicates, mergeContacts };
+// ── Perfil de IA ─────────────────────────────────────────────────────────────
+
+async function updateAiProfile(contactId, workspaceId, profilePatch) {
+  const r = await query(
+    `UPDATE contacts
+     SET ai_profile = ai_profile || $1::jsonb, updated_at = NOW()
+     WHERE id = $2 AND workspace_id = $3
+     RETURNING id`,
+    [JSON.stringify(profilePatch), contactId, workspaceId]
+  );
+  if (!r.rows.length) throw Object.assign(new Error('Contato não encontrado'), { status: 404 });
+  return getById(contactId, workspaceId);
+}
+
+module.exports = { list, getById, create, update, remove, listConversations, csvImport, listDuplicates, mergeContacts, updateAiProfile };
