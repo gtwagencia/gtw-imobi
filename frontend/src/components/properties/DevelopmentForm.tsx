@@ -35,6 +35,7 @@ interface FormState {
   amenities: string[];
   isFeatured: boolean;
   commissionPct: string;
+  videoUrl: string;
 }
 
 function toFormState(d?: Development): FormState {
@@ -59,6 +60,7 @@ function toFormState(d?: Development): FormState {
     amenities:          d?.amenities || [],
     isFeatured:         d?.is_featured || false,
     commissionPct:      d?.commission_pct != null ? String(d.commission_pct) : '',
+    videoUrl:           (d as any)?.video_url || '',
   };
 }
 
@@ -160,6 +162,7 @@ export default function DevelopmentForm({ development, workspaceId, onSave }: De
         commissionPct:      form.commissionPct.trim() === '' ? null : Number(form.commissionPct),
         developmentType:    form.developmentType || null,
         totalUnits:         form.totalUnits.trim() === '' ? null : Number(form.totalUnits),
+        videoUrl:           form.videoUrl.trim() || null,
       };
 
       const { data } = development
@@ -338,7 +341,7 @@ export default function DevelopmentForm({ development, workspaceId, onSave }: De
       </div>
 
       {/* ── Descrição ── */}
-      <div className="card p-5">
+      <div className="card p-5 space-y-4">
         <SectionHeader icon={<ChevronRight className="w-4 h-4" />} title="Descrição" subtitle="Apresentação para clientes e portais" />
         <textarea
           className="input resize-none w-full"
@@ -349,6 +352,16 @@ export default function DevelopmentForm({ development, workspaceId, onSave }: De
             ? 'Diferenciais, conceito do projeto, infraestrutura, lazer, memorial descritivo...'
             : 'Características do empreendimento, localização, diferenciais para o cliente...'}
         />
+        <div>
+          <label className="label">Link de vídeo / Tour virtual</label>
+          <input
+            className="input"
+            value={form.videoUrl}
+            onChange={e => set('videoUrl', e.target.value)}
+            placeholder="https://www.youtube.com/watch?v=... ou link direto do vídeo"
+          />
+          <p className="text-xs text-gray-400 mt-1">O chatbot envia este link automaticamente ao apresentar o empreendimento.</p>
+        </div>
       </div>
 
       {/* ── Endereço ── */}

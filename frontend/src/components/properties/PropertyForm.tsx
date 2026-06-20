@@ -59,6 +59,7 @@ interface FormState {
   brokerId: string;
   scoutId: string;
   developmentId: string;
+  videoUrl: string;
   isFeatured: boolean;
 }
 
@@ -97,6 +98,7 @@ function toFormState(p?: Property, initialDevelopmentId?: string): FormState {
     brokerId:     p?.broker_id || '',
     scoutId:      p?.scout_id  || '',
     developmentId: p?.development_id || initialDevelopmentId || '',
+    videoUrl:     (p as any)?.video_url || '',
     isFeatured:   p?.is_featured || false,
   };
 }
@@ -207,6 +209,7 @@ export default function PropertyForm({ property, workspaceId, orgId, initialDeve
         brokerId:     form.brokerId || null,
         scoutId:      form.scoutId || null,
         developmentId: form.developmentId || null,
+        videoUrl:     form.videoUrl.trim() || null,
         isFeatured:   form.isFeatured,
       };
 
@@ -286,6 +289,16 @@ export default function PropertyForm({ property, workspaceId, orgId, initialDeve
               </button>
             </div>
             <textarea className="input resize-none" rows={5} value={form.description} onChange={e => set('description', e.target.value)} placeholder="Descreva o imóvel ou clique em 'Gerar com IA' para criar automaticamente..." />
+          </div>
+          <div className="md:col-span-2">
+            <label className="block text-xs font-medium text-gray-600 mb-1">Link de vídeo / Tour virtual</label>
+            <input
+              className="input"
+              value={form.videoUrl}
+              onChange={e => set('videoUrl', e.target.value)}
+              placeholder="https://www.youtube.com/watch?v=... ou link direto do vídeo"
+            />
+            <p className="text-xs text-gray-400 mt-1">Quando preenchido, o chatbot envia este link automaticamente ao apresentar o imóvel.</p>
           </div>
         </div>
       </div>

@@ -957,6 +957,12 @@ async function executeAgentTool(name, input, ctx) {
         await messagesSvc.send(ctx.conversationId, null, property.cover_url
           ? { content: caption, messageType: 'image', mediaUrl: property.cover_url }
           : { content: caption, messageType: 'text' });
+        if (property.video_url) {
+          await messagesSvc.send(ctx.conversationId, null, {
+            content: `🎬 Tour virtual: ${property.video_url}`,
+            messageType: 'text',
+          });
+        }
         return { success: true };
       }
       case 'propor_visita': {
@@ -992,6 +998,12 @@ async function executeAgentTool(name, input, ctx) {
         await messagesSvc.send(ctx.conversationId, null, development.cover_url
           ? { content: caption, messageType: 'image', mediaUrl: development.cover_url }
           : { content: caption, messageType: 'text' });
+        if (development.video_url) {
+          await messagesSvc.send(ctx.conversationId, null, {
+            content: `🎬 Tour virtual: ${development.video_url}`,
+            messageType: 'text',
+          });
+        }
         return { success: true };
       }
       case 'rotear_para_grupo': {

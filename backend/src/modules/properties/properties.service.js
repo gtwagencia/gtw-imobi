@@ -276,6 +276,7 @@ const UPDATE_FIELD_MAP = {
   parkingSpots: 'parking_spots', floorNumber: 'floor_number', yearBuilt: 'year_built',
   amenities: 'amenities',
   ownerId: 'owner_id', brokerId: 'broker_id', scoutId: 'scout_id', developmentId: 'development_id',
+  videoUrl: 'video_url',
   isFeatured: 'is_featured', publishedAt: 'published_at',
   blockLabel: 'block_label', lotLabel: 'lot_label',
   reservedUntil: 'reserved_until', reservedBy: 'reserved_by',

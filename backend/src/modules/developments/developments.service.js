@@ -138,6 +138,7 @@ const UPDATE_FIELD_MAP = {
   neighborhood: 'neighborhood', city: 'city', state: 'state',
   latitude: 'latitude', longitude: 'longitude',
   amenities: 'amenities',
+  videoUrl: 'video_url',
   isFeatured: 'is_featured', publishedAt: 'published_at',
   mapImageUrl: 'map_image_url',
   commissionPct:   'commission_pct',
