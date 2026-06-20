@@ -51,7 +51,16 @@ async function ensureBucket() {
       await s3.send(new PutBucketPolicyCommand({ Bucket: STORAGE_BUCKET, Policy: policy }));
       logger.info(`Storage bucket '${STORAGE_BUCKET}' created with public read`);
     } catch (err) {
-      logger.error('Failed to create storage bucket', { err: err.message });
+      // BucketAlreadyOwnedByYou / BucketAlreadyExists = bucket já existe, tudo certo
+      const alreadyExists = err.name === 'BucketAlreadyOwnedByYou'
+        || err.name === 'BucketAlreadyExists'
+        || err.Code === 'BucketAlreadyOwnedByYou'
+        || err.Code === 'BucketAlreadyExists';
+      if (alreadyExists) {
+        logger.info(`Storage bucket '${STORAGE_BUCKET}' already exists — OK`);
+      } else {
+        logger.error('Failed to create storage bucket', { err: err.message, code: err.name || err.Code });
+      }
     }
   }
 }

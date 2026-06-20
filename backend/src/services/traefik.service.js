@@ -142,7 +142,10 @@ async function regenerateDomainsConfig() {
     fs.mkdirSync(DYNAMIC_DIR, { recursive: true });
     fs.writeFileSync(path.join(DYNAMIC_DIR, OUTPUT_FILE), content, 'utf8');
   } catch (err) {
-    logger.warn('Falha ao gerar configuração dinâmica do Traefik', { err: err.message });
+    logger.warn('Falha ao gerar configuração dinâmica do Traefik', {
+      err: err.message, dir: DYNAMIC_DIR,
+      hint: 'Verifique se o volume TRAEFIK_DYNAMIC_DIR está montado no container',
+    });
   }
 }
 
