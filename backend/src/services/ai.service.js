@@ -686,6 +686,115 @@ async function buildAnthropicAgentHistory(messages) {
   return history;
 }
 
+/**
+ * Versão multimodal do histórico para OpenAI: imagens são enviadas como image_url
+ * com data URL base64. PDFs sem suporte nativo — usa extracted_text ou placeholder.
+ */
+async function buildOpenAIAgentHistory(messages) {
+  const history = [];
+
+  for (const m of messages.slice(-15)) {
+    const role = m.direction === 'inbound' ? 'user' : 'assistant';
+    const parts = [];
+
+    if (m.message_type === 'image' && m.media_url) {
+      const media = await fetchMediaAsBase64(m.media_url).catch(() => null);
+      if (media) {
+        if (m.content?.trim()) parts.push({ type: 'text', text: m.content });
+        const mime = media.mime.split(';')[0] || 'image/jpeg';
+        parts.push({ type: 'image_url', image_url: { url: `data:${mime};base64,${media.base64}` } });
+      } else {
+        parts.push({ type: 'text', text: '[imagem]' });
+      }
+    } else if (m.message_type === 'document' && m.media_url) {
+      const mime = m.media_mime_type || '';
+      if (mime.includes('pdf') || m.media_url.toLowerCase().endsWith('.pdf')) {
+        parts.push({ type: 'text', text: m.extracted_text ? m.extracted_text.slice(0, 4000) : '[documento PDF]' });
+      } else {
+        parts.push({ type: 'text', text: m.extracted_text ? m.extracted_text.slice(0, 2000) : (m.content || '[documento]') });
+      }
+    } else if (m.message_type === 'audio') {
+      parts.push({ type: 'text', text: m.extracted_text || '[áudio]' });
+    } else {
+      const text = m.content || '';
+      if (!text.trim()) continue;
+      parts.push({ type: 'text', text });
+    }
+
+    if (!parts.length) continue;
+
+    const content = parts.length === 1 && parts[0].type === 'text' ? parts[0].text : parts;
+
+    if (history.length && history[history.length - 1].role === role) {
+      const prev = history[history.length - 1];
+      if (typeof prev.content === 'string' && typeof content === 'string') {
+        prev.content += '\n' + content;
+      } else {
+        const a = typeof prev.content === 'string' ? [{ type: 'text', text: prev.content }] : prev.content;
+        const b = typeof content === 'string' ? [{ type: 'text', text: content }] : content;
+        prev.content = [...a, ...b];
+      }
+    } else {
+      history.push({ role, content });
+    }
+  }
+
+  return history;
+}
+
+/**
+ * Versão multimodal do histórico para Gemini: imagens e PDFs são enviados como
+ * inlineData. Retorna contents já no formato nativo do Gemini (role: 'user'/'model').
+ */
+async function buildGeminiAgentContents(messages) {
+  const contents = [];
+
+  for (const m of messages.slice(-15)) {
+    const role = m.direction === 'inbound' ? 'user' : 'model';
+    const parts = [];
+
+    if (m.message_type === 'image' && m.media_url) {
+      const media = await fetchMediaAsBase64(m.media_url).catch(() => null);
+      if (media) {
+        if (m.content?.trim()) parts.push({ text: m.content });
+        parts.push({ inlineData: { mimeType: media.mime.split(';')[0] || 'image/jpeg', data: media.base64 } });
+      } else {
+        parts.push({ text: '[imagem]' });
+      }
+    } else if (m.message_type === 'document' && m.media_url) {
+      const mime = m.media_mime_type || '';
+      if (mime.includes('pdf') || m.media_url.toLowerCase().endsWith('.pdf')) {
+        const media = await fetchMediaAsBase64(m.media_url).catch(() => null);
+        if (media) {
+          parts.push({ inlineData: { mimeType: 'application/pdf', data: media.base64 } });
+        } else if (m.extracted_text) {
+          parts.push({ text: m.extracted_text.slice(0, 4000) });
+        } else {
+          parts.push({ text: '[documento PDF]' });
+        }
+      } else {
+        parts.push({ text: m.extracted_text ? m.extracted_text.slice(0, 2000) : (m.content || '[documento]') });
+      }
+    } else if (m.message_type === 'audio') {
+      parts.push({ text: m.extracted_text || '[áudio]' });
+    } else {
+      const text = m.content || '';
+      if (!text.trim()) continue;
+      parts.push({ text });
+    }
+
+    if (!parts.length) continue;
+
+    if (contents.length && contents[contents.length - 1].role === role) {
+      contents[contents.length - 1].parts.push(...parts);
+    } else {
+      contents.push({ role, parts });
+    }
+  }
+
+  return contents;
+}
+
 async function analyzeDeal(dealId, workspaceId) {
   const r = await query(
     `SELECT d.id, d.conversation_id, d.contact_id, d.pipeline_id, d.ai_analyzed_at,
@@ -1357,7 +1466,7 @@ async function runOpenAICompatToolLoop({ apiKey, baseUrl, model, system, history
 /**
  * Loop de tool-use usando a Function Calling API nativa do Google Gemini.
  */
-async function runGeminiToolLoop({ apiKey, model, system, history, ctx }) {
+async function runGeminiToolLoop({ apiKey, model, system, history, contents: prebuiltContents, ctx }) {
   const { GoogleGenerativeAI } = require('@google/generative-ai');
   const genAI = new GoogleGenerativeAI(apiKey);
   const resolvedModel = model || DEFAULT_MODELS.gemini.smart;
@@ -1375,7 +1484,7 @@ async function runGeminiToolLoop({ apiKey, model, system, history, ctx }) {
   }];
 
   const client   = genAI.getGenerativeModel({ model: resolvedModel, systemInstruction: system, tools: geminiTools });
-  const contents = history.map(m => ({
+  const contents = prebuiltContents || (history || []).map(m => ({
     role:  m.role === 'user' ? 'user' : 'model',
     parts: [{ text: typeof m.content === 'string' ? m.content : JSON.stringify(m.content) }],
   }));
@@ -1413,11 +1522,17 @@ async function generateChatbotResponseWithTools(conversationId, systemPrompt, ws
 
   const provider = ws.ai_provider || 'anthropic';
 
-  // Anthropic: usa histórico multimodal (embute imagens e PDFs inline)
-  // Outros provedores: histórico texto com descrições de fallback
-  const history = provider === 'anthropic'
-    ? await buildAnthropicAgentHistory(messages)
-    : buildChatHistory(messages);
+  // Cada provedor recebe histórico no formato que suporta nativamente (multimodal)
+  let history;
+  if (provider === 'anthropic') {
+    history = await buildAnthropicAgentHistory(messages);
+  } else if (provider === 'gemini') {
+    history = await buildGeminiAgentContents(messages);   // formato nativo Gemini
+  } else if (provider === 'openai') {
+    history = await buildOpenAIAgentHistory(messages);    // vision via image_url
+  } else {
+    history = buildChatHistory(messages);                 // custom/Ollama: texto puro
+  }
 
   if (!history.length || history[history.length - 1].role !== 'user') return null;
 
@@ -1426,7 +1541,7 @@ async function generateChatbotResponseWithTools(conversationId, systemPrompt, ws
       return await runAnthropicToolLoop({ apiKey: ws.anthropic_api_key, model: ws.ai_model, system: systemPrompt, history, ctx });
     }
     if (provider === 'gemini') {
-      return await runGeminiToolLoop({ apiKey: ws.gemini_api_key, model: ws.ai_model, system: systemPrompt, history, ctx });
+      return await runGeminiToolLoop({ apiKey: ws.gemini_api_key, model: ws.ai_model, system: systemPrompt, contents: history, ctx });
     }
     const apiKey  = provider === 'custom' ? ws.custom_ai_api_key : ws.openai_api_key;
     const baseUrl = provider === 'custom' ? ws.ai_base_url : 'https://api.openai.com/v1';
