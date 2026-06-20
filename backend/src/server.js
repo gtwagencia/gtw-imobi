@@ -163,7 +163,7 @@ app.get('/health', (_req, res) => res.json({ ok: true, ts: new Date() }));
 // ── Admin: logs em memória (superadmin only) ────────────────────────────────
 const { authenticate: _authLogs } = require('./middleware/auth');
 app.get('/api/v1/admin/logs', _authLogs, (req, res) => {
-  if (!req.user?.is_super_admin) return res.status(403).json({ error: 'Acesso negado' });
+  if (!req.user?.isSuperAdmin) return res.status(403).json({ error: 'Acesso negado' });
   const limit = Math.min(Number(req.query.limit) || 200, 300);
   res.json(logger.getRecentLogs(limit).slice().reverse()); // mais recentes primeiro
 });
