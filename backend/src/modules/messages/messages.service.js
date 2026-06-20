@@ -160,10 +160,22 @@ async function send(conversationId, senderId, { content, messageType = 'text', m
         if (messageType && messageType !== 'text' && mediaUrl) {
           const filename = path.basename(new URL(mediaUrl).pathname);
           const ext      = path.extname(filename).toLowerCase();
-          const mime     = EXT_MIME[ext] || 'application/octet-stream';
-          const storageSvc = require('../../services/storage.service');
-          const fileBuffer = await storageSvc.getFileBuffer(filename);
-          const base64     = fileBuffer.toString('base64');
+          let   mime     = EXT_MIME[ext] || 'application/octet-stream';
+
+          // Baixa o arquivo diretamente da URL — funciona tanto para arquivos no
+          // MinIO/storage próprio quanto para links externos (fotos de imóveis etc.)
+          let base64;
+          try {
+            const dlRes = await axios.get(mediaUrl, { responseType: 'arraybuffer', timeout: 30000 });
+            const ct = dlRes.headers?.['content-type'];
+            if (ct) mime = ct.split(';')[0].trim() || mime;
+            base64 = Buffer.from(dlRes.data).toString('base64');
+          } catch (dlErr) {
+            // Fallback: lê direto do storage local pelo nome do arquivo
+            const storageSvc = require('../../services/storage.service');
+            const fileBuffer  = await storageSvc.getFileBuffer(filename);
+            base64 = fileBuffer.toString('base64');
+          }
 
           evoRes = await axios.post(
             `${baseUrl}/message/sendMedia/${instance}`,
