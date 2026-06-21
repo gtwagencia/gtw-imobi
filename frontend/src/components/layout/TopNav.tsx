@@ -471,8 +471,8 @@ export default function TopNav() {
             </div>
           )}
 
-          {/* @ Ticket alerts */}
-          <BellPanel
+          {/* @ Ticket alerts — visível apenas para admins (controle interno) */}
+          {isAdmin && <BellPanel
             type="alerts"
             count={alertCount}
             title="Alertas de tickets"
@@ -503,7 +503,7 @@ export default function TopNav() {
                 </div>
               </div>
             ))}
-          </BellPanel>
+          </BellPanel>}
 
           {/* ⚠ CRM alerts */}
           <BellPanel
