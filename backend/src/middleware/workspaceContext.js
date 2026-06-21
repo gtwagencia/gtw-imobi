@@ -120,4 +120,14 @@ function requireModule(moduleKey) {
   };
 }
 
-module.exports = { workspaceContext, requireNotTicketsOnly, requirePermission, requireModule };
+/**
+ * Restringe rotas de escrita (criar/editar/excluir) a admin e auxiliar_administrativo.
+ * Deve ser usado após workspaceContext.
+ */
+function requirePropertyWrite(req, res, next) {
+  const role = req.workspaceRole;
+  if (!role || role === 'admin' || role === 'auxiliar_administrativo') return next();
+  return res.status(403).json({ error: 'Sem permissão para modificar imóveis. Apenas administradores podem editar ou excluir.' });
+}
+
+module.exports = { workspaceContext, requireNotTicketsOnly, requirePermission, requireModule, requirePropertyWrite };

@@ -23,6 +23,7 @@ interface PropertyFormProps {
   orgId: string;
   initialDevelopmentId?: string;
   onSave: (p: Property) => void;
+  readOnly?: boolean;
 }
 
 interface FormState {
@@ -106,7 +107,7 @@ function toFormState(p?: Property, initialDevelopmentId?: string): FormState {
 const num = (v: string) => (v.trim() === '' ? null : Number(v));
 const int = (v: string) => (v.trim() === '' ? null : parseInt(v, 10));
 
-export default function PropertyForm({ property, workspaceId, orgId, initialDevelopmentId, onSave }: PropertyFormProps) {
+export default function PropertyForm({ property, workspaceId, orgId, initialDevelopmentId, onSave, readOnly = false }: PropertyFormProps) {
   const [form,     setForm]     = useState<FormState>(() => toFormState(property, initialDevelopmentId));
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [members,  setMembers]  = useState<Member[]>([]);
@@ -231,12 +232,18 @@ export default function PropertyForm({ property, workspaceId, orgId, initialDeve
 
   return (
     <form onSubmit={submit} className="space-y-5">
+      {readOnly && (
+        <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+          Você tem acesso somente leitura. Edições em imóveis são restritas a administradores.
+        </div>
+      )}
       {error && (
         <div className="rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
           {error}
         </div>
       )}
 
+      <fieldset disabled={readOnly} className="contents">
       {/* Informações básicas */}
       <div className="card p-5">
         <div className="flex items-center justify-between mb-4">
@@ -530,11 +537,14 @@ export default function PropertyForm({ property, workspaceId, orgId, initialDeve
         </div>
       </div>
 
-      <div className="flex justify-end">
-        <button type="submit" disabled={saving} className="btn-primary">
-          {saving ? 'Salvando...' : property ? 'Salvar alterações' : 'Criar imóvel'}
-        </button>
-      </div>
+      {!readOnly && (
+        <div className="flex justify-end">
+          <button type="submit" disabled={saving} className="btn-primary">
+            {saving ? 'Salvando...' : property ? 'Salvar alterações' : 'Criar imóvel'}
+          </button>
+        </div>
+      )}
+      </fieldset>
     </form>
   );
 }

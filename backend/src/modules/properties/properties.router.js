@@ -5,7 +5,7 @@ const multer  = require('multer');
 const path    = require('path');
 const { v4: uuidv4 } = require('uuid');
 const { authenticate }     = require('../../middleware/auth');
-const { workspaceContext, requirePermission } = require('../../middleware/workspaceContext');
+const { workspaceContext, requirePermission, requirePropertyWrite } = require('../../middleware/workspaceContext');
 const { logAudit }         = require('../../services/audit.service');
 const storageSvc = require('../../services/storage.service');
 const svc = require('./properties.service');
@@ -59,7 +59,7 @@ router.get('/', authenticate, workspaceContext, requirePermission('properties'),
   } catch (err) { next(err); }
 });
 
-router.post('/', authenticate, workspaceContext, requirePermission('properties'), async (req, res, next) => {
+router.post('/', authenticate, workspaceContext, requirePermission('properties'), requirePropertyWrite, async (req, res, next) => {
   try {
     const { title } = req.body;
     if (!title) return res.status(400).json({ error: 'title é obrigatório' });
@@ -82,7 +82,7 @@ router.get('/:propertyId', authenticate, workspaceContext, requirePermission('pr
   } catch (err) { next(err); }
 });
 
-router.put('/:propertyId', authenticate, workspaceContext, requirePermission('properties'), async (req, res, next) => {
+router.put('/:propertyId', authenticate, workspaceContext, requirePermission('properties'), requirePropertyWrite, async (req, res, next) => {
   try {
     const p = await svc.update(req.params.propertyId, req.params.workspaceId, req.body);
     logAudit({
@@ -95,7 +95,7 @@ router.put('/:propertyId', authenticate, workspaceContext, requirePermission('pr
   } catch (err) { next(err); }
 });
 
-router.delete('/:propertyId', authenticate, workspaceContext, requirePermission('properties'), async (req, res, next) => {
+router.delete('/:propertyId', authenticate, workspaceContext, requirePermission('properties'), requirePropertyWrite, async (req, res, next) => {
   try {
     const p = await svc.getById(req.params.propertyId, req.params.workspaceId);
     await svc.remove(req.params.propertyId, req.params.workspaceId);
@@ -142,7 +142,7 @@ router.post('/generate-description', authenticate, workspaceContext, requirePerm
 
 // ── Galeria de mídia ─────────────────────────────────────────────────────
 
-router.post('/:propertyId/media', authenticate, workspaceContext, requirePermission('properties'), upload.single('file'), async (req, res, next) => {
+router.post('/:propertyId/media', authenticate, workspaceContext, requirePermission('properties'), requirePropertyWrite, upload.single('file'), async (req, res, next) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo enviado' });
 
@@ -161,14 +161,14 @@ router.post('/:propertyId/media', authenticate, workspaceContext, requirePermiss
   } catch (err) { next(err); }
 });
 
-router.delete('/:propertyId/media/:mediaId', authenticate, workspaceContext, requirePermission('properties'), async (req, res, next) => {
+router.delete('/:propertyId/media/:mediaId', authenticate, workspaceContext, requirePermission('properties'), requirePropertyWrite, async (req, res, next) => {
   try {
     await svc.removeMedia(req.params.mediaId, req.params.propertyId, req.params.workspaceId);
     res.json({ ok: true });
   } catch (err) { next(err); }
 });
 
-router.put('/:propertyId/media/reorder', authenticate, workspaceContext, requirePermission('properties'), async (req, res, next) => {
+router.put('/:propertyId/media/reorder', authenticate, workspaceContext, requirePermission('properties'), requirePropertyWrite, async (req, res, next) => {
   try {
     const { mediaIds } = req.body;
     if (!Array.isArray(mediaIds)) return res.status(400).json({ error: 'mediaIds deve ser um array' });
@@ -177,14 +177,14 @@ router.put('/:propertyId/media/reorder', authenticate, workspaceContext, require
   } catch (err) { next(err); }
 });
 
-router.put('/:propertyId/media/:mediaId/cover', authenticate, workspaceContext, requirePermission('properties'), async (req, res, next) => {
+router.put('/:propertyId/media/:mediaId/cover', authenticate, workspaceContext, requirePermission('properties'), requirePropertyWrite, async (req, res, next) => {
   try {
     await svc.setCover(req.params.mediaId, req.params.propertyId, req.params.workspaceId);
     res.json({ ok: true });
   } catch (err) { next(err); }
 });
 
-router.put('/:propertyId/media/:mediaId/show-on-site', authenticate, workspaceContext, requirePermission('properties'), async (req, res, next) => {
+router.put('/:propertyId/media/:mediaId/show-on-site', authenticate, workspaceContext, requirePermission('properties'), requirePropertyWrite, async (req, res, next) => {
   try {
     const { showOnSite } = req.body;
     await svc.setShowOnSite(req.params.mediaId, req.params.propertyId, req.params.workspaceId, !!showOnSite);

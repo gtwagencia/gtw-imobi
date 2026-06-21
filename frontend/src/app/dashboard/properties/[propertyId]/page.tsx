@@ -19,6 +19,10 @@ import clsx from 'clsx';
 
 export default function PropertyDetailPage() {
   const { currentOrg, currentWorkspace } = useAuth();
+  // Apenas admin e auxiliar_administrativo podem editar/excluir imóveis
+  const canEdit = !currentWorkspace?.role
+    || currentWorkspace.role === 'admin'
+    || currentWorkspace.role === 'auxiliar_administrativo';
   const router = useRouter();
   const { propertyId } = useParams<{ propertyId: string }>();
 
@@ -151,10 +155,12 @@ export default function PropertyDetailPage() {
               <ArrowLeft className="w-4 h-4" />
               Voltar
             </button>
-            <button className="btn-secondary text-sm text-red-600 hover:bg-red-50" disabled={deleting} onClick={handleDelete}>
-              <Trash2 className="w-4 h-4" />
-              {deleting ? 'Excluindo...' : 'Excluir'}
-            </button>
+            {canEdit && (
+              <button className="btn-secondary text-sm text-red-600 hover:bg-red-50" disabled={deleting} onClick={handleDelete}>
+                <Trash2 className="w-4 h-4" />
+                {deleting ? 'Excluindo...' : 'Excluir'}
+              </button>
+            )}
           </div>
         }
       />
@@ -172,6 +178,7 @@ export default function PropertyDetailPage() {
               onSetCover={handleSetCover}
               onToggleShowOnSite={handleToggleShowOnSite}
               onReorder={handleReorder}
+              readOnly={!canEdit}
             />
           </div>
 
@@ -183,6 +190,7 @@ export default function PropertyDetailPage() {
                 workspaceId={currentWorkspace.id}
                 orgId={currentOrg.id}
                 onSave={(saved) => setProperty(prev => prev ? { ...prev, ...saved, media: prev.media } : prev)}
+                readOnly={!canEdit}
               />
             </div>
 

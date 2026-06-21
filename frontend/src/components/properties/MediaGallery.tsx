@@ -24,10 +24,11 @@ interface MediaGalleryProps {
   onSetCover: (mediaId: string) => void;
   onToggleShowOnSite: (mediaId: string, showOnSite: boolean) => void;
   onReorder: (orderedMedia: GalleryMediaItem[]) => void;
+  readOnly?: boolean;
 }
 
 export default function MediaGallery({
-  media, uploading, onUpload, onRemove, onSetCover, onToggleShowOnSite, onReorder,
+  media, uploading, onUpload, onRemove, onSetCover, onToggleShowOnSite, onReorder, readOnly = false,
 }: MediaGalleryProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [pendingToggle, setPendingToggle] = useState<string | null>(null);
@@ -64,19 +65,21 @@ export default function MediaGallery({
           <h3 className="font-semibold text-gray-900">Fotos e mídia</h3>
           <p className="text-xs text-gray-400 mt-0.5">Arraste para reordenar · escolha a foto de capa · controle o que aparece no site</p>
         </div>
-        <label className={clsx('btn-secondary text-sm cursor-pointer', uploading && 'opacity-60 pointer-events-none')}>
-          <Upload className="w-4 h-4" />
-          {uploading ? 'Enviando...' : 'Adicionar mídia'}
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*,video/*"
-            multiple
-            className="hidden"
-            onChange={handleFileChange}
-            disabled={uploading}
-          />
-        </label>
+        {!readOnly && (
+          <label className={clsx('btn-secondary text-sm cursor-pointer', uploading && 'opacity-60 pointer-events-none')}>
+            <Upload className="w-4 h-4" />
+            {uploading ? 'Enviando...' : 'Adicionar mídia'}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*,video/*"
+              multiple
+              className="hidden"
+              onChange={handleFileChange}
+              disabled={uploading}
+            />
+          </label>
+        )}
       </div>
 
       {media.length === 0 ? (
@@ -128,47 +131,51 @@ export default function MediaGallery({
                           )}
                         </div>
 
-                        <div
-                          {...dragProvided.dragHandleProps}
-                          className="absolute top-1.5 right-1.5 p-1 rounded-full bg-black/40 text-white opacity-0 group-hover:opacity-100 transition-opacity cursor-grab"
-                          title="Arrastar para reordenar"
-                        >
-                          <GripVertical className="w-3.5 h-3.5" />
-                        </div>
+                        {!readOnly && (
+                          <div
+                            {...dragProvided.dragHandleProps}
+                            className="absolute top-1.5 right-1.5 p-1 rounded-full bg-black/40 text-white opacity-0 group-hover:opacity-100 transition-opacity cursor-grab"
+                            title="Arrastar para reordenar"
+                          >
+                            <GripVertical className="w-3.5 h-3.5" />
+                          </div>
+                        )}
 
-                        <div className="absolute bottom-1.5 left-1.5 right-1.5 flex items-center justify-between opacity-0 group-hover:opacity-100 transition-opacity">
-                          <div className="flex items-center gap-1">
-                            {!m.is_cover && (
+                        {!readOnly && (
+                          <div className="absolute bottom-1.5 left-1.5 right-1.5 flex items-center justify-between opacity-0 group-hover:opacity-100 transition-opacity">
+                            <div className="flex items-center gap-1">
+                              {!m.is_cover && (
+                                <button
+                                  type="button"
+                                  onClick={() => onSetCover(m.id)}
+                                  className="p-1.5 rounded-full bg-black/40 text-white hover:bg-black/60"
+                                  title="Tornar capa"
+                                >
+                                  <Star className="w-3.5 h-3.5" />
+                                </button>
+                              )}
                               <button
                                 type="button"
-                                onClick={() => onSetCover(m.id)}
-                                className="p-1.5 rounded-full bg-black/40 text-white hover:bg-black/60"
-                                title="Tornar capa"
+                                onClick={() => handleToggleShowOnSite(m)}
+                                disabled={pendingToggle === m.id}
+                                className="p-1.5 rounded-full bg-black/40 text-white hover:bg-black/60 disabled:opacity-50"
+                                title={m.show_on_site ? 'Ocultar do site' : 'Mostrar no site'}
                               >
-                                <Star className="w-3.5 h-3.5" />
+                                {pendingToggle === m.id
+                                  ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                  : m.show_on_site ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
                               </button>
-                            )}
+                            </div>
                             <button
                               type="button"
-                              onClick={() => handleToggleShowOnSite(m)}
-                              disabled={pendingToggle === m.id}
-                              className="p-1.5 rounded-full bg-black/40 text-white hover:bg-black/60 disabled:opacity-50"
-                              title={m.show_on_site ? 'Ocultar do site' : 'Mostrar no site'}
+                              onClick={() => onRemove(m.id)}
+                              className="p-1.5 rounded-full bg-black/40 text-white hover:bg-red-600"
+                              title="Remover"
                             >
-                              {pendingToggle === m.id
-                                ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                                : m.show_on_site ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+                              <Trash2 className="w-3.5 h-3.5" />
                             </button>
                           </div>
-                          <button
-                            type="button"
-                            onClick={() => onRemove(m.id)}
-                            className="p-1.5 rounded-full bg-black/40 text-white hover:bg-red-600"
-                            title="Remover"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
+                        )}
                       </div>
                     )}
                   </Draggable>
