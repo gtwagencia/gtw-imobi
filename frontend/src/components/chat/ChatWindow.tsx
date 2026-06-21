@@ -441,7 +441,9 @@ export default function ChatWindow({ conversation, onStatusChange, onBack }: Pro
           <div className="font-medium text-gray-900 text-sm truncate flex items-center gap-2">
             {conversation.contact_name}
             {conversation.sla_breached && (
-              <span className="text-xs bg-red-100 text-red-700 px-1.5 py-0.5 rounded font-medium">SLA</span>
+              <span className="text-xs bg-red-100 text-red-700 px-1.5 py-0.5 rounded font-medium" title="Lead aguardando resposta há mais tempo do que o limite configurado">
+                Sem resposta
+              </span>
             )}
             {conversation.bot_active && (
               <span className="text-xs bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded font-medium">Bot</span>
