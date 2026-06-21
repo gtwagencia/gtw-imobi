@@ -498,8 +498,8 @@ export default function PropertyForm({ property, workspaceId, orgId, initialDeve
         </div>
       </div>
 
-      {/* Responsáveis */}
-      <div className="card p-5">
+      {/* Responsáveis — oculto para corretores */}
+      {!readOnly && <div className="card p-5">
         <h3 className="font-semibold text-gray-900 mb-4">Responsáveis</h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
@@ -535,7 +535,7 @@ export default function PropertyForm({ property, workspaceId, orgId, initialDeve
             </select>
           </div>
         </div>
-      </div>
+      </div>}
 
       {!readOnly && (
         <div className="flex justify-end">

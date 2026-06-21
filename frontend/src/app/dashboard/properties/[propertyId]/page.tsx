@@ -194,19 +194,21 @@ export default function PropertyDetailPage() {
               />
             </div>
 
-            <div className="lg:w-80 xl:w-96 flex-shrink-0 space-y-4">
-              <CmaPanel
-                workspaceId={currentWorkspace.id}
-                property={property}
-                onUpdate={(updated) => setProperty(prev => prev ? { ...prev, ...updated, media: prev.media } : prev)}
-              />
-              <DocumentVault workspaceId={currentWorkspace.id} propertyId={property.id} />
-              <SignQrCode workspaceId={currentWorkspace.id} propertyId={property.id} />
-              {property.development_id && (
-                <SaleConditionsPanel workspaceId={currentWorkspace.id} propertyId={property.id} purpose={property.purpose} />
-              )}
-              <ProposalsPanel workspaceId={currentWorkspace.id} propertyId={property.id} />
-            </div>
+            {canEdit && (
+              <div className="lg:w-80 xl:w-96 flex-shrink-0 space-y-4">
+                <CmaPanel
+                  workspaceId={currentWorkspace.id}
+                  property={property}
+                  onUpdate={(updated) => setProperty(prev => prev ? { ...prev, ...updated, media: prev.media } : prev)}
+                />
+                <DocumentVault workspaceId={currentWorkspace.id} propertyId={property.id} />
+                <SignQrCode workspaceId={currentWorkspace.id} propertyId={property.id} />
+                {property.development_id && (
+                  <SaleConditionsPanel workspaceId={currentWorkspace.id} propertyId={property.id} purpose={property.purpose} />
+                )}
+                <ProposalsPanel workspaceId={currentWorkspace.id} propertyId={property.id} />
+              </div>
+            )}
           </div>
 
         </div>
