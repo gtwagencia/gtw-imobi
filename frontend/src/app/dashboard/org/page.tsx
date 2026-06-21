@@ -143,11 +143,14 @@ export default function OrgPage() {
     if (!currentOrg || !canManage) return;
     setLoading(true);
     try {
-      const params = currentWorkspace ? `?workspaceId=${currentWorkspace.id}` : '';
+      // Lê currentWorkspace via getState() para não entrar nas deps e evitar
+      // loop com o fetchForOrg que sincroniza o workspace store.
+      const wsId = useAuth.getState().currentWorkspace?.id;
+      const params = wsId ? `?workspaceId=${wsId}` : '';
       const { data } = await api.get(`/orgs/${currentOrg.id}/members${params}`);
       setMembers(data);
     } finally { setLoading(false); }
-  }, [currentOrg, currentWorkspace, canManage]);
+  }, [currentOrg, canManage]);
 
   useEffect(() => {
     loadMembers();
