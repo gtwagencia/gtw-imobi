@@ -405,7 +405,10 @@ export default function TopNav() {
 
           <NavDropdown groupKey="crm"     label="CRM"       items={CRM_ITEMS}     />
           <NavDropdown groupKey="ativos"   label="Ativos"    items={ATIVOS_ITEMS} />
-          <NavDropdown groupKey="tickets" label="Tickets"   items={TICKETS_ITEMS} />
+          {(!currentWorkspace?.enabled_modules || currentWorkspace.enabled_modules.includes('tickets'))
+            ? <NavDropdown groupKey="tickets" label="Tickets" items={TICKETS_ITEMS} />
+            : null
+          }
 
           {/* Relatórios */}
           {(isAdmin || permissions?.reports) && (

@@ -259,10 +259,11 @@ async function runSlaCheck(io) {
           const agentRes = await query(
             `SELECT wm.user_id
              FROM workspace_memberships wm
+             JOIN users u ON u.id = wm.user_id AND u.is_active = true
              LEFT JOIN conversations c2
                ON c2.assignee_id = wm.user_id AND c2.workspace_id = $1 AND c2.status = 'open'
              WHERE wm.workspace_id = $1
-               AND wm.role IN ('agent','member')
+               AND wm.role IN ('agent','member','auxiliar_administrativo')
                AND wm.department_id = $2
                AND wm.user_id != $3
              GROUP BY wm.user_id

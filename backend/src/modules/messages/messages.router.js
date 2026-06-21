@@ -35,8 +35,10 @@ router.get('/', authenticate, assertConversationAccess, async (req, res, next) =
   try {
     const { page, limit } = req.query;
     const result = await svc.list(req.params.conversationId, {
-      page:  parseInt(page,  10) || 1,
-      limit: parseInt(limit, 10) || 50,
+      page:         parseInt(page,  10) || 1,
+      limit:        parseInt(limit, 10) || 50,
+      userId:       req.user.sub,
+      isSuperAdmin: req.user.isSuperAdmin,
     });
     res.json(result);
   } catch (err) { next(err); }

@@ -1380,20 +1380,35 @@ async function executeAgentTool(name, input, ctx) {
           const deptAgentRes = await query(
             `SELECT wm.user_id, COUNT(c.id)::int AS open_count
              FROM workspace_memberships wm
+             JOIN users u ON u.id = wm.user_id AND u.is_active = true
              LEFT JOIN conversations c ON c.assignee_id = wm.user_id AND c.workspace_id = $1 AND c.status = 'open'
-             WHERE wm.workspace_id = $1 AND wm.role IN ('agent','member') AND wm.department_id = $2
+             WHERE wm.workspace_id = $1
+               AND wm.role IN ('agent','member','auxiliar_administrativo')
+               AND wm.department_id = $2
              GROUP BY wm.user_id ORDER BY open_count ASC, RANDOM() LIMIT 1`,
             [ctx.workspaceId, deptTarget.id]
           );
+          logger.info('rotear_para_grupo: dept fallback agent lookup', {
+            conversationId: ctx.conversationId, deptId: deptTarget.id, deptName: deptTarget.name,
+            agentFound: deptAgentRes.rows.length > 0, agentRow: deptAgentRes.rows[0] || null,
+          });
           if (deptAgentRes.rows.length) {
             deptAgentId = deptAgentRes.rows[0].user_id;
             const deptAssigned = await query(
-              'UPDATE conversations SET department_id = $1, assignee_id = $2, bot_active = false WHERE id = $3 AND assignee_id IS NULL RETURNING id',
+              `UPDATE conversations
+               SET department_id = $1, assignee_id = $2, bot_active = false, assignee_assigned_at = NOW()
+               WHERE id = $3 AND assignee_id IS NULL
+               RETURNING id`,
               [deptTarget.id, deptAgentId, ctx.conversationId]
             );
-            if (!deptAssigned.rows.length) deptAgentId = null;
-          }
-          if (!deptAgentId) {
+            if (!deptAssigned.rows.length) {
+              const convState = await query('SELECT assignee_id FROM conversations WHERE id = $1', [ctx.conversationId]);
+              deptAgentId = convState.rows[0]?.assignee_id || null;
+              if (!deptAgentId) {
+                await query('UPDATE conversations SET department_id = $1, bot_active = false WHERE id = $2', [deptTarget.id, ctx.conversationId]);
+              }
+            }
+          } else {
             await query('UPDATE conversations SET department_id = $1, bot_active = false WHERE id = $2', [deptTarget.id, ctx.conversationId]);
           }
           const deptUserRes = deptAgentId ? await query('SELECT name FROM users WHERE id = $1', [deptAgentId]) : null;
@@ -1404,16 +1419,64 @@ async function executeAgentTool(name, input, ctx) {
           return { success: true, grupo: deptTarget.name, corretor: deptAgentName || 'equipe' };
         }
 
-        const userId = await routingGroupSvc.pickNextMember(target.id);
+        let userId = await routingGroupSvc.pickNextMember(target.id);
         if (!userId) {
-          // Sem membros no grupo: encerra bot, conversa entra na fila para atendimento humano
+          // Sem membros no grupo → fallback para departamento com nome próximo
+          logger.warn('rotear_para_grupo: group has no members, falling back to dept', {
+            conversationId: ctx.conversationId, group: target.name,
+          });
+          const fallbackDepts = await query(
+            `SELECT id, name FROM departments WHERE workspace_id = $1 ORDER BY name`,
+            [ctx.workspaceId]
+          );
+          const wantedDept = target.name.toLowerCase();
+          const fallbackDept = fallbackDepts.rows.find(d => d.name.toLowerCase() === wantedDept)
+            || fallbackDepts.rows.find(d => d.name.toLowerCase().includes(wantedDept) || wantedDept.includes(d.name.toLowerCase()))
+            || fallbackDepts.rows[0];
+
+          if (fallbackDept) {
+            const fbAgentRes = await query(
+              `SELECT wm.user_id
+               FROM workspace_memberships wm
+               JOIN users u ON u.id = wm.user_id AND u.is_active = true
+               LEFT JOIN conversations c ON c.assignee_id = wm.user_id AND c.workspace_id = $1 AND c.status = 'open'
+               WHERE wm.workspace_id = $1
+                 AND wm.role IN ('agent','member','auxiliar_administrativo')
+                 AND wm.department_id = $2
+               GROUP BY wm.user_id ORDER BY COUNT(c.id) ASC, RANDOM() LIMIT 1`,
+              [ctx.workspaceId, fallbackDept.id]
+            );
+            logger.info('rotear_para_grupo: dept fallback result', {
+              conversationId: ctx.conversationId, deptId: fallbackDept.id, deptName: fallbackDept.name,
+              agentFound: fbAgentRes.rows.length > 0,
+            });
+            if (fbAgentRes.rows.length) {
+              const fbAgentId = fbAgentRes.rows[0].user_id;
+              const fbAssigned = await query(
+                `UPDATE conversations
+                 SET department_id = $1, assignee_id = $2, bot_active = false, assignee_assigned_at = NOW()
+                 WHERE id = $3 AND assignee_id IS NULL RETURNING id`,
+                [fallbackDept.id, fbAgentId, ctx.conversationId]
+              );
+              const finalId = fbAssigned.rows.length ? fbAgentId : null;
+              if (!finalId) await query('UPDATE conversations SET department_id = $1, bot_active = false WHERE id = $2', [fallbackDept.id, ctx.conversationId]);
+              const fbUserRes = finalId ? await query('SELECT name FROM users WHERE id = $1', [finalId]) : null;
+              const fbPayload = { conversationId: ctx.conversationId, departmentId: fallbackDept.id, assigneeId: finalId, botActive: false };
+              ctx.io?.to(`ws:${ctx.workspaceId}`).emit('conversation:updated', fbPayload);
+              ctx.io?.to(`conv:${ctx.conversationId}`).emit('conversation:updated', fbPayload);
+              return { success: true, grupo: target.name, corretor: fbUserRes?.rows[0]?.name || 'equipe' };
+            }
+          }
+          // Nenhum fallback disponível
           await query('UPDATE conversations SET bot_active = false WHERE id = $1', [ctx.conversationId]);
           ctx.io?.to(`ws:${ctx.workspaceId}`).emit('conversation:updated', { conversationId: ctx.conversationId, botActive: false });
           return { success: false, error: 'Nenhum corretor disponível agora — sua conversa ficará na fila para o próximo atendente', grupo: target.name };
         }
 
         const assigned = await query(
-          'UPDATE conversations SET assignee_id = $1, bot_active = false WHERE id = $2 AND assignee_id IS NULL RETURNING id',
+          `UPDATE conversations
+           SET assignee_id = $1, bot_active = false, assignee_assigned_at = NOW()
+           WHERE id = $2 AND assignee_id IS NULL RETURNING id`,
           [userId, ctx.conversationId]
         );
 
@@ -1424,6 +1487,9 @@ async function executeAgentTool(name, input, ctx) {
           const payload = { conversationId: ctx.conversationId, assigneeId: userId, botActive: false };
           ctx.io?.to(`ws:${ctx.workspaceId}`).emit('conversation:updated', payload);
           ctx.io?.to(`conv:${ctx.conversationId}`).emit('conversation:updated', payload);
+        } else {
+          // race condition: já foi atribuído
+          userId = null;
         }
 
         const handoffSummary = input.resumo?.trim() || null;
@@ -1456,25 +1522,51 @@ async function executeAgentTool(name, input, ctx) {
           return { success: false, error: 'Setor não encontrado', setores_disponiveis: departments.map(d => d.name) };
         }
 
-        // Auto-assign: agente do setor com menos conversas abertas
+        // Auto-assign: agente ativo do setor com menos conversas abertas
         let agentId = null;
         const agentRes = await query(
           `SELECT wm.user_id, COUNT(c.id)::int AS open_count
            FROM workspace_memberships wm
+           JOIN users u ON u.id = wm.user_id AND u.is_active = true
            LEFT JOIN conversations c ON c.assignee_id = wm.user_id AND c.workspace_id = $1 AND c.status = 'open'
-           WHERE wm.workspace_id = $1 AND wm.role IN ('agent','member') AND wm.department_id = $2
+           WHERE wm.workspace_id = $1
+             AND wm.role IN ('agent','member','auxiliar_administrativo')
+             AND wm.department_id = $2
            GROUP BY wm.user_id ORDER BY open_count ASC, RANDOM() LIMIT 1`,
           [ctx.workspaceId, target.id]
         );
+        logger.info('transferir_para_setor: agent lookup', {
+          conversationId: ctx.conversationId, workspaceId: ctx.workspaceId,
+          deptId: target.id, deptName: target.name,
+          agentFound: agentRes.rows.length > 0, agentRow: agentRes.rows[0] || null,
+        });
         if (agentRes.rows.length) {
           agentId = agentRes.rows[0].user_id;
           const assigned = await query(
-            'UPDATE conversations SET department_id = $1, assignee_id = $2, bot_active = false WHERE id = $3 AND assignee_id IS NULL RETURNING id',
+            `UPDATE conversations
+             SET department_id = $1, assignee_id = $2, bot_active = false, assignee_assigned_at = NOW()
+             WHERE id = $3 AND assignee_id IS NULL
+             RETURNING id`,
             [target.id, agentId, ctx.conversationId]
           );
-          if (!assigned.rows.length) agentId = null;
-        }
-        if (!agentId) {
+          if (!assigned.rows.length) {
+            // guard falhou — conversa pode já ter assignee (race condition ou loop duplo)
+            const convState = await query('SELECT assignee_id FROM conversations WHERE id = $1', [ctx.conversationId]);
+            const existing = convState.rows[0]?.assignee_id || null;
+            logger.warn('transferir_para_setor: UPDATE guard failed', {
+              conversationId: ctx.conversationId, existingAssignee: existing, chosenAgent: agentId,
+            });
+            agentId = existing;
+            if (!agentId) {
+              await query('UPDATE conversations SET department_id = $1, bot_active = false WHERE id = $2', [target.id, ctx.conversationId]);
+            }
+          } else {
+            logger.info('transferir_para_setor: assigned', { conversationId: ctx.conversationId, agentId });
+          }
+        } else {
+          logger.warn('transferir_para_setor: no agents in dept', {
+            conversationId: ctx.conversationId, deptId: target.id, deptName: target.name,
+          });
           await query('UPDATE conversations SET department_id = $1, bot_active = false WHERE id = $2', [target.id, ctx.conversationId]);
         }
         const handoffSummarySetor = input.resumo?.trim() || null;

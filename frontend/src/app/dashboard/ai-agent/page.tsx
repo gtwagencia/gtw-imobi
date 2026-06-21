@@ -5,9 +5,9 @@ import { useAuth } from '@/store/auth';
 import Header from '@/components/layout/Header';
 import api from '@/lib/api';
 import {
-  Bot, Users, Plus, Trash2, Edit2, Check, X, ChevronDown,
+  Bot, Users, Plus, Trash2, Edit2, Check, X,
   Loader2, UserPlus, Sparkles, ArrowRight, Zap, Building2,
-  Home, Briefcase, Layers, Coffee, Save,
+  Home, Briefcase, Layers, Coffee, Save, AlertCircle,
 } from 'lucide-react';
 import clsx from 'clsx';
 import { useToast } from '@/store/toast';
@@ -40,13 +40,13 @@ interface WorkspaceMember {
   role: string;
 }
 
-const GROUP_TYPE_CONFIG: Record<string, { label: string; icon: React.ElementType; color: string; bg: string }> = {
-  compra_venda:   { label: 'Compra e Venda',    icon: Home,      color: 'text-brand-600',  bg: 'bg-brand-50'  },
-  aluguel:        { label: 'Locação',            icon: Briefcase, color: 'text-blue-600',   bg: 'bg-blue-50'   },
-  empreendimento: { label: 'Empreendimentos',   icon: Building2, color: 'text-amber-600',  bg: 'bg-amber-50'  },
-  investimento:   { label: 'Investidores',       icon: Layers,    color: 'text-violet-600', bg: 'bg-violet-50' },
-  plantao:        { label: 'Plantão Geral',      icon: Coffee,    color: 'text-emerald-600',bg: 'bg-emerald-50'},
-  geral:          { label: 'Geral',              icon: Users,     color: 'text-gray-600',   bg: 'bg-gray-50'   },
+const GROUP_TYPE_CONFIG: Record<string, { label: string; icon: React.ElementType; color: string; bg: string; border: string }> = {
+  compra_venda:   { label: 'Compra e Venda',   icon: Home,      color: 'text-brand-600',   bg: 'bg-brand-50',   border: 'border-brand-200'   },
+  aluguel:        { label: 'Locação',           icon: Briefcase, color: 'text-blue-600',    bg: 'bg-blue-50',    border: 'border-blue-200'    },
+  empreendimento: { label: 'Empreendimentos',  icon: Building2, color: 'text-amber-600',   bg: 'bg-amber-50',   border: 'border-amber-200'   },
+  investimento:   { label: 'Investidores',      icon: Layers,    color: 'text-violet-600',  bg: 'bg-violet-50',  border: 'border-violet-200'  },
+  plantao:        { label: 'Plantão Geral',     icon: Coffee,    color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-200' },
+  geral:          { label: 'Geral',             icon: Users,     color: 'text-gray-600',    bg: 'bg-gray-50',    border: 'border-gray-200'    },
 };
 
 const ROUTING_MODE_LABELS: Record<string, string> = {
@@ -58,27 +58,24 @@ export default function AiAgentPage() {
   const { currentWorkspace, currentOrg } = useAuth();
   const showToast = useToast(s => s.show);
 
-  const [tab, setTab] = useState<Tab>('grupos');
+  const [tab, setTab]       = useState<Tab>('grupos');
   const [groups, setGroups] = useState<RoutingGroup[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Grupo selecionado
-  const [selectedGroup, setSelectedGroup]  = useState<string | null>(null);
-  const [groupMembers, setGroupMembers]    = useState<GroupMember[]>([]);
-  const [wsMembers,    setWsMembers]       = useState<WorkspaceMember[]>([]);
-  const [loadingMembers, setLoadingMembers] = useState(false);
+  const [selectedGroup, setSelectedGroup]    = useState<string | null>(null);
+  const [groupMembers, setGroupMembers]      = useState<GroupMember[]>([]);
+  const [wsMembers,    setWsMembers]         = useState<WorkspaceMember[]>([]);
+  const [loadingMembers, setLoadingMembers]  = useState(false);
 
-  // Modal de grupo
   const [showGroupModal, setShowGroupModal] = useState(false);
   const [editingGroup,   setEditingGroup]   = useState<RoutingGroup | null>(null);
   const [groupForm, setGroupForm] = useState({ name: '', description: '', group_type: 'geral', routing_mode: 'round_robin' });
   const [savingGroup, setSavingGroup] = useState(false);
 
-  // Persona (workspace)
-  const [personaForm, setPersonaForm] = useState({ ai_agent_name: '', ai_tools_enabled: false });
+  const [personaForm, setPersonaForm]    = useState({ ai_agent_name: '', ai_tools_enabled: false });
   const [savingPersona, setSavingPersona] = useState(false);
 
-  const wsId = currentWorkspace?.id;
+  const wsId  = currentWorkspace?.id;
   const orgId = currentOrg?.id;
 
   const loadGroups = useCallback(async () => {
@@ -190,14 +187,15 @@ export default function AiAgentPage() {
     finally { setSavingPersona(false); }
   }
 
-  const activeMembers = groupMembers.filter(m => m.is_active);
-  const notInGroup = wsMembers.filter(m => !activeMembers.find(gm => gm.id === m.user_id));
+  const selectedGroupData = groups.find(x => x.id === selectedGroup);
+  const activeMembers     = groupMembers.filter(m => m.is_active);
+  const notInGroup        = wsMembers.filter(m => !activeMembers.find(gm => gm.id === m.user_id));
 
   return (
     <>
       <Header title="Agente IA" />
 
-      <div className="flex-1 overflow-y-auto p-4 md:p-6 max-w-6xl">
+      <div className="flex-1 overflow-y-auto p-4 md:p-6">
 
         {/* Hero */}
         <div className="card p-5 mb-6 bg-gradient-to-br from-brand-50 to-violet-50 border-brand-100">
@@ -223,9 +221,9 @@ export default function AiAgentPage() {
         {/* Tabs */}
         <div className="flex border-b border-gray-200 mb-6 gap-1">
           {([
-            { key: 'grupos',  label: 'Grupos de Atendimento', icon: Users   },
-            { key: 'persona', label: 'Persona',               icon: Bot     },
-            { key: 'fluxo',   label: 'Fluxo de Roteamento',  icon: Zap     },
+            { key: 'grupos',  label: 'Grupos de Atendimento', icon: Users },
+            { key: 'persona', label: 'Persona',               icon: Bot   },
+            { key: 'fluxo',   label: 'Fluxo de Roteamento',  icon: Zap   },
           ] as { key: Tab; label: string; icon: React.ElementType }[]).map(({ key, label, icon: Icon }) => (
             <button
               key={key}
@@ -242,42 +240,43 @@ export default function AiAgentPage() {
 
         {/* ── Tab: Grupos ───────────────────────────────────────────────────── */}
         {tab === 'grupos' && (
-          <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
+          <div className="flex gap-5 min-h-0" style={{ height: 'calc(100vh - 320px)' }}>
 
-            {/* Lista de grupos */}
-            <div className="lg:col-span-2">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="font-semibold text-gray-900">Grupos configurados</h3>
+            {/* Lista de grupos — coluna fixa */}
+            <div className="w-72 flex-shrink-0 flex flex-col gap-3">
+              <div className="flex items-center justify-between">
+                <h3 className="font-semibold text-gray-900 text-sm">Grupos configurados</h3>
                 <button onClick={openCreateGroup} className="btn-primary btn-sm">
-                  <Plus className="w-3.5 h-3.5" /> Novo grupo
+                  <Plus className="w-3.5 h-3.5" /> Novo
                 </button>
               </div>
 
-              {loading ? (
-                <div className="space-y-2">
-                  {[1,2,3].map(i => <div key={i} className="h-16 bg-gray-100 animate-pulse rounded-xl" />)}
-                </div>
-              ) : groups.length === 0 ? (
-                <div className="card p-6 text-center">
-                  <Users className="w-8 h-8 text-gray-200 mx-auto mb-2" />
-                  <p className="text-sm text-gray-400">Nenhum grupo criado ainda</p>
-                  <button onClick={openCreateGroup} className="btn-secondary btn-sm mt-3">
-                    <Plus className="w-3.5 h-3.5" /> Criar primeiro grupo
-                  </button>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {groups.map(g => {
-                    const cfg = GROUP_TYPE_CONFIG[g.group_type] || GROUP_TYPE_CONFIG.geral;
-                    const Icon = cfg.icon;
+              <div className="flex-1 overflow-y-auto space-y-2 pr-1">
+                {loading ? (
+                  [1,2,3,4,5].map(i => <div key={i} className="h-16 bg-gray-100 animate-pulse rounded-xl" />)
+                ) : groups.length === 0 ? (
+                  <div className="card p-6 text-center">
+                    <Users className="w-8 h-8 text-gray-200 mx-auto mb-2" />
+                    <p className="text-sm text-gray-400">Nenhum grupo criado</p>
+                    <button onClick={openCreateGroup} className="btn-secondary btn-sm mt-3">
+                      <Plus className="w-3.5 h-3.5" /> Criar primeiro grupo
+                    </button>
+                  </div>
+                ) : (
+                  groups.map(g => {
+                    const cfg       = GROUP_TYPE_CONFIG[g.group_type] || GROUP_TYPE_CONFIG.geral;
+                    const Icon      = cfg.icon;
                     const isSelected = selectedGroup === g.id;
+                    const isEmpty   = g.member_count === 0;
                     return (
                       <button
                         key={g.id}
                         onClick={() => loadGroupDetail(g.id)}
                         className={clsx(
-                          'w-full text-left card p-3.5 transition-all hover:shadow-soft',
-                          isSelected ? 'border-brand-400 bg-brand-50/50 shadow-soft' : ''
+                          'w-full text-left rounded-xl border-2 p-3 transition-all hover:shadow-soft',
+                          isSelected
+                            ? 'border-brand-400 bg-brand-50/60 shadow-soft'
+                            : 'border-gray-200 bg-white hover:border-gray-300'
                         )}
                       >
                         <div className="flex items-center gap-3">
@@ -286,18 +285,28 @@ export default function AiAgentPage() {
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="font-semibold text-sm text-gray-900 truncate">{g.name}</div>
-                            <div className="text-xs text-gray-400">{cfg.label} · {g.member_count} {g.member_count === 1 ? 'corretor' : 'corretores'}</div>
+                            <div className="flex items-center gap-1.5 mt-0.5">
+                              {isEmpty ? (
+                                <span className="flex items-center gap-1 text-xs text-amber-600 font-medium">
+                                  <AlertCircle className="w-3 h-3" /> Sem corretores
+                                </span>
+                              ) : (
+                                <span className="text-xs text-gray-400">
+                                  {g.member_count} {g.member_count === 1 ? 'corretor' : 'corretores'}
+                                </span>
+                              )}
+                            </div>
                           </div>
-                          <div className="flex items-center gap-1 flex-shrink-0">
+                          <div className="flex items-center gap-0.5 flex-shrink-0">
                             <button
                               onClick={e => { e.stopPropagation(); openEditGroup(g); }}
-                              className="p-1 text-gray-300 hover:text-brand-500 transition-colors"
+                              className="p-1.5 text-gray-300 hover:text-brand-500 transition-colors rounded-lg hover:bg-brand-50"
                             >
                               <Edit2 className="w-3.5 h-3.5" />
                             </button>
                             <button
                               onClick={e => { e.stopPropagation(); handleDeleteGroup(g.id); }}
-                              className="p-1 text-gray-300 hover:text-red-500 transition-colors"
+                              className="p-1.5 text-gray-300 hover:text-red-500 transition-colors rounded-lg hover:bg-red-50"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
@@ -305,100 +314,143 @@ export default function AiAgentPage() {
                         </div>
                       </button>
                     );
-                  })}
-                </div>
-              )}
+                  })
+                )}
+              </div>
             </div>
 
-            {/* Detalhe do grupo selecionado */}
-            <div className="lg:col-span-3">
+            {/* Painel de detalhe — ocupa o restante */}
+            <div className="flex-1 min-w-0 overflow-y-auto">
               {!selectedGroup ? (
-                <div className="card p-8 text-center h-full flex flex-col items-center justify-center">
-                  <Users className="w-10 h-10 text-gray-200 mb-3" />
-                  <p className="text-sm text-gray-400 font-medium">Selecione um grupo para gerenciar os corretores</p>
-                  <p className="text-xs text-gray-300 mt-1">A IA usa os grupos para rotear leads automaticamente para o especialista certo</p>
+                <div className="card h-full flex flex-col items-center justify-center text-center p-8">
+                  <div className="w-16 h-16 rounded-2xl bg-gray-100 flex items-center justify-center mb-4">
+                    <Users className="w-8 h-8 text-gray-300" />
+                  </div>
+                  <p className="font-semibold text-gray-500 mb-1">Selecione um grupo</p>
+                  <p className="text-sm text-gray-400 max-w-xs">
+                    Clique em um grupo à esquerda para gerenciar quais corretores fazem parte dele
+                  </p>
                 </div>
               ) : loadingMembers ? (
-                <div className="card p-8 flex items-center justify-center">
+                <div className="card h-full flex items-center justify-center">
                   <Loader2 className="w-6 h-6 animate-spin text-brand-500" />
                 </div>
               ) : (
-                <div className="card overflow-hidden">
-                  {(() => {
-                    const g = groups.find(x => x.id === selectedGroup);
-                    const cfg = g ? (GROUP_TYPE_CONFIG[g.group_type] || GROUP_TYPE_CONFIG.geral) : GROUP_TYPE_CONFIG.geral;
+                <div className="card overflow-hidden h-full flex flex-col">
+                  {/* Header do grupo */}
+                  {selectedGroupData && (() => {
+                    const cfg = GROUP_TYPE_CONFIG[selectedGroupData.group_type] || GROUP_TYPE_CONFIG.geral;
                     return (
-                      <>
-                        {/* Header do grupo */}
-                        <div className="p-4 border-b border-gray-100 bg-gray-50/50">
-                          <div className="flex items-center gap-3">
-                            <div className={clsx('w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0', cfg.bg)}>
-                              <cfg.icon className={clsx('w-4 h-4', cfg.color)} />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="font-bold text-sm text-gray-900">{g?.name}</div>
-                              <div className="text-xs text-gray-400">{ROUTING_MODE_LABELS[g?.routing_mode || 'round_robin']}</div>
-                            </div>
+                      <div className={clsx('p-5 border-b border-gray-100', cfg.bg)}>
+                        <div className="flex items-center gap-3 mb-2">
+                          <div className={clsx('w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 border', cfg.border, 'bg-white')}>
+                            <cfg.icon className={clsx('w-5 h-5', cfg.color)} />
                           </div>
-                          {g?.description && (
-                            <p className="text-xs text-gray-500 mt-2 leading-relaxed">{g.description}</p>
-                          )}
+                          <div>
+                            <div className="font-bold text-gray-900">{selectedGroupData.name}</div>
+                            <div className="text-xs text-gray-500">{ROUTING_MODE_LABELS[selectedGroupData.routing_mode]}</div>
+                          </div>
+                          <div className="ml-auto flex items-center gap-2">
+                            <span className={clsx(
+                              'text-xs font-semibold px-2.5 py-1 rounded-full',
+                              activeMembers.length === 0
+                                ? 'bg-amber-100 text-amber-700'
+                                : 'bg-emerald-100 text-emerald-700'
+                            )}>
+                              {activeMembers.length} {activeMembers.length === 1 ? 'corretor' : 'corretores'}
+                            </span>
+                          </div>
                         </div>
-
-                        {/* Corretores no grupo */}
-                        <div className="p-4">
-                          <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Corretores no grupo</h4>
-                          {activeMembers.length === 0 ? (
-                            <p className="text-xs text-gray-400 italic mb-3">Nenhum corretor adicionado ainda</p>
-                          ) : (
-                            <div className="space-y-2 mb-4">
-                              {activeMembers.map(m => (
-                                <div key={m.id} className="flex items-center gap-2.5 p-2.5 rounded-lg hover:bg-gray-50 group">
-                                  <div className="w-7 h-7 rounded-full bg-brand-100 flex items-center justify-center text-brand-700 text-xs font-bold flex-shrink-0">
-                                    {m.name[0]?.toUpperCase()}
-                                  </div>
-                                  <div className="flex-1 min-w-0">
-                                    <div className="text-sm font-semibold text-gray-900 truncate">{m.name}</div>
-                                    <div className="text-xs text-gray-400 truncate">{m.email}</div>
-                                  </div>
-                                  <button
-                                    onClick={() => handleRemoveMember(m.id)}
-                                    className="opacity-0 group-hover:opacity-100 p-1 text-gray-300 hover:text-red-500 transition-all"
-                                  >
-                                    <Trash2 className="w-3.5 h-3.5" />
-                                  </button>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-
-                          {/* Adicionar corretor */}
-                          {notInGroup.length > 0 && (
-                            <div>
-                              <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Adicionar ao grupo</h4>
-                              <div className="space-y-1">
-                                {notInGroup.map(m => (
-                                  <button
-                                    key={m.user_id}
-                                    onClick={() => handleAddMember(m.user_id)}
-                                    className="w-full flex items-center gap-2.5 p-2 rounded-lg hover:bg-brand-50 transition-colors text-left"
-                                  >
-                                    <div className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 text-xs font-bold flex-shrink-0">
-                                      {m.name[0]?.toUpperCase()}
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                      <div className="text-sm font-medium text-gray-700 truncate">{m.name}</div>
-                                    </div>
-                                    <UserPlus className="w-3.5 h-3.5 text-brand-400 flex-shrink-0" />
-                                  </button>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      </>
+                        {selectedGroupData.description && (
+                          <p className="text-sm text-gray-600 leading-relaxed">{selectedGroupData.description}</p>
+                        )}
+                        {activeMembers.length === 0 && (
+                          <div className="mt-3 flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-700">
+                            <AlertCircle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+                            <span>
+                              Grupo sem corretores. A IA vai fazer fallback para o departamento correspondente.
+                              Adicione corretores abaixo para ativar o roteamento por grupo.
+                            </span>
+                          </div>
+                        )}
+                      </div>
                     );
                   })()}
+
+                  {/* Conteúdo em duas colunas */}
+                  <div className="flex-1 overflow-y-auto grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-gray-100">
+
+                    {/* Corretores no grupo */}
+                    <div className="p-5">
+                      <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">
+                        Corretores no grupo
+                      </h4>
+                      {activeMembers.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center py-8 text-center">
+                          <div className="w-12 h-12 rounded-xl bg-gray-100 flex items-center justify-center mb-3">
+                            <Users className="w-5 h-5 text-gray-300" />
+                          </div>
+                          <p className="text-sm text-gray-400">Nenhum corretor adicionado</p>
+                          <p className="text-xs text-gray-300 mt-1">Adicione corretores na coluna ao lado</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          {activeMembers.map(m => (
+                            <div key={m.id} className="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 group transition-colors">
+                              <div className="w-9 h-9 rounded-full bg-brand-100 flex items-center justify-center text-brand-700 text-sm font-bold flex-shrink-0">
+                                {m.name[0]?.toUpperCase()}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="text-sm font-semibold text-gray-900 truncate">{m.name}</div>
+                                <div className="text-xs text-gray-400 truncate">{m.email}</div>
+                              </div>
+                              <button
+                                onClick={() => handleRemoveMember(m.id)}
+                                className="opacity-0 group-hover:opacity-100 p-1.5 text-gray-300 hover:text-red-500 transition-all rounded-lg hover:bg-red-50"
+                                title="Remover do grupo"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Adicionar ao grupo */}
+                    <div className="p-5">
+                      <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">
+                        Disponíveis para adicionar
+                      </h4>
+                      {notInGroup.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center py-8 text-center">
+                          <Check className="w-8 h-8 text-emerald-400 mb-2" />
+                          <p className="text-sm text-gray-400">Todos os membros já estão no grupo</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          {notInGroup.map(m => (
+                            <button
+                              key={m.user_id}
+                              onClick={() => handleAddMember(m.user_id)}
+                              className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-brand-50 border-2 border-transparent hover:border-brand-200 transition-all text-left group"
+                            >
+                              <div className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 text-sm font-bold flex-shrink-0">
+                                {m.name[0]?.toUpperCase()}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="text-sm font-medium text-gray-700 truncate">{m.name}</div>
+                                <div className="text-xs text-gray-400 truncate">{m.email}</div>
+                              </div>
+                              <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                                <UserPlus className="w-4 h-4 text-brand-500" />
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
@@ -407,7 +459,7 @@ export default function AiAgentPage() {
 
         {/* ── Tab: Persona ─────────────────────────────────────────────────── */}
         {tab === 'persona' && (
-          <div className="max-w-xl">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <form onSubmit={handleSavePersona} className="card p-6 space-y-5">
               <div>
                 <label className="label">Nome da consultora virtual</label>
@@ -448,7 +500,7 @@ export default function AiAgentPage() {
                       Quando ativo, a IA busca imóveis, envia fichas, propõe visitas e roteia leads automaticamente
                     </div>
                   </div>
-                  {personaForm.ai_tools_enabled && <Check className="w-4 h-4 text-brand-600 ml-auto" />}
+                  {personaForm.ai_tools_enabled && <Check className="w-4 h-4 text-brand-600 ml-auto flex-shrink-0" />}
                 </button>
               </div>
 
@@ -460,13 +512,13 @@ export default function AiAgentPage() {
               </div>
             </form>
 
-            {/* Preview do prompt */}
-            <div className="mt-5 card p-5">
-              <h3 className="font-semibold text-sm text-gray-700 mb-3 flex items-center gap-2">
+            {/* O que a IA sabe fazer */}
+            <div className="card p-5">
+              <h3 className="font-semibold text-sm text-gray-700 mb-4 flex items-center gap-2">
                 <Sparkles className="w-4 h-4 text-brand-500" />
                 O que a {personaForm.ai_agent_name || 'Lia'} já sabe fazer
               </h3>
-              <div className="space-y-2.5">
+              <div className="space-y-3">
                 {[
                   { icon: '🎵', text: 'Entende áudios transcritos e responde ao conteúdo falado' },
                   { icon: '📷', text: 'Analisa fotos de imóveis, plantas baixas e comprovantes' },
@@ -479,9 +531,9 @@ export default function AiAgentPage() {
                   { icon: '🌙', text: 'Atende 24h — fora do horário comercial mantém o lead engajado' },
                   { icon: '💬', text: 'Lida com objeções como "tá caro", "vou pensar", "já tenho corretor"' },
                 ].map(({ icon, text }) => (
-                  <div key={text} className="flex items-start gap-2 text-sm text-gray-600">
+                  <div key={text} className="flex items-start gap-2.5 text-sm text-gray-600">
                     <span className="text-base leading-5 flex-shrink-0">{icon}</span>
-                    <span>{text}</span>
+                    <span className="leading-relaxed">{text}</span>
                   </div>
                 ))}
               </div>
@@ -491,73 +543,75 @@ export default function AiAgentPage() {
 
         {/* ── Tab: Fluxo ───────────────────────────────────────────────────── */}
         {tab === 'fluxo' && (
-          <div className="max-w-3xl">
-            <p className="text-sm text-gray-500 mb-6">
-              Visualize como a IA processa cada lead e decide para onde rotear.
-            </p>
-
-            <div className="space-y-3">
-              {[
-                {
-                  step: '1',
-                  title: 'Lead entra em contato',
-                  desc: 'Cliente manda mensagem pelo WhatsApp, Instagram, site ou qualquer canal conectado',
-                  color: 'bg-blue-500',
-                },
-                {
-                  step: '2',
-                  title: 'Lia recebe e processa',
-                  desc: 'Analisa texto, áudio, imagem, PDF ou link. Identifica contexto e estado emocional do cliente',
-                  color: 'bg-violet-500',
-                },
-                {
-                  step: '3',
-                  title: 'Qualifica com conversa natural',
-                  desc: 'Descobre intenção (comprar/alugar/investir), localização, orçamento e urgência de forma orgânica',
-                  color: 'bg-brand-500',
-                },
-                {
-                  step: '4a',
-                  title: 'Busca imóveis / empreendimentos',
-                  desc: 'Quando tem critérios suficientes, usa ferramentas para buscar e enviar fichas diretamente no chat',
-                  color: 'bg-emerald-500',
-                },
-                {
-                  step: '4b',
-                  title: 'Propõe visita',
-                  desc: 'Quando o cliente demonstrou interesse real, propõe data e hora. A equipe confirma.',
-                  color: 'bg-orange-500',
-                },
-                {
-                  step: '5',
-                  title: 'Roteia para o especialista certo',
-                  desc: `Identifica o grupo (${groups.filter(g => g.is_active).map(g => g.name).join(', ') || 'Compra e Venda, Locação, Empreendimentos...'}) e atribui via round-robin ao próximo corretor disponível`,
-                  color: 'bg-amber-500',
-                },
-                {
-                  step: '6',
-                  title: 'Corretor assume com contexto completo',
-                  desc: 'O corretor recebe a conversa já qualificada com resumo do perfil do cliente. Zero retrabalho.',
-                  color: 'bg-gray-500',
-                },
-              ].map((s, i, arr) => (
-                <div key={s.step}>
-                  <div className="flex items-start gap-4">
-                    <div className={clsx('w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0 mt-0.5', s.color)}>
-                      {s.step}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div>
+              <p className="text-sm text-gray-500 mb-5">
+                Como a IA processa cada lead e decide para onde rotear.
+              </p>
+              <div className="space-y-3">
+                {[
+                  { step: '1', title: 'Lead entra em contato',         desc: 'Cliente manda mensagem pelo WhatsApp, Instagram, site ou qualquer canal conectado',                                           color: 'bg-blue-500'    },
+                  { step: '2', title: 'Lia recebe e processa',          desc: 'Analisa texto, áudio, imagem, PDF ou link. Identifica contexto e estado emocional do cliente',                               color: 'bg-violet-500'  },
+                  { step: '3', title: 'Qualifica com conversa natural', desc: 'Descobre intenção (comprar/alugar/investir), localização, orçamento e urgência de forma orgânica',                            color: 'bg-brand-500'   },
+                  { step: '4a', title: 'Busca imóveis e envia fichas',  desc: 'Quando tem critérios suficientes, usa ferramentas para buscar e enviar fichas diretamente no chat',                          color: 'bg-emerald-500' },
+                  { step: '4b', title: 'Propõe visita',                 desc: 'Quando o cliente demonstrou interesse real, propõe data e hora. A equipe confirma.',                                          color: 'bg-orange-500'  },
+                  { step: '5', title: 'Roteia para o especialista',     desc: `Usa grupos de atendimento (${groups.filter(g => g.is_active).map(g => g.name).join(', ') || 'Compra e Venda, Locação...'}) e atribui ao próximo corretor`, color: 'bg-amber-500' },
+                  { step: '6', title: 'Corretor assume com contexto',   desc: 'O corretor recebe a conversa já qualificada com resumo do perfil do cliente. Zero retrabalho.',                               color: 'bg-gray-500'    },
+                ].map((s, i, arr) => (
+                  <div key={s.step}>
+                    <div className="flex items-start gap-4">
+                      <div className={clsx('w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0 mt-0.5', s.color)}>
+                        {s.step}
+                      </div>
+                      <div className="flex-1 card p-4">
+                        <div className="font-semibold text-gray-900 text-sm mb-0.5">{s.title}</div>
+                        <div className="text-xs text-gray-500 leading-relaxed">{s.desc}</div>
+                      </div>
                     </div>
-                    <div className="flex-1 card p-4">
-                      <div className="font-semibold text-gray-900 text-sm mb-0.5">{s.title}</div>
-                      <div className="text-xs text-gray-500 leading-relaxed">{s.desc}</div>
-                    </div>
+                    {i < arr.length - 1 && (
+                      <div className="ml-4 py-0.5 flex">
+                        <ArrowRight className="w-3.5 h-3.5 text-gray-300 rotate-90 ml-2" />
+                      </div>
+                    )}
                   </div>
-                  {i < arr.length - 1 && (
-                    <div className="ml-4 pl-0 py-0.5 flex">
-                      <ArrowRight className="w-3.5 h-3.5 text-gray-300 rotate-90 ml-2" />
+                ))}
+              </div>
+            </div>
+
+            {/* Grupos ativos */}
+            <div>
+              <p className="text-sm text-gray-500 mb-5">Status atual dos grupos de atendimento.</p>
+              <div className="space-y-3">
+                {groups.length === 0 ? (
+                  <div className="card p-6 text-center">
+                    <p className="text-sm text-gray-400">Nenhum grupo configurado ainda</p>
+                    <button onClick={() => setTab('grupos')} className="btn-secondary btn-sm mt-3">
+                      Configurar grupos
+                    </button>
+                  </div>
+                ) : groups.map(g => {
+                  const cfg = GROUP_TYPE_CONFIG[g.group_type] || GROUP_TYPE_CONFIG.geral;
+                  return (
+                    <div key={g.id} className={clsx('card p-4 flex items-center gap-3', !g.is_active && 'opacity-50')}>
+                      <div className={clsx('w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0', cfg.bg)}>
+                        <cfg.icon className={clsx('w-4 h-4', cfg.color)} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="font-semibold text-sm text-gray-900">{g.name}</div>
+                        <div className="text-xs text-gray-400">{cfg.label}</div>
+                      </div>
+                      <div className={clsx(
+                        'text-xs font-semibold px-2.5 py-1 rounded-full flex-shrink-0',
+                        g.member_count === 0
+                          ? 'bg-amber-100 text-amber-700'
+                          : 'bg-emerald-100 text-emerald-700'
+                      )}>
+                        {g.member_count === 0 ? 'Sem corretores' : `${g.member_count} ${g.member_count === 1 ? 'corretor' : 'corretores'}`}
+                      </div>
                     </div>
-                  )}
-                </div>
-              ))}
+                  );
+                })}
+              </div>
             </div>
           </div>
         )}
@@ -576,7 +630,13 @@ export default function AiAgentPage() {
             <form onSubmit={handleSaveGroup} className="p-5 space-y-4">
               <div>
                 <label className="label">Nome do grupo <span className="text-red-500">*</span></label>
-                <input className="input" placeholder="Ex: Vendas Zona Sul" value={groupForm.name} onChange={e => setGroupForm(f => ({ ...f, name: e.target.value }))} required />
+                <input
+                  className="input"
+                  placeholder="Ex: Vendas Zona Sul"
+                  value={groupForm.name}
+                  onChange={e => setGroupForm(f => ({ ...f, name: e.target.value }))}
+                  required
+                />
               </div>
 
               <div>
@@ -604,7 +664,11 @@ export default function AiAgentPage() {
 
               <div>
                 <label className="label">Modo de roteamento</label>
-                <select className="input" value={groupForm.routing_mode} onChange={e => setGroupForm(f => ({ ...f, routing_mode: e.target.value }))}>
+                <select
+                  className="input"
+                  value={groupForm.routing_mode}
+                  onChange={e => setGroupForm(f => ({ ...f, routing_mode: e.target.value }))}
+                >
                   <option value="round_robin">Round-robin (sequencial)</option>
                   <option value="manual">Manual (sem auto-atribuição)</option>
                 </select>

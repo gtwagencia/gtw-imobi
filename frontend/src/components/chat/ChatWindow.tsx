@@ -25,6 +25,7 @@ type Mode = 'reply' | 'note';
 
 export default function ChatWindow({ conversation, onStatusChange, onBack }: Props) {
   const { user, currentWorkspace } = useAuth();
+  const ticketsEnabled = !currentWorkspace?.enabled_modules || currentWorkspace.enabled_modules.includes('tickets');
 
   const [messages,      setMessages]      = useState<Message[]>([]);
   const [text,          setText]          = useState('');
@@ -517,13 +518,15 @@ export default function ChatWindow({ conversation, onStatusChange, onBack }: Pro
         </div>
 
         {/* Criar Ticket */}
-        <button
-          onClick={() => openTicketModal()}
-          className="flex-shrink-0 p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
-          title="Criar ticket"
-        >
-          <Ticket className="w-4 h-4" />
-        </button>
+        {ticketsEnabled && (
+          <button
+            onClick={() => openTicketModal()}
+            className="flex-shrink-0 p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+            title="Criar ticket"
+          >
+            <Ticket className="w-4 h-4" />
+          </button>
+        )}
 
         {/* CSAT */}
         <button
@@ -670,12 +673,14 @@ export default function ChatWindow({ conversation, onStatusChange, onBack }: Pro
             const isOut      = msg.direction === 'outbound';
             const isPrivate  = msg.is_private;
             const prevMsg    = messages[idx - 1];
-            // Em grupos mostra o remetente em todas as mensagens (inbound e outbound)
-            // Fora de grupos mostra só em mensagens outbound de agentes diferentes
+            // Em grupos: mostra remetente em toda mensagem quando muda de pessoa
+            // Fora de grupos: mostra em toda outbound (sempre), e em inbound só quando muda
             const showSender = msg.sender_name && (
               conversation.is_group
                 ? (idx === 0 || prevMsg?.sender_name !== msg.sender_name)
-                : (isOut && (idx === 0 || prevMsg?.sender_id !== msg.sender_id || prevMsg?.direction !== 'outbound'))
+                : isOut
+                  ? true   // sempre mostra nome do agente/bot em mensagens outbound
+                  : false  // mensagens inbound do lead não precisam de nome (aparece no header)
             );
 
             // Separador de data
@@ -784,7 +789,7 @@ export default function ChatWindow({ conversation, onStatusChange, onBack }: Pro
                 )}
 
                 {/* Botão "Criar ticket" no hover (fora do modo seleção) */}
-                {!selectionMode && hoveredMsgId === msg.id && msg.content && msg.message_type === 'text' && (
+                {ticketsEnabled && !selectionMode && hoveredMsgId === msg.id && msg.content && msg.message_type === 'text' && (
                   <button
                     onClick={(e) => { e.stopPropagation(); openTicketModal(msg.content ?? undefined); }}
                     className={clsx(
@@ -897,13 +902,15 @@ export default function ChatWindow({ conversation, onStatusChange, onBack }: Pro
               <X className="w-3.5 h-3.5" />
               Cancelar
             </button>
-            <button
-              onClick={openTicketFromSelection}
-              className="btn-primary text-sm py-1.5 px-3 flex items-center gap-1.5"
-            >
-              <Ticket className="w-3.5 h-3.5" />
-              Criar ticket
-            </button>
+            {ticketsEnabled && (
+              <button
+                onClick={openTicketFromSelection}
+                className="btn-primary text-sm py-1.5 px-3 flex items-center gap-1.5"
+              >
+                <Ticket className="w-3.5 h-3.5" />
+                Criar ticket
+              </button>
+            )}
           </div>
         </div>
       )}

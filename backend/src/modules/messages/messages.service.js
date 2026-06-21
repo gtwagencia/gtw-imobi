@@ -17,27 +17,56 @@ const EXT_MIME = {
   '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
 };
 
-async function list(conversationId, { page = 1, limit = 50 } = {}) {
+async function list(conversationId, { page = 1, limit = 50, userId, isSuperAdmin } = {}) {
   const offset = (page - 1) * limit;
 
+  // Corretores e agentes só veem mensagens a partir do momento em que foram atribuídos.
+  // Admins e super_admins sempre veem o histórico completo.
+  let sinceAt = null;
+  if (userId && !isSuperAdmin) {
+    const convRes = await query(
+      `SELECT c.assignee_id, c.assignee_assigned_at, wm.role
+       FROM conversations c
+       JOIN workspace_memberships wm ON wm.workspace_id = c.workspace_id AND wm.user_id = $2
+       WHERE c.id = $1`,
+      [conversationId, userId]
+    );
+    if (convRes.rows.length) {
+      const { assignee_id, assignee_assigned_at, role } = convRes.rows[0];
+      if (role !== 'admin' && assignee_id === userId && assignee_assigned_at) {
+        sinceAt = assignee_assigned_at;
+      }
+    }
+  }
+
   const countRes = await query(
-    'SELECT COUNT(*) FROM messages WHERE conversation_id = $1',
-    [conversationId]
+    sinceAt
+      ? 'SELECT COUNT(*) FROM messages WHERE conversation_id = $1 AND created_at >= $2'
+      : 'SELECT COUNT(*) FROM messages WHERE conversation_id = $1',
+    sinceAt ? [conversationId, sinceAt] : [conversationId]
   );
   const total = parseInt(countRes.rows[0].count, 10);
 
   // Retorna as mensagens mais recentes e reordena em ordem cronológica para exibição
   const r = await query(
-    `SELECT * FROM (
-       SELECT m.*, u.name AS sender_name, u.avatar_url AS sender_avatar
-       FROM messages m
-       LEFT JOIN users u ON u.id = m.sender_id
-       WHERE m.conversation_id = $1
-       ORDER BY m.created_at DESC
-       LIMIT $2 OFFSET $3
-     ) sub
-     ORDER BY created_at ASC`,
-    [conversationId, limit, offset]
+    sinceAt
+      ? `SELECT * FROM (
+           SELECT m.*, u.name AS sender_name, u.avatar_url AS sender_avatar
+           FROM messages m
+           LEFT JOIN users u ON u.id = m.sender_id
+           WHERE m.conversation_id = $1 AND m.created_at >= $4
+           ORDER BY m.created_at DESC
+           LIMIT $2 OFFSET $3
+         ) sub ORDER BY created_at ASC`
+      : `SELECT * FROM (
+           SELECT m.*, u.name AS sender_name, u.avatar_url AS sender_avatar
+           FROM messages m
+           LEFT JOIN users u ON u.id = m.sender_id
+           WHERE m.conversation_id = $1
+           ORDER BY m.created_at DESC
+           LIMIT $2 OFFSET $3
+         ) sub ORDER BY created_at ASC`,
+    sinceAt ? [conversationId, limit, offset, sinceAt] : [conversationId, limit, offset]
   );
 
   return { data: r.rows, total, page, limit };
@@ -102,10 +131,18 @@ async function send(conversationId, senderId, { content, messageType = 'text', m
   const msgRes = await query(
     `INSERT INTO messages
        (conversation_id, direction, message_type, content, media_url, sender_id, status, is_private)
-     VALUES ($1,'outbound',$2,$3,$4,$5,'sent',$6) RETURNING *`,
+     VALUES ($1,'outbound',$2,$3,$4,$5,'sent',$6)
+     RETURNING *`,
     [conversationId, messageType, content || null, mediaUrl || null, senderId, isPrivate]
   );
-  const message = msgRes.rows[0];
+  // Enriquece com sender_name para que o frontend exiba o nome do remetente
+  const raw = msgRes.rows[0];
+  let senderName = null;
+  if (senderId) {
+    const uRes = await query('SELECT name FROM users WHERE id = $1', [senderId]);
+    senderName = uRes.rows[0]?.name || null;
+  }
+  const message = { ...raw, sender_name: senderName, sender_avatar: null };
 
   // Only public messages update last_message and trigger real WhatsApp send
   if (!isPrivate) {
