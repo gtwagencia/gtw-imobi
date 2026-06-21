@@ -471,8 +471,8 @@ export default function TopNav() {
             </div>
           )}
 
-          {/* @ Ticket alerts — visível apenas para admins (controle interno) */}
-          {isAdmin && <BellPanel
+          {/* @ Ticket alerts — visível apenas para admins com módulo tickets ativo */}
+          {isAdmin && (!currentWorkspace?.enabled_modules || currentWorkspace.enabled_modules.includes('tickets')) && <BellPanel
             type="alerts"
             count={alertCount}
             title="Alertas de tickets"
