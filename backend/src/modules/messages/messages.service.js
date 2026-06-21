@@ -33,8 +33,20 @@ async function list(conversationId, { page = 1, limit = 50, userId, isSuperAdmin
     );
     if (convRes.rows.length) {
       const { assignee_id, assignee_assigned_at, role } = convRes.rows[0];
-      if (role !== 'admin' && assignee_id === userId && assignee_assigned_at) {
-        sinceAt = assignee_assigned_at;
+      if (role !== 'admin' && assignee_id === userId) {
+        if (assignee_assigned_at) {
+          sinceAt = assignee_assigned_at;
+        } else {
+          // Fallback para conversas atribuídas antes da coluna existir:
+          // usa o timestamp do último bot message (handoff da IA) como marco inicial.
+          const lastBotRes = await query(
+            `SELECT created_at FROM messages
+             WHERE conversation_id = $1 AND direction = 'outbound' AND sender_id IS NULL
+             ORDER BY created_at DESC LIMIT 1`,
+            [conversationId]
+          );
+          sinceAt = lastBotRes.rows[0]?.created_at || null;
+        }
       }
     }
   }
