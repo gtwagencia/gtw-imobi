@@ -8,6 +8,17 @@ const svc = require('./organizations.service');
 
 const router = Router();
 
+// POST /orgs — create org (super admin only)
+router.post('/', authenticate, async (req, res, next) => {
+  try {
+    if (!req.user.isSuperAdmin) return res.status(403).json({ error: 'Apenas super admins podem criar organizações' });
+    const { name, plan } = req.body;
+    if (!name?.trim()) return res.status(400).json({ error: 'name é obrigatório' });
+    const org = await svc.create({ name: name.trim(), plan });
+    res.status(201).json(org);
+  } catch (err) { next(err); }
+});
+
 // GET /orgs — list orgs for current user
 router.get('/', authenticate, async (req, res, next) => {
   try {

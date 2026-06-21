@@ -59,6 +59,22 @@ async function update(orgId, { name, logoUrl, plan, isActive }) {
   return r.rows[0];
 }
 
+// ── Create org ────────────────────────────────────────────────────────────
+
+async function create({ name, plan = 'starter' }) {
+  const slug = name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
+    .slice(0, 50);
+  const slugUnique = `${slug}-${Date.now().toString(36)}`;
+  const r = await query(
+    `INSERT INTO organizations (name, slug, plan) VALUES ($1, $2, $3) RETURNING *`,
+    [name, slugUnique, plan]
+  );
+  return r.rows[0];
+}
+
 // ── Members ────────────────────────────────────────────────────────────────
 
 async function listMembers(orgId, workspaceId = null) {
@@ -208,7 +224,7 @@ async function updateMemberRole(orgId, userId, role) {
 }
 
 module.exports = {
-  listForUser, getById, update,
+  listForUser, getById, create, update,
   listMembers, inviteMember, removeMember, updateMemberRole,
   getInvitation, acceptInvitation,
 };

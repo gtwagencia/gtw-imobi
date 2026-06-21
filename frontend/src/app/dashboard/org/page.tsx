@@ -117,6 +117,11 @@ export default function OrgPage() {
   const [inviting,    setInviting]      = useState(false);
   const [inviteError, setInviteError]   = useState('');
 
+  // New org modal (super admin only)
+  const [showNewOrgModal, setShowNewOrgModal] = useState(false);
+  const [newOrgName,      setNewOrgName]      = useState('');
+  const [creatingOrg,     setCreatingOrg]     = useState(false);
+
   // Workspace wizard
   const [showWizard,    setShowWizard]    = useState(false);
   const [wizardStep,    setWizardStep]    = useState<WizardStep>('type');
@@ -125,7 +130,8 @@ export default function OrgPage() {
   const [wsSeedDemo,      setWsSeedDemo]      = useState(false);
   const [creatingWs,      setCreatingWs]      = useState(false);
 
-  const canManage = currentOrg?.role === 'owner' || currentOrg?.role === 'admin';
+  const isSuperAdmin = user?.is_super_admin === true;
+  const canManage = isSuperAdmin || currentOrg?.role === 'owner' || currentOrg?.role === 'admin';
 
   if (currentOrg && !canManage) {
     return (
@@ -186,6 +192,22 @@ export default function OrgPage() {
     loadMembers();
   }
 
+  async function handleCreateOrg(e: React.FormEvent) {
+    e.preventDefault();
+    setCreatingOrg(true);
+    try {
+      await api.post('/orgs', { name: newOrgName.trim() });
+      setNewOrgName('');
+      setShowNewOrgModal(false);
+      showToast(`Organização "${newOrgName}" criada com sucesso!`);
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error || 'Erro ao criar organização';
+      showToast(msg, 'error');
+    } finally {
+      setCreatingOrg(false);
+    }
+  }
+
   async function handleCreateWorkspace(e: React.FormEvent) {
     e.preventDefault();
     if (!currentOrg) return;
@@ -212,7 +234,14 @@ export default function OrgPage() {
 
   return (
     <>
-      <Header title="Organização" />
+      <Header
+        title="Organização"
+        actions={isSuperAdmin ? (
+          <button className="btn-primary text-sm" onClick={() => setShowNewOrgModal(true)}>
+            <Plus className="w-4 h-4" /> Nova organização
+          </button>
+        ) : undefined}
+      />
 
       <div className="flex-1 overflow-y-auto p-4 md:p-6 max-w-4xl">
 
@@ -374,6 +403,40 @@ export default function OrgPage() {
           </div>
         )}
       </div>
+
+      {/* ── Nova organização modal (super admin) ──────────────────────── */}
+      {showNewOrgModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+            <div className="flex items-center justify-between p-5 border-b border-gray-100">
+              <h2 className="font-bold text-lg text-gray-900">Nova organização</h2>
+              <button onClick={() => setShowNewOrgModal(false)} className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <form onSubmit={handleCreateOrg} className="p-5">
+              <label className="block text-sm font-semibold text-gray-700 mb-1.5">Nome da organização</label>
+              <input
+                className="input mb-4"
+                placeholder="Ex: Imobiliária Silva"
+                value={newOrgName}
+                onChange={(e) => setNewOrgName(e.target.value)}
+                required
+                autoFocus
+              />
+              <div className="flex justify-end gap-2">
+                <button type="button" className="btn-secondary" onClick={() => setShowNewOrgModal(false)}>
+                  Cancelar
+                </button>
+                <button type="submit" className="btn-primary" disabled={creatingOrg || !newOrgName.trim()}>
+                  {creatingOrg ? <Loader className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                  Criar organização
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* ── Wizard modal ────────────────────────────────────────────────── */}
       {showWizard && (
