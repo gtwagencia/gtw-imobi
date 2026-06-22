@@ -371,6 +371,7 @@ async function handleGroupMessage(msg, inbox, io, event) {
         conversationId: conversation.id,
         contactName:    groupName,
         isGroup:        true,
+        assignee_id:    conversation.assignee_id || null,
       });
       pushSvc.sendToWorkspace(inbox.workspace_id, {
         title: 'Novo grupo',
@@ -992,6 +993,7 @@ router.post('/evolution/:inboxId', async (req, res) => {
         if (created) {
           io?.to(`ws:${inbox.workspace_id}`).emit('conversation:new', {
             conversationId: conversation.id, contactName: contact.name, inboxId: inbox.id,
+            assignee_id: conversation.assignee_id || null,
           });
           pushSvc.sendToWorkspace(inbox.workspace_id, {
             title: 'Novo lead',
@@ -1204,6 +1206,7 @@ router.post('/waba', async (req, res) => {
 
         io?.to(`ws:${inbox.workspace_id}`).emit('conversation:new', {
           conversationId: conversation.id, contactName: contact.name, inboxId: inbox.id,
+          assignee_id: conversation.assignee_id || null,
         });
         pushSvc.sendToWorkspace(inbox.workspace_id, {
           title: 'Novo lead',

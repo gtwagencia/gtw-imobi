@@ -136,7 +136,14 @@ export const useNotifications = create<NotificationState>((set, get) => ({
     if (_handlerTicketUpd)     { socket.off('ticket:updated',   _handlerTicketUpd);   _handlerTicketUpd     = null; }
     if (_handlerTicketComment) { socket.off('ticket:comment',   _handlerTicketComment); _handlerTicketComment = null; }
 
-    _handlerConvNew = (payload: { contactName: string; conversationId: string }) => {
+    _handlerConvNew = (payload: { contactName: string; conversationId: string; assignee_id?: string | null }) => {
+      const me = useAuth.getState().user?.id;
+      const wsRole = useAuth.getState().currentWorkspace?.role;
+      const isAdmin = !wsRole || wsRole === 'admin' || wsRole === 'auxiliar_administrativo';
+
+      // Corretores só recebem notificação de conversas atribuídas a eles
+      if (!isAdmin && payload.assignee_id !== me) return;
+
       get().add({
         type:  'new_conversation',
         title: 'Nova conversa',
@@ -153,9 +160,17 @@ export const useNotifications = create<NotificationState>((set, get) => ({
     }) => {
       if (msg.direction !== 'inbound') return;
 
-      // Só notifica se a conversa está atribuída ao usuário atual ou a ninguém
       const me = useAuth.getState().user?.id;
-      if (msg.assignee_id && msg.assignee_id !== me) return;
+      const wsRole = useAuth.getState().currentWorkspace?.role;
+      const isAdmin = !wsRole || wsRole === 'admin' || wsRole === 'auxiliar_administrativo';
+
+      if (isAdmin) {
+        // Admins: recebem tudo exceto conversas atribuídas a outro usuário
+        if (msg.assignee_id && msg.assignee_id !== me) return;
+      } else {
+        // Corretores: somente conversas atribuídas a eles
+        if (msg.assignee_id !== me) return;
+      }
 
       // Não notifica a conversa que está aberta no momento
       const active = get().activeConversationId;
