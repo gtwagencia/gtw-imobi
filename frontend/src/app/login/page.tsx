@@ -3,7 +3,7 @@
 import { useState, FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/store/auth';
-import { Home, CheckCircle } from 'lucide-react';
+import { CheckCircle } from 'lucide-react';
 import api from '@/lib/api';
 
 type Mode = 'login' | 'register' | 'forgot';
@@ -89,12 +89,7 @@ export default function LoginPage() {
       <div className="w-full max-w-md relative">
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-brand-500 to-brand-700 rounded-2xl mb-4 shadow-glow">
-            <Home className="w-8 h-8 text-white" />
-          </div>
-          <h1 className="font-display text-3xl font-semibold text-white tracking-tight">
-            Imobi<span className="text-brand-300">360</span>
-          </h1>
+          <img src="/logo-branca-azul-vertical.png" alt="Imobi360" className="h-32 w-auto mx-auto mb-3" />
           <p className="text-brand-200 text-sm mt-1">Atendimento & CRM inteligente para o mercado imobiliário</p>
         </div>
 

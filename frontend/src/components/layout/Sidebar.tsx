@@ -205,11 +205,8 @@ export default function Sidebar() {
       {/* Logo + botão fechar no mobile */}
       <div className="px-5 py-4 border-b border-ink-800">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-gradient-to-br from-brand-500 to-brand-700 rounded-lg flex items-center justify-center flex-shrink-0 shadow-glow">
-            <MessageSquare className="w-4 h-4 text-white" />
-          </div>
-          <span className="font-display text-white font-semibold text-sm flex-1 tracking-tight">Imobi360</span>
-          <button onClick={close} className="md:hidden text-gray-500 hover:text-white p-1 rounded">
+          <img src="/logo-preta-azul.png" alt="Imobi360" className="h-8 w-auto flex-1 min-w-0" />
+          <button onClick={close} className="md:hidden text-gray-500 hover:text-white p-1 rounded flex-shrink-0">
             <X className="w-5 h-5" />
           </button>
         </div>
