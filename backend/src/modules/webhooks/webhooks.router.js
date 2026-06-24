@@ -510,6 +510,18 @@ async function dispatchChatbotResponse(inbox, conversation, contact, io) {
     ),
   ]);
 
+  // Bloco com dados atuais do contato — orienta a IA sobre o que já está salvo
+  // e o que ainda precisa coletar, evitando perguntas redundantes
+  const contactCtx = [
+    `## Dados atuais do contato`,
+    `Nome: ${contact.name && !/^\d+$/.test(contact.name) ? contact.name : '(não identificado — colete o nome real)'}`,
+    `Telefone: ${contact.phone || '(não preenchido — colete se o lead informar)'}`,
+    `Email: ${contact.email || '(não preenchido — colete se o lead informar)'}`,
+    ``,
+    `Sempre que o lead informar ou confirmar qualquer um desses dados, chame \`atualizar_perfil_lead\` imediatamente.`,
+    `Ao identificar o interesse em um empreendimento ou cidade, adicione uma tag descritiva (ex: "Lançamento em Dourados").`,
+  ].join('\n');
+
   const systemPrompt = [
     aiSvc.buildAgentPersona({
       agentName:     ws.ai_agent_name,
@@ -517,6 +529,7 @@ async function dispatchChatbotResponse(inbox, conversation, contact, io) {
       departments:   deptRes.rows,
       routingGroups: groupRes.rows,
     }),
+    contactCtx,
     ws.department_ai_persona,
     inbox.chatbot_prompt,
   ].filter(Boolean).join('\n\n---\n\n');

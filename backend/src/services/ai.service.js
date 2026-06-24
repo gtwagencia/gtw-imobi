@@ -326,7 +326,7 @@ const AGENT_TOOL_DEFS = [
   },
   {
     name: 'atualizar_perfil_lead',
-    description: 'Salva no sistema informações qualificadas do lead. Chame silenciosamente sempre que identificar nome real, cidade, empreendimento, perfil, tipo de imóvel ou faixa de valores. Pode ser chamado múltiplas vezes.',
+    description: 'Salva no sistema informações do lead. CHAME IMEDIATAMENTE — sem esperar fim de conversa — sempre que o lead informar ou confirmar: nome real, telefone, e-mail, cidade de interesse, empreendimento, perfil ou faixa de valores. Pode ser chamado múltiplas vezes na mesma conversa. Nunca pergunte algo que já esteja preenchido no contexto do contato.',
     input_schema: {
       type: 'object',
       properties: {
