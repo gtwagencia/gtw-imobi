@@ -331,6 +331,9 @@ const AGENT_TOOL_DEFS = [
       type: 'object',
       properties: {
         nome_lead:                  { type: 'string', description: 'Nome real do lead identificado na conversa — use quando o cliente disser o nome dele e for diferente do nome salvo no sistema (ex: número de telefone ou nome genérico do WhatsApp)' },
+        telefone:                   { type: 'string', description: 'Telefone/WhatsApp informado pelo lead na conversa (somente dígitos, com DDD e DDI se disponível)' },
+        email:                      { type: 'string', description: 'E-mail informado pelo lead na conversa' },
+        tag:                        { type: 'string', description: 'Tag para classificar o interesse do lead — use o nome do empreendimento ou "Lançamento em [Cidade]" (ex: "Lançamento em Dourados", "Condomínio Reserva"). Adicione apenas uma tag por chamada.' },
         cidade_interesse:           { type: 'string', description: 'Cidade ou região onde quer o imóvel' },
         empreendimento_interesse:   { type: 'string', description: 'Nome ou código do empreendimento de interesse' },
         perfil:                     { type: 'string', enum: ['investidor', 'morador', 'empresa'], description: 'Perfil do comprador' },
@@ -1328,15 +1331,32 @@ async function executeAgentTool(name, input, ctx) {
         if (!ctx.contactId) return { success: false, error: 'Conversa sem contato associado' };
         const contactsSvc = require('../modules/contacts/contacts.service');
 
-        // Atualiza nome real do lead se identificado
-        if (input.nome_lead?.trim()) {
+        // Campos diretos do contato (nome, telefone, email)
+        const contactFields = [];
+        const contactVals   = [];
+        let   ci = 1;
+        if (input.nome_lead?.trim())  { contactFields.push(`name = $${ci++}`);  contactVals.push(input.nome_lead.trim()); }
+        if (input.telefone?.trim())   { contactFields.push(`phone = $${ci++}`); contactVals.push(input.telefone.trim()); }
+        if (input.email?.trim())      { contactFields.push(`email = $${ci++}`); contactVals.push(input.email.trim().toLowerCase()); }
+        if (contactFields.length) {
+          contactVals.push(ctx.contactId, ctx.workspaceId);
           await query(
-            'UPDATE contacts SET name = $1 WHERE id = $2 AND workspace_id = $3',
-            [input.nome_lead.trim(), ctx.contactId, ctx.workspaceId]
+            `UPDATE contacts SET ${contactFields.join(', ')}, updated_at = NOW() WHERE id = $${ci} AND workspace_id = $${ci + 1}`,
+            contactVals
           );
-          ctx.io?.to(`ws:${ctx.workspaceId}`).emit('contact:updated', { contactId: ctx.contactId, name: input.nome_lead.trim() });
+          ctx.io?.to(`ws:${ctx.workspaceId}`).emit('contact:updated', { contactId: ctx.contactId });
         }
 
+        // Tag de interesse (ex: "Lançamento em Dourados")
+        if (input.tag?.trim()) {
+          await query(
+            `UPDATE contacts SET tags = array_append(tags, $1), updated_at = NOW()
+             WHERE id = $2 AND workspace_id = $3 AND NOT ($1 = ANY(COALESCE(tags, '{}')))`,
+            [input.tag.trim(), ctx.contactId, ctx.workspaceId]
+          );
+        }
+
+        // Perfil de IA (cidade, empreendimento, perfil, tipo, valores)
         const patch = {};
         if (input.cidade_interesse)         patch.cidade_interesse         = input.cidade_interesse;
         if (input.empreendimento_interesse) patch.empreendimento_interesse = input.empreendimento_interesse;

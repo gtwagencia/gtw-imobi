@@ -329,7 +329,7 @@ export default function SettingsPage() {
     <>
       <Header title="Configurações" />
 
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto min-h-0">
         <div className="flex gap-8 px-4 md:px-8 py-6 max-w-7xl mx-auto">
 
           {/* ── Sidebar nav ─────────────────────────────────────────── */}
