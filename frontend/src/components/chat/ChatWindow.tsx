@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState, FormEvent, useCallback } from 'react';
+import { useEffect, useRef, useState, FormEvent, useCallback, useMemo } from 'react';
 import { format, isToday, isYesterday, isSameDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import clsx from 'clsx';
@@ -417,6 +417,17 @@ export default function ChatWindow({ conversation, onStatusChange, onBack }: Pro
 
   const isResolved = conversation.status === 'resolved';
 
+  const wabaWindowStatus = useMemo(() => {
+    if (conversation.inbox_channel !== 'whatsapp_official') return null;
+    if (loading || messages.length === 0) return null;
+    const lastInbound = [...messages].reverse().find(m => m.direction === 'inbound');
+    if (!lastInbound) return null;
+    const hoursSince = (Date.now() - new Date(lastInbound.created_at).getTime()) / 3_600_000;
+    if (hoursSince >= 24) return 'closed';
+    if (hoursSince >= 20) return 'closing';
+    return null;
+  }, [conversation.inbox_channel, messages, loading]);
+
   return (
     <div className="flex-1 flex flex-col bg-gray-50 min-w-0">
 
@@ -665,6 +676,24 @@ export default function ChatWindow({ conversation, onStatusChange, onBack }: Pro
               <p className="text-xs text-violet-700 whitespace-pre-wrap leading-relaxed">{handoffSummary}</p>
             </div>
           )}
+        </div>
+      )}
+
+      {/* ── Aviso de janela WABA (API Oficial) ──────────────── */}
+      {wabaWindowStatus === 'closed' && (
+        <div className="bg-red-50 border-b border-red-200 px-4 py-2.5 flex items-start gap-2.5 flex-shrink-0">
+          <AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />
+          <p className="text-xs text-red-700 leading-relaxed">
+            <strong>Janela de 24h encerrada.</strong> Faz mais de 24h desde a última mensagem do cliente. Mensagens de texto serão rejeitadas pelo WhatsApp — use um template aprovado pelo Meta para retomar o contato.
+          </p>
+        </div>
+      )}
+      {wabaWindowStatus === 'closing' && (
+        <div className="bg-amber-50 border-b border-amber-200 px-4 py-2.5 flex items-start gap-2.5 flex-shrink-0">
+          <AlertCircle className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
+          <p className="text-xs text-amber-700 leading-relaxed">
+            <strong>Janela de 24h encerrando.</strong> Responda logo — após 24h sem mensagem do cliente só será possível enviar templates aprovados pelo Meta.
+          </p>
         </div>
       )}
 
