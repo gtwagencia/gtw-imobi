@@ -56,14 +56,22 @@ async function runFollowUp(trigger) {
       continue;
     }
 
+    // Para triggers fora da janela de 24h do WhatsApp, pula canais WhatsApp
+    // (WABA e Evolution não aceitam mensagens livres após 24h sem inbound)
+    const skipWhatsApp = trigger !== '30min'
+      ? `AND i.channel_type NOT IN ('whatsapp', 'whatsapp_official')`
+      : '';
+
     const convRes = await query(
       `SELECT c.id, c.workspace_id, c.assignee_id
        FROM conversations c
+       JOIN inboxes i ON i.id = c.inbox_id
        WHERE c.workspace_id = $1
          AND c.status = 'open'
          AND c.last_inbound_at IS NOT NULL
          AND c.last_inbound_at <= NOW() - ($2 * INTERVAL '1 minute')
          AND c.last_inbound_at >= NOW() - ($3 * INTERVAL '1 minute')
+         ${skipWhatsApp}
          AND NOT EXISTS (
            SELECT 1 FROM messages m
            WHERE m.conversation_id = c.id
