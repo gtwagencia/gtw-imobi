@@ -30,6 +30,8 @@ router.get('/', authenticate, workspaceContext, requirePermission('contacts'), a
       page:          parseInt(page,  10) || 1,
       limit:         Math.min(parseInt(limit, 10) || 50, 200),
     });
+    const isAdmin = req.workspaceRole === 'admin';
+    if (!isAdmin && result.data) result.data = result.data.map(svc.stripAdminFields);
     res.json(result);
   } catch (err) { next(err); }
 });
@@ -76,7 +78,8 @@ router.get('/:contactId', authenticate, workspaceContext, requirePermission('con
   try {
     const c = await svc.getById(req.params.contactId, req.params.workspaceId);
     if (!c) return res.status(404).json({ error: 'Contato não encontrado' });
-    res.json(c);
+    const isAdmin = req.workspaceRole === 'admin';
+    res.json(isAdmin ? c : svc.stripAdminFields(c));
   } catch (err) { next(err); }
 });
 
@@ -125,6 +128,18 @@ router.get('/:contactId/conversations', authenticate, workspaceContext, requireP
   try {
     const convs = await svc.listConversations(req.params.contactId, req.params.workspaceId);
     res.json(convs);
+  } catch (err) { next(err); }
+});
+
+// PATCH /contacts/:contactId/lead-profile — campos admin-only (lead_status, client_type, client_development_id)
+router.patch('/:contactId/lead-profile', authenticate, workspaceContext, requirePermission('contacts'), async (req, res, next) => {
+  try {
+    if (req.workspaceRole !== 'admin') {
+      return res.status(403).json({ error: 'Apenas administradores podem alterar o perfil do lead' });
+    }
+    const { leadStatus, clientType, clientDevelopmentId } = req.body;
+    const c = await svc.updateLeadProfile(req.params.contactId, req.params.workspaceId, { leadStatus, clientType, clientDevelopmentId });
+    res.json(c);
   } catch (err) { next(err); }
 });
 

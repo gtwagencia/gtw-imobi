@@ -55,10 +55,13 @@ router.get('/deals', authenticate, workspaceContext, requirePermission('kanban')
   } catch (err) { next(err); }
 });
 
-// GET /my-deals — deals atribuídos ao usuário logado, ordenados por etapa (visão mobile do corretor)
+// GET /my-deals — deals do corretor (ou todos se admin + ?all=true)
 router.get('/my-deals', authenticate, workspaceContext, requirePermission('kanban'), async (req, res, next) => {
   try {
-    const deals = await svc.listDeals(req.params.workspaceId, { assigneeId: req.user.sub });
+    const isAdmin    = req.workspaceRole === 'admin';
+    const showAll    = isAdmin && req.query.all === 'true';
+    const assigneeId = showAll ? undefined : req.user.sub;
+    const deals = await svc.listDeals(req.params.workspaceId, { assigneeId });
     deals.sort((a, b) => (a.stage_position - b.stage_position) || (new Date(a.created_at) - new Date(b.created_at)));
     res.json(deals);
   } catch (err) { next(err); }
@@ -118,6 +121,61 @@ router.put('/deals/:dealId', authenticate, workspaceContext, requirePermission('
 router.delete('/deals/:dealId', authenticate, workspaceContext, requirePermission('kanban'), async (req, res, next) => {
   try {
     await svc.removeDeal(req.params.dealId, req.params.workspaceId);
+    res.json({ ok: true });
+  } catch (err) { next(err); }
+});
+
+// ── Broker Notes ───────────────────────────────────────────────────────────
+
+router.get('/deals/:dealId/broker-notes', authenticate, workspaceContext, requirePermission('kanban'), async (req, res, next) => {
+  try {
+    const isAdmin = req.workspaceRole === 'admin';
+    res.json(await svc.getBrokerNotes(req.params.dealId, req.user.sub, isAdmin));
+  } catch (err) { next(err); }
+});
+
+router.post('/deals/:dealId/broker-notes', authenticate, workspaceContext, requirePermission('kanban'), async (req, res, next) => {
+  try {
+    const { content } = req.body;
+    if (!content?.trim()) return res.status(400).json({ error: 'content é obrigatório' });
+    const note = await svc.addBrokerNote(req.params.dealId, req.user.sub, content.trim());
+    res.status(201).json(note);
+  } catch (err) { next(err); }
+});
+
+router.delete('/deals/:dealId/broker-notes/:noteId', authenticate, workspaceContext, requirePermission('kanban'), async (req, res, next) => {
+  try {
+    const isAdmin = req.workspaceRole === 'admin';
+    await svc.deleteBrokerNote(req.params.noteId, req.user.sub, isAdmin);
+    res.json({ ok: true });
+  } catch (err) { next(err); }
+});
+
+// ── Offered Items ──────────────────────────────────────────────────────────
+
+router.get('/deals/:dealId/offered-items', authenticate, workspaceContext, requirePermission('kanban'), async (req, res, next) => {
+  try {
+    res.json(await svc.getOfferedItems(req.params.dealId));
+  } catch (err) { next(err); }
+});
+
+router.post('/deals/:dealId/offered-items', authenticate, workspaceContext, requirePermission('kanban'), async (req, res, next) => {
+  try {
+    const { propertyId, developmentId, notes } = req.body;
+    if (!propertyId && !developmentId) return res.status(400).json({ error: 'propertyId ou developmentId é obrigatório' });
+    const item = await svc.addOfferedItem(req.params.dealId, {
+      propertyId: propertyId || null,
+      developmentId: developmentId || null,
+      offeredBy: req.user.sub,
+      notes,
+    });
+    res.status(201).json(item);
+  } catch (err) { next(err); }
+});
+
+router.delete('/deals/:dealId/offered-items/:itemId', authenticate, workspaceContext, requirePermission('kanban'), async (req, res, next) => {
+  try {
+    await svc.deleteOfferedItem(req.params.itemId, req.params.dealId);
     res.json({ ok: true });
   } catch (err) { next(err); }
 });

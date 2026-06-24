@@ -327,9 +327,83 @@ async function moveToAttending(conversationId) {
   }
 }
 
+// ── Broker notes (privadas por corretor por deal) ──────────────────────────
+
+async function getBrokerNotes(dealId, brokerId, isAdmin) {
+  const r = await query(
+    `SELECT n.*, u.name AS broker_name, u.avatar_url AS broker_avatar
+     FROM deal_broker_notes n
+     JOIN users u ON u.id = n.broker_id
+     WHERE n.deal_id = $1 ${isAdmin ? '' : 'AND n.broker_id = $2'}
+     ORDER BY n.created_at ASC`,
+    isAdmin ? [dealId] : [dealId, brokerId]
+  );
+  return r.rows;
+}
+
+async function addBrokerNote(dealId, brokerId, content) {
+  const r = await query(
+    `INSERT INTO deal_broker_notes (deal_id, broker_id, content)
+     VALUES ($1, $2, $3) RETURNING *`,
+    [dealId, brokerId, content]
+  );
+  const u = await query('SELECT name, avatar_url FROM users WHERE id = $1', [brokerId]);
+  return { ...r.rows[0], broker_name: u.rows[0]?.name, broker_avatar: u.rows[0]?.avatar_url };
+}
+
+async function deleteBrokerNote(noteId, brokerId, isAdmin) {
+  const cond = isAdmin ? 'id = $1' : 'id = $1 AND broker_id = $2';
+  const params = isAdmin ? [noteId] : [noteId, brokerId];
+  const r = await query(`DELETE FROM deal_broker_notes WHERE ${cond} RETURNING id`, params);
+  if (!r.rows.length) throw Object.assign(new Error('Nota não encontrada ou sem permissão'), { status: 404 });
+}
+
+// ── Offered items (imóveis/empreendimentos apresentados ao lead) ────────────
+
+async function getOfferedItems(dealId) {
+  const r = await query(
+    `SELECT oi.*,
+            u.name                   AS offered_by_name,
+            p.code                   AS property_code,
+            p.title                  AS property_title,
+            (SELECT pm.url FROM property_media pm
+             WHERE pm.property_id = p.id AND pm.is_cover = true LIMIT 1) AS property_cover,
+            d.name                   AS development_name,
+            d.code                   AS development_code
+     FROM deal_offered_items oi
+     JOIN users u ON u.id = oi.offered_by
+     LEFT JOIN properties p ON p.id = oi.property_id
+     LEFT JOIN developments d ON d.id = oi.development_id
+     WHERE oi.deal_id = $1
+     ORDER BY oi.offered_at ASC`,
+    [dealId]
+  );
+  return r.rows;
+}
+
+async function addOfferedItem(dealId, { propertyId, developmentId, offeredBy, notes }) {
+  const r = await query(
+    `INSERT INTO deal_offered_items (deal_id, property_id, development_id, offered_by, notes)
+     VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+    [dealId, propertyId || null, developmentId || null, offeredBy, notes || null]
+  );
+  const items = await getOfferedItems(dealId);
+  return items.find(i => i.id === r.rows[0].id) || r.rows[0];
+}
+
+async function deleteOfferedItem(itemId, dealId) {
+  const r = await query(
+    'DELETE FROM deal_offered_items WHERE id = $1 AND deal_id = $2 RETURNING id',
+    [itemId, dealId]
+  );
+  if (!r.rows.length) throw Object.assign(new Error('Item não encontrado'), { status: 404 });
+}
+
 module.exports = {
   seedDefaultStages,
   listStages, createStage, updateStage, removeStage,
   listDeals, createDeal, createDealFromConversation, createSiteLead, updateDeal, removeDeal,
   getBoard, moveToAttending,
+  getBrokerNotes, addBrokerNote, deleteBrokerNote,
+  getOfferedItems, addOfferedItem, deleteOfferedItem,
 };

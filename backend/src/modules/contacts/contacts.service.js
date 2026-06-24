@@ -465,4 +465,33 @@ async function updateAiProfile(contactId, workspaceId, profilePatch) {
   return getById(contactId, workspaceId);
 }
 
-module.exports = { list, getById, create, update, remove, listConversations, csvImport, listDuplicates, mergeContacts, updateAiProfile };
+async function updateLeadProfile(contactId, workspaceId, { leadStatus, clientType, clientDevelopmentId }) {
+  const fields = []; const vals = []; let idx = 1;
+  if (leadStatus          !== undefined) { fields.push(`lead_status = $${idx++}`);            vals.push(leadStatus ?? null); }
+  if (clientType          !== undefined) { fields.push(`client_type = $${idx++}`);            vals.push(clientType ?? null); }
+  if (clientDevelopmentId !== undefined) { fields.push(`client_development_id = $${idx++}`); vals.push(clientDevelopmentId ?? null); }
+  if (!fields.length) throw Object.assign(new Error('Nenhum campo para atualizar'), { status: 400 });
+  vals.push(contactId, workspaceId);
+  const r = await query(
+    `UPDATE contacts SET ${fields.join(', ')}, updated_at = NOW()
+     WHERE id = $${idx} AND workspace_id = $${idx + 1} RETURNING *`,
+    vals
+  );
+  if (!r.rows.length) throw Object.assign(new Error('Contato não encontrado'), { status: 404 });
+  return r.rows[0];
+}
+
+const ADMIN_ONLY_FIELDS = ['lead_status', 'client_type', 'client_development_id'];
+
+function stripAdminFields(contact) {
+  if (!contact) return contact;
+  const out = { ...contact };
+  for (const f of ADMIN_ONLY_FIELDS) delete out[f];
+  return out;
+}
+
+module.exports = {
+  list, getById, create, update, remove, listConversations,
+  csvImport, listDuplicates, mergeContacts, updateAiProfile,
+  updateLeadProfile, stripAdminFields,
+};
