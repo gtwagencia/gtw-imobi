@@ -243,7 +243,7 @@ export default function OrgPage() {
         ) : undefined}
       />
 
-      <div className="flex-1 overflow-y-auto p-4 md:p-6 max-w-4xl">
+      <div className="flex-1 overflow-y-auto p-4 md:p-6">
 
         {/* Org info */}
         <div className="card p-5 mb-6 flex items-center gap-4">
