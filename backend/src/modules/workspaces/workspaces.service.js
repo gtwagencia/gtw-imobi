@@ -132,6 +132,7 @@ async function update(workspaceId, body) {
     npsInboxId:             'nps_inbox_id',
     npsMessageTemplate:     'nps_message_template',
     zapsignApiToken:        'zapsign_api_token',
+    restrictConversations:  'restrict_conversations',
   };
 
   const fields = [];

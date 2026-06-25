@@ -202,6 +202,40 @@ router.post('/mass-message', authenticate, workspaceContext, requirePermission('
   } catch (err) { next(err); }
 });
 
+// POST /contacts/:contactId/attempts — registra tentativa de contato (ligação/whatsapp/email)
+router.post('/:contactId/attempts', authenticate, workspaceContext, requirePermission('contacts'), async (req, res, next) => {
+  try {
+    const { channel, dealId } = req.body;
+    if (!['call', 'whatsapp', 'email'].includes(channel)) {
+      return res.status(400).json({ error: 'channel deve ser call, whatsapp ou email' });
+    }
+    const { query: dbQuery } = require('../../config/database');
+    const r = await dbQuery(
+      `INSERT INTO contact_attempts (workspace_id, contact_id, deal_id, broker_id, channel)
+       VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+      [req.params.workspaceId, req.params.contactId, dealId || null, req.userId, channel]
+    );
+    res.status(201).json(r.rows[0]);
+  } catch (err) { next(err); }
+});
+
+// GET /contacts/:contactId/attempts — histórico de tentativas de contato
+router.get('/:contactId/attempts', authenticate, workspaceContext, requirePermission('contacts'), async (req, res, next) => {
+  try {
+    const { query: dbQuery } = require('../../config/database');
+    const r = await dbQuery(
+      `SELECT ca.*, u.name AS broker_name
+       FROM contact_attempts ca
+       JOIN users u ON u.id = ca.broker_id
+       WHERE ca.contact_id = $1 AND ca.workspace_id = $2
+       ORDER BY ca.created_at DESC
+       LIMIT 100`,
+      [req.params.contactId, req.params.workspaceId]
+    );
+    res.json(r.rows);
+  } catch (err) { next(err); }
+});
+
 // POST /contacts/import — importação via CSV
 router.post('/import', authenticate, workspaceContext, requirePermission('contacts'), upload.single('file'), async (req, res, next) => {
   try {

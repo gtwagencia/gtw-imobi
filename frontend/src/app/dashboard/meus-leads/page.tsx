@@ -9,7 +9,7 @@ import type { Deal } from '@/types';
 import { DragDropContext, Droppable, Draggable, type DropResult } from '@hello-pangea/dnd';
 import {
   MessageSquare, Phone, ChevronRight, Building2, Clock, AlertCircle,
-  User, ListChecks, X, Trash2, Send, Home, Plus,
+  User, ListChecks, X, Trash2, Send, Home, Plus, Mail, PhoneCall, History,
 } from 'lucide-react';
 import clsx from 'clsx';
 import { formatDistanceToNow, format } from 'date-fns';
@@ -64,6 +64,13 @@ interface ContactDetail {
 interface Development {
   id: string;
   name: string;
+}
+
+interface ContactAttempt {
+  id: string;
+  channel: 'call' | 'whatsapp' | 'email';
+  broker_name: string;
+  created_at: string;
 }
 
 interface PropertyResult {
@@ -153,17 +160,19 @@ function DealCard({ deal, onClick }: { deal: Deal; onClick: () => void }) {
 
 // ─── Lead Modal ─────────────────────────────────────────────────────────────
 
-type ModalTab = 'overview' | 'notes' | 'offered' | 'lead-profile';
+type ModalTab = 'overview' | 'notes' | 'offered' | 'lead-profile' | 'contact-history';
 
 function LeadModal({
   deal,
   isAdmin,
   workspaceId,
+  restrictConversations,
   onClose,
 }: {
   deal: Deal;
   isAdmin: boolean;
   workspaceId: string;
+  restrictConversations: boolean;
   onClose: () => void;
 }) {
   const router = useRouter();
@@ -197,6 +206,10 @@ function LeadModal({
   const [profileForm, setProfileForm] = useState({ lead_status: '', client_type: '', client_development_id: '' });
   const [savingProfile, setSavingProfile] = useState(false);
   const [profileSaved, setProfileSaved] = useState(false);
+
+  // Contact attempts history
+  const [attempts, setAttempts] = useState<ContactAttempt[]>([]);
+  const [loadingAttempts, setLoadingAttempts] = useState(false);
 
   // Load contact on open
   useEffect(() => {
@@ -235,7 +248,15 @@ function LeadModal({
       .finally(() => setLoadingOffered(false));
   }, [deal.id, workspaceId]);
 
-  useEffect(() => { loadNotes(); loadOffered(); }, [loadNotes, loadOffered]);
+  const loadAttempts = useCallback(() => {
+    setLoadingAttempts(true);
+    api.get<ContactAttempt[]>(`/workspaces/${workspaceId}/contacts/${deal.contact_id}/attempts`)
+      .then(r => setAttempts(r.data))
+      .catch(() => {})
+      .finally(() => setLoadingAttempts(false));
+  }, [deal.contact_id, workspaceId]);
+
+  useEffect(() => { loadNotes(); loadOffered(); loadAttempts(); }, [loadNotes, loadOffered, loadAttempts]);
 
   // Property search (debounced)
   useEffect(() => {
@@ -284,6 +305,21 @@ function LeadModal({
     setOffered(prev => prev.filter(i => i.id !== id));
   }
 
+  async function handleContactAttempt(channel: 'call' | 'whatsapp' | 'email') {
+    // Registra a tentativa no backend (não bloqueia a ação)
+    api.post(`/workspaces/${workspaceId}/contacts/${deal.contact_id}/attempts`, {
+      channel, dealId: deal.id,
+    }).then(() => loadAttempts()).catch(() => {});
+
+    // Abre o canal de contato nativo
+    const digits = deal.contact_phone?.replace(/\D/g, '') || contact?.phone?.replace(/\D/g, '') || '';
+    const phone  = deal.contact_phone || contact?.phone || '';
+    const email  = contact?.email || '';
+    if (channel === 'call' && phone)       window.open(`tel:${phone}`, '_self');
+    if (channel === 'whatsapp' && digits)  window.open(`https://wa.me/${digits}`, '_blank');
+    if (channel === 'email' && email)      window.open(`mailto:${email}`, '_self');
+  }
+
   async function handleSaveProfile() {
     setSavingProfile(true);
     try {
@@ -301,10 +337,9 @@ function LeadModal({
     { key: 'overview', label: 'Visão Geral' },
     { key: 'notes', label: `Notas${notes.length ? ` (${notes.length})` : ''}` },
     { key: 'offered', label: `Apresentados${offered.length ? ` (${offered.length})` : ''}` },
+    { key: 'contact-history', label: `Contatos${attempts.length ? ` (${attempts.length})` : ''}` },
     ...(isAdmin ? [{ key: 'lead-profile' as ModalTab, label: 'Perfil do Lead' }] : []),
   ];
-
-  const onlyDigits = deal.contact_phone?.replace(/\D/g, '') || '';
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-0 sm:p-4" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
@@ -356,21 +391,40 @@ function LeadModal({
           {tab === 'overview' && (
             <div className="space-y-4">
               {/* Quick actions */}
-              <div className="flex gap-2">
-                {onlyDigits && (
-                  <a href={`https://wa.me/${onlyDigits}`} target="_blank" rel="noopener noreferrer"
-                    className="btn-secondary text-xs flex items-center gap-1.5 flex-1 justify-center">
+              <div className="flex gap-2 flex-wrap">
+                {(deal.contact_phone || contact?.phone) && (
+                  <button
+                    onClick={() => handleContactAttempt('call')}
+                    className="btn-secondary text-xs flex items-center gap-1.5 flex-1 justify-center min-w-[80px]"
+                    title="Registra ligação e abre discagem"
+                  >
+                    <PhoneCall className="w-4 h-4" /> Ligar
+                  </button>
+                )}
+                {(deal.contact_phone || contact?.phone) && (
+                  <button
+                    onClick={() => handleContactAttempt('whatsapp')}
+                    className="btn-secondary text-xs flex items-center gap-1.5 flex-1 justify-center min-w-[100px]"
+                    title="Registra contato e abre WhatsApp"
+                  >
                     <MessageSquare className="w-4 h-4" /> WhatsApp
-                  </a>
+                  </button>
                 )}
-                {deal.contact_phone && (
-                  <a href={`tel:${deal.contact_phone}`} className="btn-secondary text-xs flex items-center gap-1.5 px-3" title="Ligar">
-                    <Phone className="w-4 h-4" />
-                  </a>
+                {contact?.email && (
+                  <button
+                    onClick={() => handleContactAttempt('email')}
+                    className="btn-secondary text-xs flex items-center gap-1.5 flex-1 justify-center min-w-[80px]"
+                    title="Registra contato e abre e-mail"
+                  >
+                    <Mail className="w-4 h-4" /> E-mail
+                  </button>
                 )}
-                {deal.conversation_id && (
-                  <button onClick={() => router.push(`/dashboard/conversations?id=${deal.conversation_id}`)}
-                    className="btn-secondary text-xs flex items-center gap-1.5 px-3" title="Abrir conversa">
+                {deal.conversation_id && (!restrictConversations || isAdmin) && (
+                  <button
+                    onClick={() => router.push(`/dashboard/conversations?id=${deal.conversation_id}`)}
+                    className="btn-secondary text-xs flex items-center gap-1.5 px-3"
+                    title="Abrir conversa"
+                  >
                     <ChevronRight className="w-4 h-4" />
                   </button>
                 )}
@@ -569,6 +623,45 @@ function LeadModal({
                     </div>
                   </div>
                 ))
+              )}
+            </div>
+          )}
+
+          {/* ── Histórico de Contatos ── */}
+          {tab === 'contact-history' && (
+            <div className="space-y-3">
+              <p className="text-xs text-gray-500">
+                Registra automaticamente cada vez que um corretor clica em Ligar, WhatsApp ou E-mail.
+              </p>
+              {loadingAttempts ? (
+                <div className="text-sm text-gray-400 text-center py-6">Carregando...</div>
+              ) : attempts.length === 0 ? (
+                <div className="flex flex-col items-center py-10 text-gray-300 gap-2">
+                  <History className="w-8 h-8" />
+                  <span className="text-sm text-gray-400">Nenhuma tentativa registrada ainda.</span>
+                  <span className="text-xs text-gray-400">Use os botões Ligar, WhatsApp ou E-mail para registrar.</span>
+                </div>
+              ) : (
+                attempts.map(a => {
+                  const channelLabel = { call: 'Ligação', whatsapp: 'WhatsApp', email: 'E-mail' }[a.channel];
+                  const channelIcon  = a.channel === 'call'
+                    ? <PhoneCall className="w-3.5 h-3.5 text-green-600" />
+                    : a.channel === 'whatsapp'
+                    ? <MessageSquare className="w-3.5 h-3.5 text-green-500" />
+                    : <Mail className="w-3.5 h-3.5 text-blue-500" />;
+                  return (
+                    <div key={a.id} className="flex items-center gap-3 rounded-lg border border-gray-100 bg-gray-50 px-3 py-2.5">
+                      {channelIcon}
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm text-gray-800 font-medium">{channelLabel}</div>
+                        <div className="text-xs text-gray-500">{a.broker_name}</div>
+                      </div>
+                      <div className="text-xs text-gray-400 whitespace-nowrap">
+                        {format(new Date(a.created_at), "d 'de' MMM, HH:mm", { locale: ptBR })}
+                      </div>
+                    </div>
+                  );
+                })
               )}
             </div>
           )}
@@ -772,6 +865,7 @@ export default function MeusLeadsPage() {
           deal={selectedDeal}
           isAdmin={isAdmin}
           workspaceId={currentWorkspace.id}
+          restrictConversations={currentWorkspace.restrict_conversations ?? false}
           onClose={() => setSelectedDeal(null)}
         />
       )}

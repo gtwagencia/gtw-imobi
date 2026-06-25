@@ -164,6 +164,8 @@ export default function Sidebar() {
   // Itens mapeados em NAV_PERMISSION_KEY seguem o perfil de permissões.
   function canShow(item: { href: string; adminOnly: boolean; platformAdminOnly?: boolean }) {
     if (item.platformAdminOnly) return isPlatformAdmin;
+    // Quando restrict_conversations está ativo, apenas admins veem a aba de conversas
+    if (item.href === '/dashboard/conversations' && currentWorkspace?.restrict_conversations && !isAdmin) return false;
     if (isAdmin) return true;
     const permKey = NAV_PERMISSION_KEY[item.href];
     if (permKey) return !!permissions?.[permKey];

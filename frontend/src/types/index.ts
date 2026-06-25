@@ -82,6 +82,7 @@ export interface Workspace {
   custom_domain_status: 'none' | 'pending' | 'verified' | 'error';
   custom_domain_verification_token: string | null;
   enabled_modules: string[];
+  restrict_conversations: boolean;
   created_at: string;
   member_count?: number;
   inbox_count?: number;

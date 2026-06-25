@@ -99,6 +99,7 @@ export default function SettingsPage() {
     metaAccessToken:      '',
     metaConversionsToken: '',
     followUpEnabled:      false,
+    restrictConversations: false,
     aiAnalysisEnabled:         false,
     aiAnalysisIntervalMinutes: 60,
     ticketStorageQuotaMb:      5120,
@@ -145,6 +146,7 @@ export default function SettingsPage() {
         metaAccessToken:      '',
         metaConversionsToken: '',
         followUpEnabled:      currentWorkspace.follow_up_enabled ?? false,
+        restrictConversations: currentWorkspace.restrict_conversations ?? false,
         aiAnalysisEnabled:         currentWorkspace.ai_analysis_enabled ?? false,
         aiAnalysisIntervalMinutes: currentWorkspace.ai_analysis_interval_minutes ?? 60,
         ticketStorageQuotaMb:      currentWorkspace.ticket_storage_quota_mb ?? 5120,
@@ -312,6 +314,7 @@ export default function SettingsPage() {
         { id: 'business-hours', icon: <Clock className="w-4 h-4" />,        text: 'Horário Comercial' },
         { id: 'nps',            icon: <Star className="w-4 h-4" />,         text: 'NPS pós-visita' },
         { id: 'alerts',         icon: <AlertTriangle className="w-4 h-4" />, text: 'Alertas' },
+        { id: 'access-mode',    icon: <MessageSquare className="w-4 h-4" />,text: 'Acesso dos Corretores' },
         { id: 'commission',     icon: <Percent className="w-4 h-4" />,      text: 'Comissionamento' },
       ],
     },
@@ -1047,6 +1050,35 @@ export default function SettingsPage() {
                 </p>
               </div>
             </div>
+          </div>
+
+          {/* ── Modo de acesso: conversas ou só leads ──────────────── */}
+          <div id="access-mode" className="card p-6 scroll-mt-4">
+            <h2 className="font-semibold text-gray-900 mb-1 flex items-center gap-2">
+              <MessageSquare className="w-4 h-4 text-brand-600" />
+              Modo de Acesso dos Corretores
+            </h2>
+            <p className="text-sm text-gray-500 mb-4">
+              Controla se corretores enxergam a aba de Conversas ou trabalham apenas pelo Meus Leads.
+              Administradores sempre têm acesso completo.
+            </p>
+
+            <label className="flex items-start gap-3 cursor-pointer">
+              <div className="relative flex-shrink-0 mt-0.5">
+                <input type="checkbox" className="sr-only" checked={form.restrictConversations}
+                  onChange={(e) => setForm({ ...form, restrictConversations: e.target.checked })} />
+                <div className={clsx('w-10 h-5 rounded-full transition-colors', form.restrictConversations ? 'bg-brand-500' : 'bg-gray-200')} />
+                <div className={clsx('absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform', form.restrictConversations && 'translate-x-5')} />
+              </div>
+              <div>
+                <div className="text-sm font-medium text-gray-900">Restringir conversas a administradores</div>
+                <div className="text-xs text-gray-500 mt-0.5">
+                  Quando ativo, corretores não veem a aba Conversas — apenas o Meus Leads com botões
+                  de ligação, WhatsApp e e-mail. Cada contato feito pelo corretor é registrado no histórico.
+                  Útil para operações onde o contato inicial é feito fora do chat.
+                </div>
+              </div>
+            </label>
           </div>
 
           {/* ── Comissionamento de corretores parceiros ────────────── */}
