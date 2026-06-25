@@ -63,9 +63,11 @@ async function runFollowUp(trigger) {
       : '';
 
     const convRes = await query(
-      `SELECT c.id, c.workspace_id, c.assignee_id
+      `SELECT c.id, c.workspace_id, c.assignee_id,
+              i.chatbot_test_number, ct.phone AS contact_phone
        FROM conversations c
-       JOIN inboxes i ON i.id = c.inbox_id
+       JOIN inboxes i   ON i.id  = c.inbox_id
+       JOIN contacts ct ON ct.id = c.contact_id
        WHERE c.workspace_id = $1
          AND c.status = 'open'
          AND c.last_inbound_at IS NOT NULL
@@ -91,6 +93,21 @@ async function runFollowUp(trigger) {
     logger.info(`Follow-up ${trigger}: found ${convRes.rows.length} conversations`, { workspaceId: ws.id });
 
     for (const conv of convRes.rows) {
+      // Respeita chatbot_test_number: se a inbox tem lista de números de teste,
+      // só envia follow-up para quem está nessa lista.
+      if (conv.chatbot_test_number) {
+        const testNumbers = conv.chatbot_test_number.trim().split(',')
+          .map(n => n.trim().replace(/\D/g, '')).filter(Boolean);
+        if (testNumbers.length) {
+          const phoneStr = String(conv.contact_phone || '');
+          const allowed  = testNumbers.some(n => phoneStr === n || phoneStr.endsWith(n) || n.endsWith(phoneStr));
+          if (!allowed) {
+            logger.debug('Follow-up skipped: número não está na lista de teste', { conversationId: conv.id });
+            continue;
+          }
+        }
+      }
+
       try {
         const provider    = ws.ai_provider || 'anthropic';
         const apiKey      = provider === 'openai' ? ws.openai_api_key : ws.anthropic_api_key;
