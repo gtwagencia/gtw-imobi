@@ -86,6 +86,10 @@
   }
 }
 
+/* Oculta scrollbar mantendo scroll funcional (usado em listas mobile) */
+.scrollbar-none { -ms-overflow-style: none; scrollbar-width: none; }
+.scrollbar-none::-webkit-scrollbar { display: none; }
+
 /* Toast slide-in animation */
 @keyframes toast-in {
   from { opacity: 0; transform: translateX(110%); }

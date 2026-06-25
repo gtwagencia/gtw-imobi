@@ -167,12 +167,16 @@ function LeadModal({
   isAdmin,
   workspaceId,
   restrictConversations,
+  stages,
+  onStageChange,
   onClose,
 }: {
   deal: Deal;
   isAdmin: boolean;
   workspaceId: string;
   restrictConversations: boolean;
+  stages: KanbanStage[];
+  onStageChange: (dealId: string, stageId: string) => void;
   onClose: () => void;
 }) {
   const router = useRouter();
@@ -390,6 +394,22 @@ function LeadModal({
           {/* ── Visão Geral ── */}
           {tab === 'overview' && (
             <div className="space-y-4">
+              {/* Stage selector (move lead) */}
+              {stages.length > 1 && (
+                <div>
+                  <label className="block text-xs font-semibold text-gray-500 mb-1.5">Etapa do funil</label>
+                  <select
+                    value={deal.stage_id}
+                    onChange={e => onStageChange(deal.id, e.target.value)}
+                    className="input w-full text-sm"
+                  >
+                    {stages.map(s => (
+                      <option key={s.id} value={s.id}>{s.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
               {/* Quick actions */}
               <div className="flex gap-2 flex-wrap">
                 {(deal.contact_phone || contact?.phone) && (
@@ -726,6 +746,7 @@ export default function MeusLeadsPage() {
   const [deals, setDeals] = useState<Deal[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedDeal, setSelectedDeal] = useState<Deal | null>(null);
+  const [activeMobileStage, setActiveMobileStage] = useState('');
 
   const isAdmin = !!(
     user?.is_super_admin ||
@@ -751,6 +772,11 @@ export default function MeusLeadsPage() {
 
   const stages = useMemo(() => derivedStages(deals), [deals]);
 
+  // Inicializa stage ativo do mobile quando stages carregam
+  useEffect(() => {
+    if (stages.length && !activeMobileStage) setActiveMobileStage(stages[0].id);
+  }, [stages, activeMobileStage]);
+
   const dealsByStage = useMemo(() => {
     const map: Record<string, Deal[]> = {};
     for (const s of stages) map[s.id] = [];
@@ -763,27 +789,35 @@ export default function MeusLeadsPage() {
     return map;
   }, [deals, stages]);
 
-  async function handleDragEnd(result: DropResult) {
-    if (!result.destination || !currentWorkspace) return;
-    const { draggableId, destination } = result;
-    const newStageId = destination.droppableId;
-    const deal = deals.find(d => d.id === draggableId);
+  // Mover lead de stage (usado pelo DnD e pelo select no modal)
+  async function handleStageChange(dealId: string, newStageId: string) {
+    if (!currentWorkspace) return;
+    const deal = deals.find(d => d.id === dealId);
     if (!deal || deal.stage_id === newStageId) return;
-
     const targetStage = stages.find(s => s.id === newStageId);
     if (!targetStage) return;
 
     setDeals(prev => prev.map(d =>
-      d.id === draggableId
+      d.id === dealId
         ? { ...d, stage_id: newStageId, stage_name: targetStage.name, stage_color: targetStage.color, stage_position: targetStage.position }
         : d
     ));
+    // Atualiza o deal selecionado se for ele
+    setSelectedDeal(prev => prev?.id === dealId
+      ? { ...prev, stage_id: newStageId, stage_name: targetStage.name, stage_color: targetStage.color, stage_position: targetStage.position }
+      : prev
+    );
 
     try {
-      await api.put(`/workspaces/${currentWorkspace.id}/kanban/deals/${draggableId}`, { stageId: newStageId });
+      await api.put(`/workspaces/${currentWorkspace.id}/kanban/deals/${dealId}`, { stageId: newStageId });
     } catch {
       load();
     }
+  }
+
+  async function handleDragEnd(result: DropResult) {
+    if (!result.destination) return;
+    await handleStageChange(result.draggableId, result.destination.droppableId);
   }
 
   if (!currentWorkspace) {
@@ -794,6 +828,8 @@ export default function MeusLeadsPage() {
       </>
     );
   }
+
+  const mobileStageDeals = dealsByStage[activeMobileStage] || [];
 
   return (
     <>
@@ -809,55 +845,98 @@ export default function MeusLeadsPage() {
           <p className="text-sm">Nenhum lead encontrado.</p>
         </div>
       ) : (
-        <DragDropContext onDragEnd={handleDragEnd}>
-          <div className="flex-1 overflow-x-auto p-4 pb-6">
-            <div className="flex gap-4 h-full" style={{ minWidth: `${Math.max(stages.length * 272, 272)}px` }}>
-              {stages.map(stage => {
-                const stageDeals = dealsByStage[stage.id] || [];
+        <>
+          {/* ── Mobile: lista vertical com stage tabs ── */}
+          <div className="md:hidden flex-1 flex flex-col min-h-0">
+            {/* Stage pills */}
+            <div className="flex gap-2 overflow-x-auto px-4 py-3 border-b border-gray-100 flex-shrink-0 scrollbar-none">
+              {stages.map(s => {
+                const count = dealsByStage[s.id]?.length || 0;
+                const active = activeMobileStage === s.id;
                 return (
-                  <div key={stage.id} className="flex flex-col w-64 flex-shrink-0">
-                    <div className="flex items-center gap-2 mb-3 px-1">
-                      <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: stage.color }} />
-                      <span className="text-sm font-semibold text-gray-700 truncate flex-1">{stage.name}</span>
-                      <span className="text-xs text-gray-400 font-medium tabular-nums">{stageDeals.length}</span>
-                    </div>
-
-                    <Droppable droppableId={stage.id}>
-                      {(provided, snapshot) => (
-                        <div
-                          ref={provided.innerRef}
-                          {...provided.droppableProps}
-                          className={clsx(
-                            'flex-1 rounded-xl p-2 space-y-2 transition-colors min-h-24 overflow-y-auto',
-                            snapshot.isDraggingOver
-                              ? 'bg-brand-50 border-2 border-dashed border-brand-200'
-                              : 'bg-gray-100/60',
-                          )}
-                        >
-                          {stageDeals.map((deal, index) => (
-                            <Draggable key={deal.id} draggableId={deal.id} index={index}>
-                              {(prov, snap) => (
-                                <div
-                                  ref={prov.innerRef}
-                                  {...prov.draggableProps}
-                                  {...prov.dragHandleProps}
-                                  className={clsx(snap.isDragging && 'opacity-80 rotate-1 shadow-lg')}
-                                >
-                                  <DealCard deal={deal} onClick={() => setSelectedDeal(deal)} />
-                                </div>
-                              )}
-                            </Draggable>
-                          ))}
-                          {provided.placeholder}
-                        </div>
-                      )}
-                    </Droppable>
-                  </div>
+                  <button
+                    key={s.id}
+                    onClick={() => setActiveMobileStage(s.id)}
+                    className={clsx(
+                      'flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all flex-shrink-0',
+                      active ? 'text-white shadow-sm' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    )}
+                    style={active ? { backgroundColor: s.color } : {}}
+                  >
+                    <span>{s.name}</span>
+                    <span className={clsx('font-bold tabular-nums', active ? 'text-white/80' : 'text-gray-400')}>
+                      {count}
+                    </span>
+                  </button>
                 );
               })}
             </div>
+
+            {/* Cards list */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-2">
+              {mobileStageDeals.length === 0 ? (
+                <div className="text-center text-sm text-gray-400 py-16">
+                  Nenhum lead nesta etapa.
+                </div>
+              ) : (
+                mobileStageDeals.map(deal => (
+                  <DealCard key={deal.id} deal={deal} onClick={() => setSelectedDeal(deal)} />
+                ))
+              )}
+            </div>
           </div>
-        </DragDropContext>
+
+          {/* ── Desktop: kanban com drag-and-drop ── */}
+          <DragDropContext onDragEnd={handleDragEnd}>
+            <div className="hidden md:flex flex-1 overflow-x-auto p-4 pb-6">
+              <div className="flex gap-4 h-full" style={{ minWidth: `${Math.max(stages.length * 272, 272)}px` }}>
+                {stages.map(stage => {
+                  const stageDeals = dealsByStage[stage.id] || [];
+                  return (
+                    <div key={stage.id} className="flex flex-col w-64 flex-shrink-0">
+                      <div className="flex items-center gap-2 mb-3 px-1">
+                        <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: stage.color }} />
+                        <span className="text-sm font-semibold text-gray-700 truncate flex-1">{stage.name}</span>
+                        <span className="text-xs text-gray-400 font-medium tabular-nums">{stageDeals.length}</span>
+                      </div>
+
+                      <Droppable droppableId={stage.id}>
+                        {(provided, snapshot) => (
+                          <div
+                            ref={provided.innerRef}
+                            {...provided.droppableProps}
+                            className={clsx(
+                              'flex-1 rounded-xl p-2 space-y-2 transition-colors min-h-24 overflow-y-auto',
+                              snapshot.isDraggingOver
+                                ? 'bg-brand-50 border-2 border-dashed border-brand-200'
+                                : 'bg-gray-100/60',
+                            )}
+                          >
+                            {stageDeals.map((deal, index) => (
+                              <Draggable key={deal.id} draggableId={deal.id} index={index}>
+                                {(prov, snap) => (
+                                  <div
+                                    ref={prov.innerRef}
+                                    {...prov.draggableProps}
+                                    {...prov.dragHandleProps}
+                                    className={clsx(snap.isDragging && 'opacity-80 rotate-1 shadow-lg')}
+                                  >
+                                    <DealCard deal={deal} onClick={() => setSelectedDeal(deal)} />
+                                  </div>
+                                )}
+                              </Draggable>
+                            ))}
+                            {provided.placeholder}
+                          </div>
+                        )}
+                      </Droppable>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </DragDropContext>
+        </>
       )}
 
       {selectedDeal && (
@@ -866,6 +945,8 @@ export default function MeusLeadsPage() {
           isAdmin={isAdmin}
           workspaceId={currentWorkspace.id}
           restrictConversations={currentWorkspace.restrict_conversations ?? false}
+          stages={stages}
+          onStageChange={handleStageChange}
           onClose={() => setSelectedDeal(null)}
         />
       )}
