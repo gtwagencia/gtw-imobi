@@ -336,7 +336,7 @@ export default function SettingsPage() {
         <div className="flex gap-8 px-4 md:px-8 py-6 max-w-7xl mx-auto">
 
           {/* ── Sidebar nav ─────────────────────────────────────────── */}
-          <aside className="hidden xl:flex flex-col w-52 flex-shrink-0">
+          <aside className="hidden 2xl:flex flex-col w-52 flex-shrink-0">
             <nav className="sticky top-6 space-y-6">
               {navGroups.map((group) => {
                 const visible = group.items.filter(i => i.show !== false);
