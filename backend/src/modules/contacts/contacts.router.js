@@ -203,7 +203,8 @@ router.post('/mass-message', authenticate, workspaceContext, requirePermission('
 });
 
 // POST /contacts/:contactId/attempts — registra tentativa de contato (ligação/whatsapp/email)
-router.post('/:contactId/attempts', authenticate, workspaceContext, requirePermission('contacts'), async (req, res, next) => {
+// Não exige permissão contacts — qualquer membro do workspace pode registrar a própria tentativa
+router.post('/:contactId/attempts', authenticate, workspaceContext, async (req, res, next) => {
   try {
     const { channel, dealId } = req.body;
     if (!['call', 'whatsapp', 'email'].includes(channel)) {
@@ -213,14 +214,14 @@ router.post('/:contactId/attempts', authenticate, workspaceContext, requirePermi
     const r = await dbQuery(
       `INSERT INTO contact_attempts (workspace_id, contact_id, deal_id, broker_id, channel)
        VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-      [req.params.workspaceId, req.params.contactId, dealId || null, req.userId, channel]
+      [req.params.workspaceId, req.params.contactId, dealId || null, req.user.sub, channel]
     );
     res.status(201).json(r.rows[0]);
   } catch (err) { next(err); }
 });
 
 // GET /contacts/:contactId/attempts — histórico de tentativas de contato
-router.get('/:contactId/attempts', authenticate, workspaceContext, requirePermission('contacts'), async (req, res, next) => {
+router.get('/:contactId/attempts', authenticate, workspaceContext, async (req, res, next) => {
   try {
     const { query: dbQuery } = require('../../config/database');
     const r = await dbQuery(
