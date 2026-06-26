@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/store/auth';
 import Header from '@/components/layout/Header';
 import api from '@/lib/api';
@@ -22,12 +23,21 @@ interface Stats {
 const currencyFmt = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
 
 export default function DashboardPage() {
+  const router = useRouter();
   const { currentWorkspace, user } = useAuth();
   const [stats,   setStats]   = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const isAdmin       = !currentWorkspace?.role || currentWorkspace.role === 'admin';
   const isConstrutora = currentWorkspace?.business_model === 'construtora';
   const firstName     = user?.name?.split(' ')[0] ?? '';
+
+  // Corretores sem acesso a conversas vão direto para Meus Leads
+  useEffect(() => {
+    if (currentWorkspace?.restrict_conversations && !isAdmin) {
+      router.replace('/dashboard/meus-leads');
+    }
+  }, [currentWorkspace, isAdmin, router]);
 
   useEffect(() => {
     if (!currentWorkspace) { setLoading(false); return; }

@@ -87,6 +87,23 @@ async function sendToWorkspace(workspaceId, payload, { excludeUserId } = {}) {
   await Promise.all(r.rows.map((row) => sendToUser(row.user_id, payload)));
 }
 
+// Envia apenas para admins/owners do workspace.
+// Usado em notificações de conversas — brokers só recebem se a conversa
+// estiver atribuída a eles (via sendToUser separado no chamador).
+async function sendToWorkspaceAdmins(workspaceId, payload) {
+  if (!isConfigured()) return;
+
+  const r = await query(
+    `SELECT DISTINCT ps.user_id
+     FROM push_subscriptions ps
+     JOIN workspace_memberships wm ON wm.user_id = ps.user_id
+     WHERE wm.workspace_id = $1 AND wm.role IN ('admin', 'owner')`,
+    [workspaceId]
+  );
+
+  await Promise.all(r.rows.map((row) => sendToUser(row.user_id, payload)));
+}
+
 module.exports = {
   isConfigured,
   getPublicKey,
@@ -94,4 +111,5 @@ module.exports = {
   unsubscribe,
   sendToUser,
   sendToWorkspace,
+  sendToWorkspaceAdmins,
 };

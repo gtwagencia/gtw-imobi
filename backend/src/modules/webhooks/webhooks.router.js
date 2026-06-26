@@ -1003,25 +1003,25 @@ router.post('/evolution/:inboxId', async (req, res) => {
         }
 
         // ── Broadcast ─────────────────────────────────────────────────
-        if (created) {
-          io?.to(`ws:${inbox.workspace_id}`).emit('conversation:new', {
-            conversationId: conversation.id, contactName: contact.name, inboxId: inbox.id,
-            assignee_id: conversation.assignee_id || null,
-          });
-          pushSvc.sendToWorkspace(inbox.workspace_id, {
-            title: 'Novo lead',
-            body:  `${contact.name} iniciou uma conversa`,
-            url:   `/dashboard/conversations?id=${conversation.id}`,
-            tag:   `conv-${conversation.id}`,
-          }).catch(err => logger.warn('Push notification failed', { err: err.message }));
-        } else {
-          const pushBody = content ? (content.length > 120 ? content.slice(0, 117) + '…' : content) : 'Nova mensagem';
-          pushSvc.sendToWorkspace(inbox.workspace_id, {
-            title: contact.name,
-            body:  pushBody,
-            url:   `/dashboard/conversations?id=${conversation.id}`,
-            tag:   `conv-${conversation.id}`,
-          }).catch(err => logger.warn('Push notification failed (msg)', { err: err.message }));
+        {
+          const pushPayload = created
+            ? { title: 'Novo lead', body: `${contact.name} iniciou uma conversa`, url: `/dashboard/conversations?id=${conversation.id}`, tag: `conv-${conversation.id}` }
+            : { title: contact.name, body: content ? (content.length > 120 ? content.slice(0, 117) + '…' : content) : 'Nova mensagem', url: `/dashboard/conversations?id=${conversation.id}`, tag: `conv-${conversation.id}` };
+
+          // Admins sempre recebem; brokers só recebem se a conversa for atribuída a eles
+          pushSvc.sendToWorkspaceAdmins(inbox.workspace_id, pushPayload)
+            .catch(err => logger.warn('Push admins failed', { err: err.message }));
+          if (conversation.assignee_id) {
+            pushSvc.sendToUser(conversation.assignee_id, pushPayload)
+              .catch(err => logger.warn('Push assignee failed', { err: err.message }));
+          }
+
+          if (created) {
+            io?.to(`ws:${inbox.workspace_id}`).emit('conversation:new', {
+              conversationId: conversation.id, contactName: contact.name, inboxId: inbox.id,
+              assignee_id: conversation.assignee_id || null,
+            });
+          }
         }
         io?.to(`conv:${conversation.id}`).emit('message:new', { ...message, contact_name: contact.name, assignee_id: conversation.assignee_id });
         io?.to(`ws:${inbox.workspace_id}`).emit('message:new', { ...message, contact_name: contact.name, assignee_id: conversation.assignee_id });
@@ -1230,20 +1230,20 @@ router.post('/waba', async (req, res) => {
           conversationId: conversation.id, contactName: contact.name, inboxId: inbox.id,
           assignee_id: conversation.assignee_id || null,
         });
-        pushSvc.sendToWorkspace(inbox.workspace_id, {
-          title: 'Novo lead',
-          body:  `${contact.name} iniciou uma conversa`,
-          url:   `/dashboard/conversations?id=${conversation.id}`,
-          tag:   `conv-${conversation.id}`,
-        }).catch(err => logger.warn('Push notification failed (WABA)', { err: err.message }));
-      } else {
-        const wabaPushBody = content ? (content.length > 120 ? content.slice(0, 117) + '…' : content) : 'Nova mensagem';
-        pushSvc.sendToWorkspace(inbox.workspace_id, {
-          title: contact.name,
-          body:  wabaPushBody,
-          url:   `/dashboard/conversations?id=${conversation.id}`,
-          tag:   `conv-${conversation.id}`,
-        }).catch(err => logger.warn('Push notification failed (WABA msg)', { err: err.message }));
+      }
+
+      {
+        const wabaPushPayload = created
+          ? { title: 'Novo lead', body: `${contact.name} iniciou uma conversa`, url: `/dashboard/conversations?id=${conversation.id}`, tag: `conv-${conversation.id}` }
+          : { title: contact.name, body: content ? (content.length > 120 ? content.slice(0, 117) + '…' : content) : 'Nova mensagem', url: `/dashboard/conversations?id=${conversation.id}`, tag: `conv-${conversation.id}` };
+
+        // Admins sempre recebem; brokers só recebem se a conversa for atribuída a eles
+        pushSvc.sendToWorkspaceAdmins(inbox.workspace_id, wabaPushPayload)
+          .catch(err => logger.warn('Push admins failed (WABA)', { err: err.message }));
+        if (conversation.assignee_id) {
+          pushSvc.sendToUser(conversation.assignee_id, wabaPushPayload)
+            .catch(err => logger.warn('Push assignee failed (WABA)', { err: err.message }));
+        }
       }
 
       const wabaTestNumbers = inbox.chatbot_test_number
