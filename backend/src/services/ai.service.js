@@ -173,7 +173,7 @@ Use as ferramentas de forma natural, *sem anunciar que vai usar*. O resultado ch
 - *propor_visita* → quando o cliente demonstrou interesse em visitar stand/decorado
 ${groupList.length ? '- *rotear_para_grupo* → quando identificou o perfil e quer conectar com especialista do grupo' : ''}
 - *transferir_para_setor* → para encaminhar ao departamento correto (vendas, pós-venda, financeiro, jurídico, obras)
-- *atualizar_perfil_lead* → use silenciosamente sempre que identificar cidade, empreendimento, perfil (investidor/morador/empresa), tipo de imóvel ou faixa de valores. Não anuncie ao cliente.`
+- *atualizar_perfil_lead* → OBRIGATÓRIO nas seguintes situações: (1) assim que o cliente disser o próprio nome — atualize nome_lead; (2) ao identificar interesse em empreendimento — atualize empreendimento_interesse e adicione tag com o nome do empreendimento; (3) ao identificar perfil (investidor/morador/empresa) — atualize perfil E adicione tag com o perfil ("investidor", "morador" ou "empresa"); (4) ao transferir ou encerrar — preencha notas_atendimento com resumo detalhado para o corretor. Não anuncie ao cliente.`
     : `## FERRAMENTAS
 
 Use as ferramentas de forma natural, *sem anunciar que vai usar*. O resultado chega ao cliente automaticamente.
@@ -185,7 +185,7 @@ Use as ferramentas de forma natural, *sem anunciar que vai usar*. O resultado ch
 - *propor_visita* → quando o cliente confirmou interesse e sugeriu/aceitou data
 ${groupList.length ? '- *rotear_para_grupo* → quando identificou o perfil e quer conectar com o especialista do grupo certo' : ''}
 - *transferir_para_setor* → para encaminhar ao departamento correto (vendas, locação, jurídico, financeiro, suporte)
-- *atualizar_perfil_lead* → use silenciosamente sempre que identificar cidade, empreendimento, perfil (investidor/morador/empresa), tipo de imóvel ou faixa de valores. Não anuncie ao cliente.`;
+- *atualizar_perfil_lead* → OBRIGATÓRIO nas seguintes situações: (1) assim que o cliente disser o próprio nome — atualize nome_lead; (2) ao identificar interesse em empreendimento — atualize empreendimento_interesse e adicione tag com o nome do empreendimento; (3) ao identificar perfil (investidor/morador/empresa) — atualize perfil E adicione tag com o perfil ("investidor", "morador" ou "empresa"); (4) ao transferir ou encerrar — preencha notas_atendimento com resumo detalhado para o corretor. Não anuncie ao cliente.`;
 
   // ── ROTEAMENTO INTELIGENTE ─────────────────────────────────────────────────
   const routingBlock = groupList.length
@@ -326,20 +326,21 @@ const AGENT_TOOL_DEFS = [
   },
   {
     name: 'atualizar_perfil_lead',
-    description: 'Salva no sistema informações do lead. CHAME IMEDIATAMENTE — sem esperar fim de conversa — sempre que o lead informar ou confirmar: nome real, telefone, e-mail, cidade de interesse, empreendimento, perfil ou faixa de valores. Pode ser chamado múltiplas vezes na mesma conversa. Nunca pergunte algo que já esteja preenchido no contexto do contato.',
+    description: 'Salva no sistema informações do lead. CHAME OBRIGATORIAMENTE — sem esperar fim de conversa — assim que o lead informar ou confirmar qualquer dado: nome real, telefone, e-mail, cidade, empreendimento, perfil ou orçamento. Pode ser chamado múltiplas vezes. Também DEVE ser chamado ao transferir ou encerrar o atendimento, passando notas_atendimento detalhadas para o corretor.',
     input_schema: {
       type: 'object',
       properties: {
-        nome_lead:                  { type: 'string', description: 'Nome real do lead identificado na conversa — use quando o cliente disser o nome dele e for diferente do nome salvo no sistema (ex: número de telefone ou nome genérico do WhatsApp)' },
+        nome_lead:                  { type: 'string', description: 'Nome real do lead — atualize SEMPRE que o cliente disser o próprio nome, mesmo que já exista um nome no sistema. Priorize o nome declarado pelo cliente.' },
         telefone:                   { type: 'string', description: 'Telefone/WhatsApp informado pelo lead na conversa (somente dígitos, com DDD e DDI se disponível)' },
         email:                      { type: 'string', description: 'E-mail informado pelo lead na conversa' },
-        tag:                        { type: 'string', description: 'Tag para classificar o interesse do lead — use o nome do empreendimento ou "Lançamento em [Cidade]" (ex: "Lançamento em Dourados", "Condomínio Reserva"). Adicione apenas uma tag por chamada.' },
+        tag:                        { type: 'string', description: 'Tag para classificar o lead. Use: nome do empreendimento de interesse (ex: "Condomínio Reserva"), "Lançamento em [Cidade]", ou o perfil identificado ("investidor", "morador", "empresa"). Adicione uma tag por chamada — pode chamar múltiplas vezes para adicionar várias.' },
         cidade_interesse:           { type: 'string', description: 'Cidade ou região onde quer o imóvel' },
         empreendimento_interesse:   { type: 'string', description: 'Nome ou código do empreendimento de interesse' },
         perfil:                     { type: 'string', enum: ['investidor', 'morador', 'empresa'], description: 'Perfil do comprador' },
         tipo_imovel:                { type: 'string', description: 'Tipo de imóvel desejado (apartamento, casa, lote, etc.)' },
         faixa_valor_min:            { type: 'number', description: 'Valor mínimo de orçamento em reais' },
         faixa_valor_max:            { type: 'number', description: 'Valor máximo de orçamento em reais' },
+        notas_atendimento:          { type: 'string', description: 'Resumo do atendimento para o corretor — OBRIGATÓRIO ao transferir ou encerrar. Inclua: nome do cliente, interesse identificado (empreendimento/imóvel), perfil (investidor/morador), orçamento, cidade, objeções mencionadas e próximos passos sugeridos. Este texto aparece nas notas do contato.' },
       },
     },
   },
@@ -1367,6 +1368,21 @@ async function executeAgentTool(name, input, ctx) {
         if (Object.keys(patch).length) {
           await contactsSvc.updateAiProfile(ctx.contactId, ctx.workspaceId, patch);
         }
+
+        // Notas para o corretor — appenda com timestamp
+        if (input.notas_atendimento?.trim()) {
+          const dateStr = new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', dateStyle: 'short', timeStyle: 'short' });
+          const entry   = `[IA ${dateStr}]\n${input.notas_atendimento.trim()}`;
+          await query(
+            `UPDATE contacts
+             SET notes = CASE WHEN notes IS NULL OR notes = '' THEN $1 ELSE notes || E'\\n\\n' || $1 END,
+                 updated_at = NOW()
+             WHERE id = $2 AND workspace_id = $3`,
+            [entry, ctx.contactId, ctx.workspaceId]
+          );
+          ctx.io?.to(`ws:${ctx.workspaceId}`).emit('contact:updated', { contactId: ctx.contactId });
+        }
+
         return { success: true };
       }
       case 'rotear_para_grupo': {
