@@ -17,6 +17,7 @@ const LIMIT = 24;
 export default function DevelopmentsPage() {
   const { currentWorkspace } = useAuth();
   const router = useRouter();
+  const isBroker = currentWorkspace?.role === 'agent' || currentWorkspace?.role === 'member';
 
   const [developments, setDevelopments] = useState<Development[]>([]);
   const [total,   setTotal]   = useState(0);
@@ -78,10 +79,12 @@ export default function DevelopmentsPage() {
       <Header
         title={`Empreendimentos (${total})`}
         actions={
-          <button className="btn-primary text-sm" onClick={() => router.push('/dashboard/empreendimentos/novo')}>
-            <Plus className="w-4 h-4" />
-            Novo empreendimento
-          </button>
+          !isBroker ? (
+            <button className="btn-primary text-sm" onClick={() => router.push('/dashboard/empreendimentos/novo')}>
+              <Plus className="w-4 h-4" />
+              Novo empreendimento
+            </button>
+          ) : undefined
         }
       />
 

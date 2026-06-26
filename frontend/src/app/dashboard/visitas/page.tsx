@@ -33,21 +33,25 @@ function groupLabel(date: Date): string {
 }
 
 export default function VisitasPage() {
-  const { currentWorkspace } = useAuth();
+  const { currentWorkspace, user } = useAuth();
   const [visits,   setVisits]   = useState<PropertyVisit[]>([]);
   const [loading,  setLoading]  = useState(true);
   const [updating, setUpdating] = useState<string | null>(null);
+
+  const isBroker = currentWorkspace?.role === 'agent' || currentWorkspace?.role === 'member';
 
   const load = useCallback(async () => {
     if (!currentWorkspace) return;
     setLoading(true);
     try {
-      const { data } = await api.get<PropertyVisit[]>(`/workspaces/${currentWorkspace.id}/visits`);
+      const params: Record<string, string> = {};
+      if (isBroker && user?.id) params.assigneeId = user.id;
+      const { data } = await api.get<PropertyVisit[]>(`/workspaces/${currentWorkspace.id}/visits`, { params });
       setVisits(data);
     } finally {
       setLoading(false);
     }
-  }, [currentWorkspace]);
+  }, [currentWorkspace, isBroker, user?.id]);
 
   useEffect(() => { load(); }, [load]);
 

@@ -65,6 +65,10 @@ interface Proposal {
 export default function DevelopmentDetailPage() {
   const { currentWorkspace } = useAuth();
   const router = useRouter();
+  // Apenas admin/owner/auxiliar_administrativo podem editar, excluir e usar rotinas de IA
+  const canEdit = !currentWorkspace?.role
+    || currentWorkspace.role === 'admin'
+    || currentWorkspace.role === 'auxiliar_administrativo';
   const showToast = useToast(s => s.show);
   const { developmentId } = useParams<{ developmentId: string }>();
 
@@ -345,10 +349,12 @@ export default function DevelopmentDetailPage() {
             >
               <HardHat className="w-4 h-4" /> Obra
             </button>
-            <button className="btn-secondary text-sm text-red-600 hover:bg-red-50" disabled={deleting} onClick={handleDelete}>
-              <Trash2 className="w-4 h-4" />
-              {deleting ? 'Excluindo...' : 'Excluir'}
-            </button>
+            {canEdit && (
+              <button className="btn-secondary text-sm text-red-600 hover:bg-red-50" disabled={deleting} onClick={handleDelete}>
+                <Trash2 className="w-4 h-4" />
+                {deleting ? 'Excluindo...' : 'Excluir'}
+              </button>
+            )}
           </div>
         }
       />
@@ -425,18 +431,22 @@ export default function DevelopmentDetailPage() {
             <button onClick={() => setShowCsvModal(true)} className="btn-secondary btn-sm">
               <FileSpreadsheet className="w-3.5 h-3.5" /> Importar CSV
             </button>
-            <button onClick={() => setShowPriceModal(true)} className="btn-secondary btn-sm">
-              <TrendingUp className="w-3.5 h-3.5" /> Ajustar preços
-            </button>
-            <button onClick={() => setShowImportWizard(true)} className="btn-secondary btn-sm">
-              <FileUp className="w-3.5 h-3.5" /> Importar PDF (IA)
-            </button>
-            <button
-              onClick={() => router.push(`/dashboard/imoveis/novo?developmentId=${development.id}`)}
-              className="btn-secondary btn-sm"
-            >
-              <Plus className="w-3.5 h-3.5" /> Unidade manual
-            </button>
+            {canEdit && (
+              <>
+                <button onClick={() => setShowPriceModal(true)} className="btn-secondary btn-sm">
+                  <TrendingUp className="w-3.5 h-3.5" /> Ajustar preços
+                </button>
+                <button onClick={() => setShowImportWizard(true)} className="btn-secondary btn-sm">
+                  <FileUp className="w-3.5 h-3.5" /> Importar PDF (IA)
+                </button>
+                <button
+                  onClick={() => router.push(`/dashboard/imoveis/novo?developmentId=${development.id}`)}
+                  className="btn-secondary btn-sm"
+                >
+                  <Plus className="w-3.5 h-3.5" /> Unidade manual
+                </button>
+              </>
+            )}
             {/* Upload de planta */}
             <label
               className={`btn-sm cursor-pointer flex items-center gap-1.5 ${!development.map_image_url ? 'btn-primary' : 'btn-secondary'}`}

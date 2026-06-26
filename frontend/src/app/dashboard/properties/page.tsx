@@ -28,6 +28,7 @@ interface FilterOptions {
 export default function PropertiesPage() {
   const { currentWorkspace } = useAuth();
   const router = useRouter();
+  const isBroker = currentWorkspace?.role === 'agent' || currentWorkspace?.role === 'member';
 
   const [properties, setProperties] = useState<Property[]>([]);
   const [total,      setTotal]      = useState(0);
@@ -167,17 +168,21 @@ export default function PropertiesPage() {
         title={`Imóveis (${total})`}
         actions={
           <div className="flex items-center gap-2">
-            <button
-              className={clsx('btn-secondary text-sm', compareMode && 'border-brand-300 text-brand-700')}
-              onClick={toggleCompareMode}
-            >
-              {compareMode ? <X className="w-4 h-4" /> : <GitCompare className="w-4 h-4" />}
-              {compareMode ? 'Cancelar' : 'Comparar'}
-            </button>
-            <button className="btn-primary text-sm" onClick={() => router.push('/dashboard/imoveis/novo')}>
-              <Plus className="w-4 h-4" />
-              Novo imóvel
-            </button>
+            {!isBroker && (
+              <button
+                className={clsx('btn-secondary text-sm', compareMode && 'border-brand-300 text-brand-700')}
+                onClick={toggleCompareMode}
+              >
+                {compareMode ? <X className="w-4 h-4" /> : <GitCompare className="w-4 h-4" />}
+                {compareMode ? 'Cancelar' : 'Comparar'}
+              </button>
+            )}
+            {!isBroker && (
+              <button className="btn-primary text-sm" onClick={() => router.push('/dashboard/imoveis/novo')}>
+                <Plus className="w-4 h-4" />
+                Novo imóvel
+              </button>
+            )}
           </div>
         }
       />
