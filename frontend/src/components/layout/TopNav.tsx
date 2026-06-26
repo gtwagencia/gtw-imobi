@@ -88,32 +88,34 @@ interface NavItem {
   ticketsOnly: boolean;
   adminOnly: boolean;
   platformAdminOnly?: boolean;
+  // Visível para corretores (role=agent/member) por padrão. false = oculto independente de permissões.
+  agentVisible?: boolean;
 }
 
 const CRM_ITEMS: NavItem[] = [
-  { href: '/dashboard/conversations',  label: 'Conversas',        icon: MessageSquare, ticketsOnly: false, adminOnly: false },
-  { href: '/dashboard/contacts',       label: 'Contatos',         icon: Users,         ticketsOnly: false, adminOnly: false },
-  { href: '/dashboard/transmissoes',   label: 'Transmissões',     icon: Send,          ticketsOnly: false, adminOnly: false },
-  { href: '/dashboard/funil',          label: 'Funil',            icon: Kanban,        ticketsOnly: false, adminOnly: false },
-  { href: '/dashboard/meus-leads',     label: 'Meus Leads',       icon: ListChecks,    ticketsOnly: false, adminOnly: false },
-  { href: '/dashboard/caixas-entrada', label: 'Caixas de Entrada',icon: Inbox,         ticketsOnly: false, adminOnly: false },
-  { href: '/dashboard/departamentos',  label: 'Departamentos',    icon: LayoutList,    ticketsOnly: false, adminOnly: false },
+  { href: '/dashboard/conversations',  label: 'Conversas',         icon: MessageSquare, ticketsOnly: false, adminOnly: false, agentVisible: true  },
+  { href: '/dashboard/contacts',       label: 'Contatos',          icon: Users,         ticketsOnly: false, adminOnly: false, agentVisible: false },
+  { href: '/dashboard/transmissoes',   label: 'Transmissões',      icon: Send,          ticketsOnly: false, adminOnly: false, agentVisible: false },
+  { href: '/dashboard/funil',          label: 'Funil',             icon: Kanban,        ticketsOnly: false, adminOnly: false, agentVisible: false },
+  { href: '/dashboard/meus-leads',     label: 'Meus Leads',        icon: ListChecks,    ticketsOnly: false, adminOnly: false, agentVisible: true  },
+  { href: '/dashboard/caixas-entrada', label: 'Caixas de Entrada', icon: Inbox,         ticketsOnly: false, adminOnly: false, agentVisible: false },
+  { href: '/dashboard/departamentos',  label: 'Departamentos',     icon: LayoutList,    ticketsOnly: false, adminOnly: false, agentVisible: false },
 ];
 
 const ATIVOS_ITEMS: NavItem[] = [
-  { href: '/dashboard/imoveis',         label: 'Imóveis',          icon: Building2,     ticketsOnly: false, adminOnly: false },
-  { href: '/dashboard/empreendimentos', label: 'Empreendimentos',  icon: Construction,  ticketsOnly: false, adminOnly: false },
-  { href: '/dashboard/parceiras',       label: 'Parceiras',        icon: Handshake,     ticketsOnly: false, adminOnly: false },
-  { href: '/dashboard/visitas',         label: 'Visitas',          icon: CalendarCheck, ticketsOnly: false, adminOnly: false },
-  { href: '/dashboard/nps',             label: 'NPS Pós-Visita',   icon: Star,          ticketsOnly: false, adminOnly: false },
-  { href: '/dashboard/importacoes',     label: 'Importações',      icon: Upload,        ticketsOnly: false, adminOnly: false },
-  { href: '/dashboard/agente-ia',       label: 'Agente IA',        icon: Bot,           ticketsOnly: false, adminOnly: true  },
+  { href: '/dashboard/imoveis',         label: 'Imóveis',          icon: Building2,     ticketsOnly: false, adminOnly: false, agentVisible: true  },
+  { href: '/dashboard/empreendimentos', label: 'Empreendimentos',  icon: Construction,  ticketsOnly: false, adminOnly: false, agentVisible: true  },
+  { href: '/dashboard/parceiras',       label: 'Parceiras',        icon: Handshake,     ticketsOnly: false, adminOnly: false, agentVisible: false },
+  { href: '/dashboard/visitas',         label: 'Visitas',          icon: CalendarCheck, ticketsOnly: false, adminOnly: false, agentVisible: true  },
+  { href: '/dashboard/nps',             label: 'NPS Pós-Visita',   icon: Star,          ticketsOnly: false, adminOnly: false, agentVisible: false },
+  { href: '/dashboard/importacoes',     label: 'Importações',      icon: Upload,        ticketsOnly: false, adminOnly: false, agentVisible: false },
+  { href: '/dashboard/agente-ia',       label: 'Agente IA',        icon: Bot,           ticketsOnly: false, adminOnly: true,  agentVisible: false },
 ];
 
 const TICKETS_ITEMS: NavItem[] = [
-  { href: '/dashboard/tickets',          label: 'Tickets',           icon: Ticket,     ticketsOnly: true,  adminOnly: false },
-  { href: '/dashboard/respostas-prontas',label: 'Respostas Prontas', icon: BookMarked, ticketsOnly: false, adminOnly: false },
-  { href: '/dashboard/etiquetas',        label: 'Etiquetas',         icon: Tag,        ticketsOnly: false, adminOnly: false },
+  { href: '/dashboard/tickets',           label: 'Tickets',           icon: Ticket,     ticketsOnly: true,  adminOnly: false, agentVisible: false },
+  { href: '/dashboard/respostas-prontas', label: 'Respostas Prontas', icon: BookMarked, ticketsOnly: false, adminOnly: false, agentVisible: false },
+  { href: '/dashboard/etiquetas',         label: 'Etiquetas',         icon: Tag,        ticketsOnly: false, adminOnly: false, agentVisible: false },
 ];
 
 const ADMIN_ITEMS: NavItem[] = [
@@ -151,6 +153,7 @@ export default function TopNav() {
 
   const isAdmin = isPlatformAdmin || !!(
     currentWorkspace?.role === 'admin'
+    || currentWorkspace?.role === 'auxiliar_administrativo'
     || currentWorkspace?.role === undefined
   );
 
@@ -180,9 +183,20 @@ export default function TopNav() {
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  function canShow(item: { href: string; adminOnly: boolean; platformAdminOnly?: boolean }) {
+  function canShow(item: { href: string; adminOnly: boolean; platformAdminOnly?: boolean; agentVisible?: boolean }) {
     if (item.platformAdminOnly) return isPlatformAdmin;
     if (isAdmin) return true;
+
+    const role = currentWorkspace?.role;
+    const isBroker = role === 'agent' || role === 'member';
+
+    if (isBroker) {
+      // Conversas: oculto quando restrict_conversations está ativo
+      if (item.href === '/dashboard/conversations' && currentWorkspace?.restrict_conversations) return false;
+      // Item não marcado como visível para corretores: sempre oculto
+      if (item.agentVisible === false) return false;
+    }
+
     const permKey = NAV_PERMISSION_KEY[item.href];
     if (permKey) return !!permissions?.[permKey];
     return !item.adminOnly;

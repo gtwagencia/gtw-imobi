@@ -14,6 +14,7 @@ interface Props {
   selected:           string | null;
   onSelect:           (conv: Conversation) => void;
   onNewConversation?: () => void;
+  assigneeId?:        string; // quando definido, filtra apenas conversas atribuídas a este usuário
 }
 
 interface FilterState {
@@ -34,7 +35,7 @@ const STATUS_TABS = [
   { key: 'groups',   label: 'Grupos'     },
 ];
 
-export default function ConversationList({ workspaceId, selected, onSelect, onNewConversation }: Props) {
+export default function ConversationList({ workspaceId, selected, onSelect, onNewConversation, assigneeId }: Props) {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [status,       setStatus]       = useState('open');
   const [search,       setSearch]       = useState('');
@@ -69,6 +70,7 @@ export default function ConversationList({ workspaceId, selected, onSelect, onNe
       } else {
         params.status = status;
       }
+      if (assigneeId)            params.assigneeId   = assigneeId;
       if (filters.departmentId) params.departmentId = filters.departmentId;
       if (filters.inboxId)      params.inboxId      = filters.inboxId;
       if (filters.metaSource)   params.metaSource   = filters.metaSource;

@@ -180,8 +180,11 @@ function NewConversationModal({ workspaceId, onClose, onCreated }: {
 // ── Página principal ──────────────────────────────────────────────────────────
 
 function ConversationsInner() {
-  const { currentWorkspace, accessToken } = useAuth();
+  const { currentWorkspace, accessToken, user } = useAuth();
   const searchParams = useSearchParams();
+
+  const isBroker = currentWorkspace?.role === 'agent' || currentWorkspace?.role === 'member';
+  const brokerAssigneeId = isBroker ? (user?.id ?? undefined) : undefined;
   const [selected,    setSelected]    = useState<Conversation | null>(null);
   const [newConvOpen, setNewConvOpen] = useState(false);
 
@@ -220,7 +223,8 @@ function ConversationsInner() {
           workspaceId={currentWorkspace.id}
           selected={selected?.id ?? null}
           onSelect={setSelected}
-          onNewConversation={() => setNewConvOpen(true)}
+          onNewConversation={isBroker ? undefined : () => setNewConvOpen(true)}
+          assigneeId={brokerAssigneeId}
         />
       </div>
 
@@ -237,9 +241,11 @@ function ConversationsInner() {
           </div>
           <h3 className="font-medium text-gray-900 mb-1">Nenhuma conversa selecionada</h3>
           <p className="text-gray-400 text-sm">Escolha uma conversa na lista para começar</p>
-          <button className="btn-primary mt-4 text-sm" onClick={() => setNewConvOpen(true)}>
-            <Plus className="w-4 h-4" /> Nova conversa
-          </button>
+          {!isBroker && (
+            <button className="btn-primary mt-4 text-sm" onClick={() => setNewConvOpen(true)}>
+              <Plus className="w-4 h-4" /> Nova conversa
+            </button>
+          )}
         </div>
       )}
 
