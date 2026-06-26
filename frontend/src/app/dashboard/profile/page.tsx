@@ -71,6 +71,23 @@ export default function ProfilePage() {
     }
   }
 
+  const [pushTesting, setPushTesting] = useState(false);
+  const [pushTestResult, setPushTestResult] = useState<'ok' | 'error' | null>(null);
+
+  async function handlePushTest() {
+    setPushTesting(true);
+    setPushTestResult(null);
+    try {
+      await api.post('/push/test');
+      setPushTestResult('ok');
+    } catch {
+      setPushTestResult('error');
+    } finally {
+      setPushTesting(false);
+      setTimeout(() => setPushTestResult(null), 5000);
+    }
+  }
+
   async function handleGcalConnect() {
     setGcalConnecting(true);
     try {
@@ -578,14 +595,30 @@ export default function ProfilePage() {
                   <CheckCircle className="w-4 h-4 text-green-600 flex-shrink-0" />
                   <p className="text-sm font-medium text-green-700">Ativadas neste dispositivo</p>
                 </div>
-                <button
-                  onClick={handlePushDisable}
-                  disabled={pushLoading}
-                  className="btn-secondary text-sm text-red-600 border-red-200 hover:bg-red-50 flex items-center gap-2"
-                >
-                  <BellOff className="w-4 h-4" />
-                  {pushLoading ? 'Aguarde...' : 'Desativar neste dispositivo'}
-                </button>
+                <div className="flex gap-2 flex-wrap">
+                  <button
+                    onClick={handlePushTest}
+                    disabled={pushTesting}
+                    className="btn-secondary text-sm flex items-center gap-2"
+                  >
+                    <Bell className="w-4 h-4" />
+                    {pushTesting ? 'Enviando...' : 'Testar agora'}
+                  </button>
+                  <button
+                    onClick={handlePushDisable}
+                    disabled={pushLoading}
+                    className="btn-secondary text-sm text-red-600 border-red-200 hover:bg-red-50 flex items-center gap-2"
+                  >
+                    <BellOff className="w-4 h-4" />
+                    {pushLoading ? 'Aguarde...' : 'Desativar'}
+                  </button>
+                </div>
+                {pushTestResult === 'ok' && (
+                  <p className="text-xs text-green-600">Push enviado — verifique se aparece a notificação.</p>
+                )}
+                {pushTestResult === 'error' && (
+                  <p className="text-xs text-red-600">Falha ao enviar — verifique os logs do servidor.</p>
+                )}
               </div>
             ) : (
               <button

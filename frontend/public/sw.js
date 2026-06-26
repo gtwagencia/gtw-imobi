@@ -19,8 +19,8 @@ self.addEventListener('push', (event) => {
   const title = data.title || 'GTW Platform';
   const options = {
     body: data.body || '',
-    icon: '/icon.svg',
-    badge: '/icon.svg',
+    icon: '/favicon.png',
+    badge: '/favicon.png',
     tag: data.tag,
     data: { url: data.url || '/dashboard' },
   };

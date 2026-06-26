@@ -30,4 +30,21 @@ router.post('/unsubscribe', authenticate, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// ── Envio de push de teste para o usuário atual ────────────────────────────────
+
+router.post('/test', authenticate, async (req, res, next) => {
+  try {
+    if (!pushSvc.isConfigured()) {
+      return res.status(503).json({ error: 'VAPID não configurado no servidor' });
+    }
+    await pushSvc.sendToUser(req.user.sub, {
+      title: 'Notificação de teste',
+      body:  'Se você está vendo isso, o push está funcionando!',
+      url:   '/dashboard',
+      tag:   'push-test',
+    });
+    res.json({ ok: true });
+  } catch (err) { next(err); }
+});
+
 module.exports = router;
