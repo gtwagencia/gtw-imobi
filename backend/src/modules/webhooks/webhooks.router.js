@@ -1012,7 +1012,16 @@ router.post('/evolution/:inboxId', async (req, res) => {
             title: 'Novo lead',
             body:  `${contact.name} iniciou uma conversa`,
             url:   `/dashboard/conversations?id=${conversation.id}`,
+            tag:   `conv-${conversation.id}`,
           }).catch(err => logger.warn('Push notification failed', { err: err.message }));
+        } else {
+          const pushBody = content ? (content.length > 120 ? content.slice(0, 117) + '…' : content) : 'Nova mensagem';
+          pushSvc.sendToWorkspace(inbox.workspace_id, {
+            title: contact.name,
+            body:  pushBody,
+            url:   `/dashboard/conversations?id=${conversation.id}`,
+            tag:   `conv-${conversation.id}`,
+          }).catch(err => logger.warn('Push notification failed (msg)', { err: err.message }));
         }
         io?.to(`conv:${conversation.id}`).emit('message:new', { ...message, contact_name: contact.name, assignee_id: conversation.assignee_id });
         io?.to(`ws:${inbox.workspace_id}`).emit('message:new', { ...message, contact_name: contact.name, assignee_id: conversation.assignee_id });
@@ -1225,7 +1234,16 @@ router.post('/waba', async (req, res) => {
           title: 'Novo lead',
           body:  `${contact.name} iniciou uma conversa`,
           url:   `/dashboard/conversations?id=${conversation.id}`,
+          tag:   `conv-${conversation.id}`,
         }).catch(err => logger.warn('Push notification failed (WABA)', { err: err.message }));
+      } else {
+        const wabaPushBody = content ? (content.length > 120 ? content.slice(0, 117) + '…' : content) : 'Nova mensagem';
+        pushSvc.sendToWorkspace(inbox.workspace_id, {
+          title: contact.name,
+          body:  wabaPushBody,
+          url:   `/dashboard/conversations?id=${conversation.id}`,
+          tag:   `conv-${conversation.id}`,
+        }).catch(err => logger.warn('Push notification failed (WABA msg)', { err: err.message }));
       }
 
       const wabaTestNumbers = inbox.chatbot_test_number
