@@ -8,6 +8,13 @@ const svc = require('./auth.service');
 const router = Router();
 
 const REFRESH_TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 dias
+
+function validatePassword(password) {
+  if (!password || password.length < 10) return 'Senha deve ter ao menos 10 caracteres';
+  if (!/[A-Z]/.test(password))           return 'Senha deve conter ao menos uma letra maiúscula';
+  if (!/[0-9]/.test(password))           return 'Senha deve conter ao menos um número';
+  return null;
+}
 const IS_PROD = process.env.NODE_ENV === 'production';
 
 // ── Cookies de sessão ───────────────────────────────────────────────────────
@@ -63,9 +70,8 @@ router.post('/register', async (req, res, next) => {
     if (!name || !email || !password) {
       return res.status(400).json({ error: 'name, email e password são obrigatórios' });
     }
-    if (password.length < 8) {
-      return res.status(400).json({ error: 'Senha deve ter ao menos 8 caracteres' });
-    }
+    const pwErr = validatePassword(password);
+    if (pwErr) return res.status(400).json({ error: pwErr });
     const data = await svc.register({ name, email, password, orgName });
     sendSession(res, 201, data);
   } catch (err) { next(err); }
@@ -107,7 +113,7 @@ router.post('/refresh', requireCsrf, async (req, res, next) => {
   }
 });
 
-router.post('/logout', async (req, res, next) => {
+router.post('/logout', requireCsrf, async (req, res, next) => {
   try {
     const rawToken = req.cookies?.gtw_refresh;
     await svc.logout(rawToken);
@@ -139,9 +145,8 @@ router.put('/me/password', authenticate, async (req, res, next) => {
     if (!currentPassword || !newPassword) {
       return res.status(400).json({ error: 'currentPassword e newPassword obrigatórios' });
     }
-    if (newPassword.length < 8) {
-      return res.status(400).json({ error: 'Nova senha deve ter ao menos 8 caracteres' });
-    }
+    const pwErr = validatePassword(newPassword);
+    if (pwErr) return res.status(400).json({ error: pwErr });
     await svc.changePassword(req.user.sub, { currentPassword, newPassword });
     clearAuthCookies(res);
     res.json({ ok: true });
@@ -165,9 +170,8 @@ router.post('/reset-password', async (req, res, next) => {
     if (!token || !newPassword) {
       return res.status(400).json({ error: 'token e newPassword são obrigatórios' });
     }
-    if (newPassword.length < 8) {
-      return res.status(400).json({ error: 'Senha deve ter ao menos 8 caracteres' });
-    }
+    const pwErr = validatePassword(newPassword);
+    if (pwErr) return res.status(400).json({ error: pwErr });
     await svc.resetPassword(token, newPassword);
     res.json({ ok: true });
   } catch (err) { next(err); }
@@ -181,9 +185,8 @@ router.post('/invitations/:token/register', async (req, res, next) => {
     if (!name || !email || !password) {
       return res.status(400).json({ error: 'name, email e password são obrigatórios' });
     }
-    if (password.length < 8) {
-      return res.status(400).json({ error: 'Senha deve ter ao menos 8 caracteres' });
-    }
+    const pwErr = validatePassword(password);
+    if (pwErr) return res.status(400).json({ error: pwErr });
     const data = await svc.registerViaInvite({ name, email, password, token: req.params.token });
     sendSession(res, 201, data);
   } catch (err) { next(err); }

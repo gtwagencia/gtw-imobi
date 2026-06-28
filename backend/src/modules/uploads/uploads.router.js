@@ -23,6 +23,26 @@ const ALLOWED_MIME = new Set([
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
 ]);
 
+// Magic bytes map: mime → list of valid byte sequences (first 12 bytes)
+const MAGIC = {
+  'image/jpeg': [[0xFF, 0xD8, 0xFF]],
+  'image/png':  [[0x89, 0x50, 0x4E, 0x47]],
+  'image/gif':  [[0x47, 0x49, 0x46, 0x38]],
+  'image/webp': 'webp',           // special: RIFF....WEBP
+  'application/pdf': [[0x25, 0x50, 0x44, 0x46]],
+  'audio/mpeg': [[0xFF, 0xFB], [0xFF, 0xF3], [0xFF, 0xF2], [0x49, 0x44, 0x33]],
+  'audio/ogg':  [[0x4F, 0x67, 0x67, 0x53]],
+};
+
+function matchesMagic(buf, mime) {
+  if (!Object.hasOwn(MAGIC, mime)) return true; // no rule for this type — accept
+  const sigs = MAGIC[mime];
+  if (sigs === 'webp') {
+    return buf.slice(0, 4).toString('ascii') === 'RIFF' && buf.slice(8, 12).toString('ascii') === 'WEBP';
+  }
+  return sigs.some(seq => seq.every((b, i) => buf[i] === b));
+}
+
 const MIME_EXT = {
   'image/jpeg': '.jpg', 'image/png': '.png', 'image/gif': '.gif', 'image/webp': '.webp',
   'image/heic': '.heic', 'image/heif': '.heif',
@@ -59,6 +79,11 @@ const router = Router();
 router.post('/', authenticate, upload.single('file'), async (req, res, next) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo enviado' });
+
+    // Valida magic bytes antes de aceitar o arquivo
+    if (!matchesMagic(req.file.buffer, req.file.mimetype)) {
+      return res.status(415).json({ error: 'Conteúdo do arquivo não corresponde ao tipo declarado' });
+    }
 
     const mimeType = req.file.mimetype;
     const ext      = MIME_EXT[mimeType] || path.extname(req.file.originalname).toLowerCase() || '.bin';

@@ -12,6 +12,44 @@ const SALT_ROUNDS       = 12;
 const ACCESS_TOKEN_TTL  = '15m';
 const REFRESH_TOKEN_TTL = 30; // days
 
+// ── TOTP encryption (AES-256-GCM) ─────────────────────────────────────────
+// Set TOTP_ENCRYPTION_KEY=<64 hex chars> in .env to enable encryption at rest.
+// Without the key, secrets are stored as plain base32 (backward compat).
+
+function getTotpKey() {
+  const hex = process.env.TOTP_ENCRYPTION_KEY;
+  if (!hex || hex.length !== 64) return null;
+  return Buffer.from(hex, 'hex');
+}
+
+function encryptTotp(plaintext) {
+  const key = getTotpKey();
+  if (!key) return plaintext;
+  const iv     = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
+  const enc    = Buffer.concat([cipher.update(plaintext, 'utf8'), cipher.final()]);
+  const tag    = cipher.getAuthTag();
+  return `${iv.toString('hex')}:${tag.toString('hex')}:${enc.toString('hex')}`;
+}
+
+function decryptTotp(stored) {
+  if (!stored) return null;
+  const parts = stored.split(':');
+  if (parts.length !== 3) return stored; // legacy plaintext
+  const key = getTotpKey();
+  if (!key) return stored; // key not configured — return as-is
+  try {
+    const iv      = Buffer.from(parts[0], 'hex');
+    const tag     = Buffer.from(parts[1], 'hex');
+    const enc     = Buffer.from(parts[2], 'hex');
+    const deciph  = crypto.createDecipheriv('aes-256-gcm', key, iv);
+    deciph.setAuthTag(tag);
+    return Buffer.concat([deciph.update(enc), deciph.final()]).toString('utf8');
+  } catch {
+    return stored; // decryption failed — fallback to stored value
+  }
+}
+
 const MAX_FAILED_ATTEMPTS      = 5;
 const LOCKOUT_MINUTES           = 15;
 const TWO_FACTOR_CHALLENGE_TTL  = '5m';
@@ -210,7 +248,7 @@ async function verifyTwoFactorLogin({ challenge, code }) {
 
   const cleanCode = String(code).replace(/\s+/g, '');
   let validTotp = false;
-  try { validTotp = authenticator.check(cleanCode, user.two_factor_secret); } catch { /* ignore */ }
+  try { validTotp = authenticator.check(cleanCode, decryptTotp(user.two_factor_secret)); } catch { /* ignore */ }
 
   if (!validTotp) {
     // Tenta código de backup (uso único, gerado na ativação do 2FA)
@@ -325,7 +363,7 @@ async function setupTwoFactor(userId) {
   }
 
   const secret = authenticator.generateSecret();
-  await query('UPDATE users SET two_factor_secret = $1 WHERE id = $2', [secret, userId]);
+  await query('UPDATE users SET two_factor_secret = $1 WHERE id = $2', [encryptTotp(secret), userId]);
 
   const otpUrl = authenticator.keyuri(user.email, 'GTW Imobi', secret);
   const qrCodeDataUrl = await QRCode.toDataURL(otpUrl);
@@ -335,7 +373,7 @@ async function setupTwoFactor(userId) {
 
 async function enableTwoFactor(userId, code) {
   const r = await query('SELECT two_factor_secret FROM users WHERE id = $1', [userId]);
-  const secret = r.rows[0]?.two_factor_secret;
+  const secret = decryptTotp(r.rows[0]?.two_factor_secret);
   if (!secret) throw Object.assign(new Error('Configure a verificação em duas etapas antes de ativar'), { status: 400 });
 
   const valid = authenticator.check(String(code).replace(/\s+/g, ''), secret);
@@ -412,15 +450,17 @@ async function forgotPassword(email) {
   const { rows } = await query('SELECT id FROM users WHERE email = $1', [normalizedEmail]);
   if (!rows.length) return; // Não revela se o e-mail existe ou não
 
-  const token   = crypto.randomBytes(32).toString('hex');
-  const expires = new Date(Date.now() + 60 * 60 * 1000); // 1 hora
+  const rawToken  = crypto.randomBytes(32).toString('hex');
+  const hashToken = crypto.createHash('sha256').update(rawToken).digest('hex');
+  const expires   = new Date(Date.now() + 60 * 60 * 1000); // 1 hora
+  // Armazena apenas o hash — o token bruto vai no link do e-mail
   await query(
     'UPDATE users SET reset_password_token = $1, reset_password_expires = $2 WHERE id = $3',
-    [token, expires, rows[0].id]
+    [hashToken, expires, rows[0].id]
   );
 
   const appUrl = process.env.APP_URL || process.env.FRONTEND_URL || 'https://app.imobi360.digital';
-  const link   = `${appUrl}/nova-senha?token=${token}`;
+  const link   = `${appUrl}/nova-senha?token=${rawToken}`;
   const mail   = require('../../services/mail');
   await mail.sendMailSilent({
     to:      normalizedEmail,
@@ -445,10 +485,11 @@ async function forgotPassword(email) {
 }
 
 async function resetPassword(token, newPassword) {
+  const hashToken = crypto.createHash('sha256').update(token).digest('hex');
   const { rows } = await query(
     `SELECT id FROM users
      WHERE reset_password_token = $1 AND reset_password_expires > NOW()`,
-    [token]
+    [hashToken]
   );
   if (!rows.length) throw Object.assign(new Error('Link inválido ou expirado'), { status: 400 });
 
@@ -459,6 +500,8 @@ async function resetPassword(token, newPassword) {
      WHERE id = $2`,
     [hash, rows[0].id]
   );
+  // Revoga todas as sessões ativas — impede uso de tokens roubados após reset
+  await query('DELETE FROM refresh_tokens WHERE user_id = $1', [rows[0].id]);
 }
 
 module.exports = {

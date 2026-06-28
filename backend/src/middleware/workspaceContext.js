@@ -15,20 +15,32 @@ async function workspaceContext(req, res, next) {
 
     // Super admins and org owners/admins get full access
     if (req.user.isSuperAdmin || ['owner', 'admin'].includes(req.orgRole)) {
-      const r = await query('SELECT * FROM workspaces WHERE id = $1', [workspaceId]);
+      const orgId = req.org?.id;
+      const r = orgId && !req.user.isSuperAdmin
+        ? await query('SELECT * FROM workspaces WHERE id = $1 AND org_id = $2', [workspaceId, orgId])
+        : await query('SELECT * FROM workspaces WHERE id = $1', [workspaceId]);
       if (!r.rows.length) return res.status(404).json({ error: 'Workspace não encontrado' });
       req.workspace     = r.rows[0];
       req.workspaceRole = 'admin';
       return next();
     }
 
-    const r = await query(
-      `SELECT wm.role, w.*
-       FROM workspace_memberships wm
-       JOIN workspaces w ON w.id = wm.workspace_id
-       WHERE wm.workspace_id = $1 AND wm.user_id = $2 AND w.is_active = true`,
-      [workspaceId, req.user.sub]
-    );
+    const orgId = req.org?.id;
+    const r = orgId
+      ? await query(
+          `SELECT wm.role, w.*
+           FROM workspace_memberships wm
+           JOIN workspaces w ON w.id = wm.workspace_id
+           WHERE wm.workspace_id = $1 AND wm.user_id = $2 AND w.is_active = true AND w.org_id = $3`,
+          [workspaceId, req.user.sub, orgId]
+        )
+      : await query(
+          `SELECT wm.role, w.*
+           FROM workspace_memberships wm
+           JOIN workspaces w ON w.id = wm.workspace_id
+           WHERE wm.workspace_id = $1 AND wm.user_id = $2 AND w.is_active = true`,
+          [workspaceId, req.user.sub]
+        );
 
     if (!r.rows.length) return res.status(403).json({ error: 'Sem acesso a este workspace' });
     req.workspace     = r.rows[0];

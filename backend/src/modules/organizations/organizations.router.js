@@ -66,6 +66,11 @@ router.put('/:orgId/members/:userId/role', authenticate, orgContext, requireOrgR
   try {
     const { role } = req.body;
     if (!role) return res.status(400).json({ error: 'role é obrigatório' });
+    const VALID_ROLES = ['owner', 'admin', 'member'];
+    if (!VALID_ROLES.includes(role)) return res.status(400).json({ error: 'role inválido' });
+    if (role === 'owner' && req.orgRole !== 'owner' && !req.user.isSuperAdmin) {
+      return res.status(403).json({ error: 'Apenas owners podem promover membros para owner' });
+    }
     const member = await svc.updateMemberRole(req.params.orgId, req.params.userId, role);
     res.json(member);
   } catch (err) { next(err); }

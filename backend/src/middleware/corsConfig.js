@@ -20,7 +20,9 @@ async function getAllowedOrigins() {
     );
     for (const row of r.rows) {
       origins.add(`https://${row.custom_domain}`);
-      origins.add(`http://${row.custom_domain}`);
+      if (process.env.NODE_ENV !== 'production') {
+        origins.add(`http://${row.custom_domain}`);
+      }
     }
   } catch {
     // Banco ainda não disponível (ex: durante bootstrap) — usa apenas o default

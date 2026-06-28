@@ -48,11 +48,28 @@ function cleanMime(mimeType) {
   return (mimeType || '').split(';')[0].trim() || 'application/octet-stream';
 }
 
+// Domínios permitidos como fallbackUrl de mídia (CDNs legítimos)
+const ALLOWED_MEDIA_HOSTS = new Set([
+  'mmg.whatsapp.net', 'media.whatsapp.net', 'pps.whatsapp.net', 'lookaside.fbsbx.com',
+  'scontent.whatsapp.net', 'graph.facebook.com',
+]);
+
+function isSafeMediaUrl(url) {
+  if (!url) return false;
+  try {
+    const { protocol, hostname } = new URL(url);
+    if (protocol !== 'https:') return false;
+    return ALLOWED_MEDIA_HOSTS.has(hostname) || hostname.endsWith('.whatsapp.net') || hostname.endsWith('.fbcdn.net');
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Salva mídia no storage e retorna URL permanente.
  * 1. Usa base64 do webhook (quando WEBHOOK_BASE64=true na Evolution API)
  * 2. Se não vier base64, baixa diretamente da Evolution API
- * 3. Fallback para URL do CDN do WhatsApp (temporária)
+ * 3. Fallback para URL do CDN do WhatsApp (temporária) — domínio validado
  */
 async function resolveMediaUrl(base64, mimeType, fallbackUrl, inbox, msgKey) {
   const mime     = cleanMime(mimeType);
@@ -87,7 +104,7 @@ async function resolveMediaUrl(base64, mimeType, fallbackUrl, inbox, msgKey) {
     }
   }
 
-  return fallbackUrl || null;
+  return isSafeMediaUrl(fallbackUrl) ? fallbackUrl : null;
 }
 
 async function extractMessageContent(msg, inbox) {
@@ -539,7 +556,7 @@ async function dispatchChatbotResponse(inbox, conversation, contact, io) {
         workspaceId: inbox.workspace_id, conversationId: conversation.id,
         contactId: contact.id, inboxId: inbox.id, departments: deptRes.rows, io,
       })
-    : aiSvc.generateChatbotResponse(conversation.id, systemPrompt, apiKey, provider, ws.ai_model || null, ws.ai_base_url);
+    : aiSvc.generateChatbotResponse(conversation.id, systemPrompt, apiKey, provider, ws.ai_model || null, ws.ai_base_url, inbox.workspace_id);
 
   responsePromise.then(async (botReply) => {
     if (!botReply) {
@@ -571,20 +588,20 @@ router.post('/evolution/:inboxId', async (req, res) => {
     if (!inboxRes.rows.length) return;
     const inbox = inboxRes.rows[0];
 
-    // Validação HMAC opcional — apenas loga e ignora se inválida (já respondemos 200)
-    if (inbox.hmac_enabled && inbox.webhook_secret) {
+    // Valida HMAC sempre que houver webhook_secret configurado
+    if (inbox.webhook_secret) {
       const signature = req.headers['x-hub-signature-256'] || req.headers['x-webhook-hmac'];
       if (!signature) {
-        logger.warn('Webhook HMAC ausente (ignorado)', { inboxId });
+        logger.warn('Webhook HMAC ausente', { inboxId });
         return;
       }
-      const rawBody  = JSON.stringify(req.body);
-      const expected = 'sha256=' + crypto.createHmac('sha256', inbox.webhook_secret).update(rawBody).digest('hex');
+      const body     = req.rawBody || Buffer.from(JSON.stringify(req.body));
+      const expected = 'sha256=' + crypto.createHmac('sha256', inbox.webhook_secret).update(body).digest('hex');
       const sigBuf   = Buffer.from(signature);
       const expBuf   = Buffer.from(expected);
       const valid    = sigBuf.length === expBuf.length && crypto.timingSafeEqual(sigBuf, expBuf);
       if (!valid) {
-        logger.warn('Webhook HMAC inválido (ignorado)', { inboxId });
+        logger.warn('Webhook HMAC inválido', { inboxId });
         return;
       }
     }
@@ -1057,7 +1074,7 @@ router.get('/waba', (req, res) => {
   logger.info('[WABA] webhook verify', { mode, tokenMatch: token === process.env.WABA_VERIFY_TOKEN, envSet: !!process.env.WABA_VERIFY_TOKEN });
 
   if (mode !== 'subscribe') return res.sendStatus(400);
-  if (!process.env.WABA_VERIFY_TOKEN || token !== process.env.WABA_VERIFY_TOKEN) return res.sendStatus(403);
+  if (!process.env.WABA_VERIFY_TOKEN || !tokensMatch(token, process.env.WABA_VERIFY_TOKEN)) return res.sendStatus(403);
 
   res.status(200).send(challenge);
 });
@@ -1067,6 +1084,20 @@ router.post('/waba', async (req, res) => {
   res.json({ ok: true }); // responde imediatamente — o Meta exige resposta rápida
 
   try {
+    // Valida assinatura X-Hub-Signature-256 do Meta se APP_SECRET configurado
+    if (process.env.META_APP_SECRET) {
+      const sig = req.headers['x-hub-signature-256'];
+      if (sig) {
+        const body     = req.rawBody || Buffer.from(JSON.stringify(req.body));
+        const expected = 'sha256=' + crypto.createHmac('sha256', process.env.META_APP_SECRET).update(body).digest('hex');
+        const valid    = sig.length === expected.length && crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected));
+        if (!valid) {
+          logger.warn('WABA webhook: assinatura inválida');
+          return;
+        }
+      }
+    }
+
     const entry   = req.body?.entry?.[0];
     const changes = entry?.changes?.[0]?.value;
     if (!changes) return;
@@ -1114,6 +1145,15 @@ router.post('/waba', async (req, res) => {
       const phone    = msg.from;
       const waMsgId  = msg.id;
       const pushName = changes.contacts?.find(c => c.wa_id === phone)?.profile?.name || phone;
+
+      // Rejeita mensagens com timestamp > 5 minutos no passado (replay attack)
+      if (msg.timestamp) {
+        const msgAgeMs = Date.now() - (parseInt(msg.timestamp, 10) * 1000);
+        if (msgAgeMs > 5 * 60 * 1000) {
+          logger.warn('WABA webhook: mensagem expirada (replay?)', { waMsgId, ageMs: msgAgeMs });
+          continue;
+        }
+      }
 
       let content = '', messageType = 'text', mediaUrl = null, mediaMimeType = null;
 

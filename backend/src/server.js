@@ -91,7 +91,11 @@ app.use(cookieParser());
 // Webhooks da Evolution API enviam mídia em base64 dentro do JSON — vídeos/áudios
 // próximos do limite de 16MB do WhatsApp passam de 20MB já em base64, excedendo
 // o limite padrão de 10mb e causando perda silenciosa dessas mensagens.
-app.use('/api/v1/webhooks', express.json({ limit: '50mb' }));
+// rawBody é capturado para validação de assinatura HMAC antes do parse.
+app.use('/api/v1/webhooks', express.json({
+  limit: '50mb',
+  verify: (req, _res, buf) => { req.rawBody = buf; },
+}));
 app.use(express.json({ limit: '10mb' }));
 
 // ── Rate limiting ──────────────────────────────────────────────────────────
@@ -109,6 +113,8 @@ const uploadLimiter   = rateLimit({ windowMs: 15 * 60 * 1000, max: 60  }); // 4 
 const csatLimiter     = rateLimit({ windowMs: 60 * 60 * 1000, max: 10  }); // 10 por hora
 app.use('/api/v1/auth/login',             authLimiter);
 app.use('/api/v1/auth/register',          authLimiter);
+app.use('/api/v1/auth/forgot-password',   authLimiter);
+app.use('/api/v1/auth/reset-password',    authLimiter);
 app.use('/api/v1/webhooks',               webhookLimiter);
 app.use('/api/v1/webhooks/site-leads',    siteLeadLimiter);
 app.use('/api/v1/uploads',                uploadLimiter);
@@ -194,8 +200,8 @@ app.use((err, _req, res, _next) => {
   }
   logger.error(err.message, sanitizeForLog({ stack: err.stack, context: err.context }));
   const status = err.status || 500;
-  // Expose the real message for all errors (stack is only in logs)
-  res.status(status).json({ error: err.message || 'Internal server error' });
+  const isClientError = status >= 400 && status < 500;
+  res.status(status).json({ error: isClientError ? (err.message || 'Bad request') : 'Internal server error' });
 });
 
 // ── Socket.io — JWT obrigatório no handshake ───────────────────────────────

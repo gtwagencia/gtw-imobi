@@ -39,11 +39,18 @@ async function getGroupWithMembers(groupId, workspaceId) {
   return group;
 }
 
+const VALID_GROUP_TYPES    = new Set(['geral', 'compra_venda', 'aluguel', 'empreendimento', 'investimento', 'plantao']);
+const VALID_ROUTING_MODES  = new Set(['round_robin', 'least_loaded', 'manual']);
+
 async function createGroup(workspaceId, { name, description, groupType, routingMode }) {
+  const resolvedType = groupType || 'geral';
+  const resolvedMode = routingMode || 'round_robin';
+  if (!VALID_GROUP_TYPES.has(resolvedType))   throw Object.assign(new Error('groupType inválido'), { status: 400 });
+  if (!VALID_ROUTING_MODES.has(resolvedMode)) throw Object.assign(new Error('routingMode inválido'), { status: 400 });
   const r = await query(
     `INSERT INTO ai_routing_groups (workspace_id, name, description, group_type, routing_mode)
      VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-    [workspaceId, name, description || null, groupType || 'geral', routingMode || 'round_robin']
+    [workspaceId, name, description || null, resolvedType, resolvedMode]
   );
   return r.rows[0];
 }
@@ -52,8 +59,14 @@ async function updateGroup(groupId, workspaceId, { name, description, groupType,
   const fields = []; const vals = []; let idx = 1;
   if (name        !== undefined) { fields.push(`name = $${idx++}`);          vals.push(name); }
   if (description !== undefined) { fields.push(`description = $${idx++}`);   vals.push(description); }
-  if (groupType   !== undefined) { fields.push(`group_type = $${idx++}`);    vals.push(groupType); }
-  if (routingMode !== undefined) { fields.push(`routing_mode = $${idx++}`);  vals.push(routingMode); }
+  if (groupType   !== undefined) {
+    if (!VALID_GROUP_TYPES.has(groupType)) throw Object.assign(new Error('groupType inválido'), { status: 400 });
+    fields.push(`group_type = $${idx++}`);    vals.push(groupType);
+  }
+  if (routingMode !== undefined) {
+    if (!VALID_ROUTING_MODES.has(routingMode)) throw Object.assign(new Error('routingMode inválido'), { status: 400 });
+    fields.push(`routing_mode = $${idx++}`);  vals.push(routingMode);
+  }
   if (isActive    !== undefined) { fields.push(`is_active = $${idx++}`);     vals.push(isActive); }
   if (!fields.length) throw Object.assign(new Error('Nenhum campo para atualizar'), { status: 400 });
   vals.push(groupId); vals.push(workspaceId);
@@ -76,6 +89,13 @@ async function addMember(groupId, workspaceId, userId) {
     [groupId, workspaceId]
   );
   if (!gRes.rows.length) throw Object.assign(new Error('Grupo não encontrado'), { status: 404 });
+
+  // Verifica que o userId é membro do workspace
+  const wmRes = await query(
+    'SELECT 1 FROM workspace_memberships WHERE workspace_id = $1 AND user_id = $2',
+    [workspaceId, userId]
+  );
+  if (!wmRes.rows.length) throw Object.assign(new Error('Usuário não é membro deste workspace'), { status: 403 });
 
   const r = await query(
     `INSERT INTO ai_routing_group_members (group_id, user_id)
