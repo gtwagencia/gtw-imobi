@@ -67,25 +67,32 @@ async function ensureBucket() {
 
 // ── Upload file ────────────────────────────────────────────────────────────
 
+function sanitizeFilename(filename) {
+  const base = path.basename(filename);
+  return base.replace(/[^a-zA-Z0-9._-]/g, '_').replace(/^\.+/, '_') || 'file';
+}
+
 async function uploadFile(buffer, filename, mimeType) {
+  const safeFilename = sanitizeFilename(filename);
+
   if (isS3) {
     try {
       await s3.send(new PutObjectCommand({
         Bucket:      STORAGE_BUCKET,
-        Key:         filename,
+        Key:         safeFilename,
         Body:        buffer,
         ContentType: mimeType || 'application/octet-stream',
       }));
-      return `${STORAGE_PUBLIC_URL}/${STORAGE_BUCKET}/${filename}`;
+      return `${STORAGE_PUBLIC_URL}/${STORAGE_BUCKET}/${safeFilename}`;
     } catch (err) {
       logger.warn('S3 upload failed, falling back to disk', { err: err.message });
       // fall through to disk
     }
   }
 
-  const filePath = path.join(UPLOAD_DIR, filename);
+  const filePath = path.join(UPLOAD_DIR, safeFilename);
   await fs.promises.writeFile(filePath, buffer);
-  return `${BACKEND_URL}/uploads/${filename}`;
+  return `${BACKEND_URL}/uploads/${safeFilename}`;
 }
 
 // ── Get file as Buffer ─────────────────────────────────────────────────────
@@ -106,7 +113,7 @@ async function getFileBuffer(filename) {
     }
   }
 
-  return fs.promises.readFile(path.join(UPLOAD_DIR, filename));
+  return fs.promises.readFile(path.join(UPLOAD_DIR, sanitizeFilename(filename)));
 }
 
 module.exports = { ensureBucket, uploadFile, getFileBuffer };
