@@ -2,6 +2,16 @@
 
 const nodemailer = require('nodemailer');
 
+function escHtml(str) {
+  if (str == null) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 const transporter = nodemailer.createTransport({
   host:   process.env.SMTP_HOST,
   port:   parseInt(process.env.SMTP_PORT || '587', 10),
@@ -110,13 +120,13 @@ function tplAssigned({ assigneeName, actorName, ticketTitle, boardName, priority
   return baseLayout(`
     <h2 style="margin:0 0 6px;font-size:20px;color:#111;">Você foi atribuído a um ticket</h2>
     <p style="margin:0 0 20px;color:#6b7280;font-size:14px;">
-      <strong>${actorName}</strong> atribuiu o ticket a você.
+      <strong>${escHtml(actorName)}</strong> atribuiu o ticket a você.
     </p>
 
     <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:16px 20px;margin-bottom:24px;">
       <div style="margin-bottom:8px;">${ticketBadge(priority)}</div>
-      <div style="font-size:16px;font-weight:700;color:#111;margin-bottom:4px;">${ticketTitle}</div>
-      <div style="font-size:13px;color:#6b7280;">Board: <strong>${boardName}</strong></div>
+      <div style="font-size:16px;font-weight:700;color:#111;margin-bottom:4px;">${escHtml(ticketTitle)}</div>
+      <div style="font-size:13px;color:#6b7280;">Board: <strong>${escHtml(boardName)}</strong></div>
     </div>
 
     ${btn(ticketUrl, 'Ver Ticket')}
@@ -126,16 +136,16 @@ function tplAssigned({ assigneeName, actorName, ticketTitle, boardName, priority
 // ── Template: novo comentário ─────────────────────────────────────────────────
 
 function tplComment({ recipientName, actorName, ticketTitle, boardName, commentContent, ticketUrl }) {
-  const preview = commentContent ? commentContent.substring(0, 200) + (commentContent.length > 200 ? '…' : '') : '';
+  const preview = commentContent ? escHtml(commentContent.substring(0, 200)) + (commentContent.length > 200 ? '…' : '') : '';
   return baseLayout(`
     <h2 style="margin:0 0 6px;font-size:20px;color:#111;">Novo comentário no ticket</h2>
     <p style="margin:0 0 20px;color:#6b7280;font-size:14px;">
-      <strong>${actorName}</strong> comentou em um ticket que você participa.
+      <strong>${escHtml(actorName)}</strong> comentou em um ticket que você participa.
     </p>
 
     <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:16px 20px;margin-bottom:16px;">
-      <div style="font-size:15px;font-weight:700;color:#111;margin-bottom:4px;">${ticketTitle}</div>
-      <div style="font-size:13px;color:#6b7280;margin-bottom:12px;">Board: <strong>${boardName}</strong></div>
+      <div style="font-size:15px;font-weight:700;color:#111;margin-bottom:4px;">${escHtml(ticketTitle)}</div>
+      <div style="font-size:13px;color:#6b7280;margin-bottom:12px;">Board: <strong>${escHtml(boardName)}</strong></div>
       ${preview ? `<div style="font-size:14px;color:#374151;border-left:3px solid #E31E24;padding-left:12px;">${preview}</div>` : ''}
     </div>
 
@@ -149,12 +159,12 @@ function tplStatusChanged({ actorName, ticketTitle, boardName, columnName, ticke
   return baseLayout(`
     <h2 style="margin:0 0 6px;font-size:20px;color:#111;">Status do ticket atualizado</h2>
     <p style="margin:0 0 20px;color:#6b7280;font-size:14px;">
-      <strong>${actorName}</strong> moveu o ticket para <strong>${columnName}</strong>.
+      <strong>${escHtml(actorName)}</strong> moveu o ticket para <strong>${escHtml(columnName)}</strong>.
     </p>
 
     <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:16px 20px;margin-bottom:24px;">
-      <div style="font-size:16px;font-weight:700;color:#111;margin-bottom:4px;">${ticketTitle}</div>
-      <div style="font-size:13px;color:#6b7280;">Board: <strong>${boardName}</strong></div>
+      <div style="font-size:16px;font-weight:700;color:#111;margin-bottom:4px;">${escHtml(ticketTitle)}</div>
+      <div style="font-size:13px;color:#6b7280;">Board: <strong>${escHtml(boardName)}</strong></div>
     </div>
 
     ${btn(ticketUrl, 'Ver Ticket')}
@@ -170,12 +180,12 @@ function tplDueDateChanged({ actorName, ticketTitle, boardName, dueDate, ticketU
   return baseLayout(`
     <h2 style="margin:0 0 6px;font-size:20px;color:#111;">Prazo do ticket alterado</h2>
     <p style="margin:0 0 20px;color:#6b7280;font-size:14px;">
-      <strong>${actorName}</strong> atualizou o prazo do ticket.
+      <strong>${escHtml(actorName)}</strong> atualizou o prazo do ticket.
     </p>
 
     <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:16px 20px;margin-bottom:24px;">
-      <div style="font-size:16px;font-weight:700;color:#111;margin-bottom:4px;">${ticketTitle}</div>
-      <div style="font-size:13px;color:#6b7280;">Board: <strong>${boardName}</strong></div>
+      <div style="font-size:16px;font-weight:700;color:#111;margin-bottom:4px;">${escHtml(ticketTitle)}</div>
+      <div style="font-size:13px;color:#6b7280;">Board: <strong>${escHtml(boardName)}</strong></div>
       <div style="margin-top:10px;font-size:14px;color:#374151;">
         Novo prazo: <strong>${dateStr}</strong>
       </div>
@@ -188,16 +198,16 @@ function tplDueDateChanged({ actorName, ticketTitle, boardName, dueDate, ticketU
 // ── Template: mencionado em comentário ───────────────────────────────────────
 
 function tplMention({ mentionedName, actorName, ticketTitle, boardName, commentContent, ticketUrl }) {
-  const preview = commentContent ? commentContent.substring(0, 200) + (commentContent.length > 200 ? '…' : '') : '';
+  const preview = commentContent ? escHtml(commentContent.substring(0, 200)) + (commentContent.length > 200 ? '…' : '') : '';
   return baseLayout(`
     <h2 style="margin:0 0 6px;font-size:20px;color:#111;">Você foi mencionado em um comentário</h2>
     <p style="margin:0 0 20px;color:#6b7280;font-size:14px;">
-      <strong>${actorName}</strong> mencionou você em um ticket.
+      <strong>${escHtml(actorName)}</strong> mencionou você em um ticket.
     </p>
 
     <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:16px 20px;margin-bottom:16px;">
-      <div style="font-size:15px;font-weight:700;color:#111;margin-bottom:4px;">${ticketTitle}</div>
-      <div style="font-size:13px;color:#6b7280;margin-bottom:12px;">Board: <strong>${boardName}</strong></div>
+      <div style="font-size:15px;font-weight:700;color:#111;margin-bottom:4px;">${escHtml(ticketTitle)}</div>
+      <div style="font-size:13px;color:#6b7280;margin-bottom:12px;">Board: <strong>${escHtml(boardName)}</strong></div>
       ${preview ? `<div style="font-size:14px;color:#374151;border-left:3px solid #6366f1;padding-left:12px;">${preview}</div>` : ''}
     </div>
 
@@ -224,9 +234,9 @@ function ticketRow(t, appUrl) {
   return `
   <tr>
     <td style="padding:10px 0;border-bottom:1px solid #f3f4f6;vertical-align:top;">
-      <a href="${url}" style="font-size:14px;font-weight:600;color:#1d1d1f;text-decoration:none;">${t.title}</a>
+      <a href="${url}" style="font-size:14px;font-weight:600;color:#1d1d1f;text-decoration:none;">${escHtml(t.title)}</a>
       <div style="font-size:12px;color:#6b7280;margin-top:2px;">
-        ${t.board_name}${t.due_date ? ` · <span${overdue}>${t.is_overdue ? '⚠️ Venceu ' : ''}${fmtDate(t.due_date)}</span>` : ''}
+        ${escHtml(t.board_name)}${t.due_date ? ` · <span${overdue}>${t.is_overdue ? '⚠️ Venceu ' : ''}${fmtDate(t.due_date)}</span>` : ''}
         · ${priorityLabel(t.priority)}
       </div>
     </td>
@@ -260,8 +270,8 @@ function tplDailyDigest({ userName, dueToday, overdue, upcoming, reminders, appU
   const reminderRows = reminders.map(r => `
   <tr>
     <td style="padding:8px 0;border-bottom:1px solid #f3f4f6;font-size:14px;color:#374151;">
-      🔔 <strong>${r.ticket_title}</strong>${r.message ? ` — ${r.message}` : ''}
-      <div style="font-size:12px;color:#6b7280;margin-top:2px;">${r.board_name} · ${fmtDate(r.remind_at)}</div>
+      🔔 <strong>${escHtml(r.ticket_title)}</strong>${r.message ? ` — ${escHtml(r.message)}` : ''}
+      <div style="font-size:12px;color:#6b7280;margin-top:2px;">${escHtml(r.board_name)} · ${fmtDate(r.remind_at)}</div>
     </td>
   </tr>`);
 
@@ -273,8 +283,8 @@ function tplDailyDigest({ userName, dueToday, overdue, upcoming, reminders, appU
   ].join('');
 
   return baseLayout(`
-    <h2 style="margin:0 0 4px;font-size:20px;color:#111;">Bom dia, ${userName}! ☀️</h2>
-    <p style="margin:0 0 24px;color:#6b7280;font-size:14px;">Aqui está sua agenda para <strong>${dateLabel}</strong>.</p>
+    <h2 style="margin:0 0 4px;font-size:20px;color:#111;">Bom dia, ${escHtml(userName)}! ☀️</h2>
+    <p style="margin:0 0 24px;color:#6b7280;font-size:14px;">Aqui está sua agenda para <strong>${escHtml(dateLabel)}</strong>.</p>
     ${body}
     <div style="margin-top:8px;">
       ${btn(`${appUrl}/dashboard/tickets`, 'Abrir Tickets')}
@@ -291,12 +301,12 @@ function tplDueSoon({ assigneeName, ticketTitle, boardName, dueDate, ticketUrl }
   return baseLayout(`
     <h2 style="margin:0 0 6px;font-size:20px;color:#111;">Prazo de ticket vence hoje</h2>
     <p style="margin:0 0 20px;color:#6b7280;font-size:14px;">
-      Olá <strong>${assigneeName}</strong>, o prazo de um ticket sob sua responsabilidade vence hoje.
+      Olá <strong>${escHtml(assigneeName)}</strong>, o prazo de um ticket sob sua responsabilidade vence hoje.
     </p>
 
     <div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;padding:16px 20px;margin-bottom:24px;">
-      <div style="font-size:16px;font-weight:700;color:#111;margin-bottom:4px;">${ticketTitle}</div>
-      <div style="font-size:13px;color:#6b7280;">Board: <strong>${boardName}</strong></div>
+      <div style="font-size:16px;font-weight:700;color:#111;margin-bottom:4px;">${escHtml(ticketTitle)}</div>
+      <div style="font-size:13px;color:#6b7280;">Board: <strong>${escHtml(boardName)}</strong></div>
       <div style="margin-top:10px;font-size:14px;color:#92400e;font-weight:600;">
         ⏰ Prazo: ${dateStr}
       </div>
@@ -311,17 +321,17 @@ function tplDueSoon({ assigneeName, ticketTitle, boardName, dueDate, ticketUrl }
 const ROLE_NAMES = { owner: 'Owner', admin: 'Administrador', member: 'Membro' };
 
 function tplInvite({ orgName, inviterName, role, inviteUrl }) {
-  const roleName = ROLE_NAMES[role] || role;
+  const roleName = ROLE_NAMES[role] || escHtml(role);
   return baseLayout(`
     <h2 style="margin:0 0 6px;font-size:20px;color:#111;">Você foi convidado!</h2>
     <p style="margin:0 0 20px;color:#6b7280;font-size:14px;">
-      <strong>${inviterName}</strong> convidou você para fazer parte de
-      <strong>${orgName}</strong> no Imobi360.
+      <strong>${escHtml(inviterName)}</strong> convidou você para fazer parte de
+      <strong>${escHtml(orgName)}</strong> no Imobi360.
     </p>
 
     <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:16px 20px;margin-bottom:24px;">
-      <div style="font-size:13px;color:#6b7280;">Organização: <strong style="color:#111;">${orgName}</strong></div>
-      <div style="font-size:13px;color:#6b7280;margin-top:4px;">Seu papel: <strong style="color:#111;">${roleName}</strong></div>
+      <div style="font-size:13px;color:#6b7280;">Organização: <strong style="color:#111;">${escHtml(orgName)}</strong></div>
+      <div style="font-size:13px;color:#6b7280;margin-top:4px;">Seu papel: <strong style="color:#111;">${escHtml(roleName)}</strong></div>
     </div>
 
     <p style="font-size:14px;color:#374151;margin:0 0 20px;">
