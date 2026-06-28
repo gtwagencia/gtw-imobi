@@ -49,6 +49,7 @@ const uploadsRouter       = require('./modules/uploads/uploads.router');
 const ticketsRouter       = require('./modules/tickets/tickets.router');
 const googleCalendarRouter = require('./modules/integrations/google-calendar.router');
 const mailIntegrationRouter = require('./modules/integrations/mail.router');
+const metaConnectRouter    = require('./modules/integrations/meta-connect.router');
 const broadcastsRouter     = require('./modules/broadcasts/broadcasts.router');
 const permissionsRouter    = require('./modules/permissions/permissions.router');
 const notificationsRouter  = require('./modules/notifications/notifications.router');
@@ -59,6 +60,7 @@ const importsRouter        = require('./modules/imports/imports.router');
 const aiAgentRouter         = require('./modules/ai-agent/ai-agent.router');
 const partnerAgenciesRouter = require('./modules/partner-agencies/partner-agencies.router');
 const partnerPortalRouter   = require('./modules/partner-agencies/partner-portal.router');
+const waTemplatesRouter     = require('./modules/wa-templates/wa-templates.router');
 
 const app    = express();
 const server = http.createServer(app);
@@ -143,6 +145,7 @@ app.use('/api/v1/workspaces/:workspaceId/permission-profiles', requireNotTickets
 app.use('/api/v1/uploads',                                 uploadsRouter);
 app.use('/api/v1/integrations/google',                     googleCalendarRouter);
 app.use('/api/v1/integrations/mail',                       mailIntegrationRouter);
+app.use('/api/v1/workspaces/:workspaceId/integrations/meta', metaConnectRouter);
 app.use('/api/v1/push',                                    pushRouter);
 app.use('/api/v1/conversations/:conversationId/messages',  messagesRouter);
 app.use('/api/v1/webhooks',                                webhooksRouter);
@@ -156,6 +159,7 @@ app.use('/api/v1/workspaces/:workspaceId/imports',         requireNotTicketsOnly
 app.use('/api/v1/workspaces/:workspaceId/ai-agent',        requireNotTicketsOnly, aiAgentRouter);
 app.use('/api/v1/workspaces/:workspaceId/parceiras',       requireNotTicketsOnly, partnerAgenciesRouter);
 app.use('/api/v1/portal-parceiro',                         partnerPortalRouter);
+app.use('/api/v1/workspaces/:workspaceId/wa-templates',    requireNotTicketsOnly, waTemplatesRouter);
 
 // ── Health ─────────────────────────────────────────────────────────────────
 app.get('/health', (_req, res) => res.json({ ok: true, ts: new Date() }));

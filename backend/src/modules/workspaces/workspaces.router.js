@@ -23,6 +23,7 @@ function sanitizeWorkspace(ws) {
     has_custom_ai_key:          !!custom_ai_api_key,
     has_meta_conversions_token: !!meta_conversions_token,
     has_meta_access_token:      !!meta_access_token,
+    has_meta_waba_configured:   !!(rest.meta_waba_id && meta_access_token),
   };
 }
 

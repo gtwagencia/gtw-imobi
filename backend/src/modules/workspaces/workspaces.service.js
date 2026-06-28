@@ -106,6 +106,7 @@ async function update(workspaceId, body) {
     metaAdAccountId:      'meta_ad_account_id',
     metaAccessToken:      'meta_access_token',
     metaConversionsToken: 'meta_conversions_token',
+    metaWabaId:           'meta_waba_id',
     businessHours:        'business_hours',
     followUpEnabled:      'follow_up_enabled',
     aiAnalysisEnabled:         'ai_analysis_enabled',

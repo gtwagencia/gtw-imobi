@@ -10,7 +10,7 @@ import {
   LogOut, ChevronDown, Building2, Home, User, Landmark,
   Check, Plus, ArrowLeftRight, LayoutList, BarChart2, BookMarked, Tag, Ticket, X, Send,
   ShieldCheck, ListChecks, Gauge, CalendarCheck, Construction, Handshake,
-  Star, Upload, Bot, ScrollText,
+  Star, Upload, Bot, ScrollText, Sparkles,
 } from 'lucide-react';
 import { useSidebar } from '@/store/sidebar';
 import { useEffect, useRef, useState } from 'react';
@@ -30,6 +30,7 @@ const ALL_NAV_ITEMS = [
   { href: '/dashboard/parceiras',      icon: Handshake,    label: 'Parceiras',          ticketsOnly: false, adminOnly: false },
   { href: '/dashboard/visitas',        icon: CalendarCheck,label: 'Visitas',            ticketsOnly: false, adminOnly: false },
   { href: '/dashboard/transmissoes',   icon: Send,         label: 'Transmissões',       ticketsOnly: false, adminOnly: false },
+  { href: '/dashboard/wa-templates',  icon: Sparkles,     label: 'Templates IA',       ticketsOnly: false, adminOnly: false },
   { href: '/dashboard/funil',          icon: Kanban,       label: 'Funil',              ticketsOnly: false, adminOnly: false },
   { href: '/dashboard/meus-leads',     icon: ListChecks,   label: 'Meus Leads',         ticketsOnly: false, adminOnly: false },
   { href: '/dashboard/leads',          icon: Users,        label: 'Leads Qualificados', ticketsOnly: false, adminOnly: false },
@@ -56,6 +57,7 @@ const NAV_MODULE_KEY: Record<string, string> = {
   '/dashboard/parceiras':        'developments',
   '/dashboard/visitas':          'visits',
   '/dashboard/transmissoes':     'crm',
+  '/dashboard/wa-templates':     'crm',
   '/dashboard/funil':            'crm',
   '/dashboard/meus-leads':       'crm',
   '/dashboard/leads':            'crm',
@@ -79,6 +81,7 @@ const NAV_PERMISSION_KEY: Record<string, PermissionModuleKey> = {
   '/dashboard/parceiras':         'properties',
   '/dashboard/visitas':           'properties',
   '/dashboard/transmissoes':      'broadcasts',
+  '/dashboard/wa-templates':      'broadcasts',
   '/dashboard/funil':             'kanban',
   '/dashboard/meus-leads':        'kanban',
   '/dashboard/leads':             'contacts',

@@ -9,6 +9,7 @@ import type { BusinessHours, BusinessHoursDay } from '@/types';
 import { Save, Eye, EyeOff, Brain, Clock, MessageSquare, CheckCircle, Sparkles, Globe, Copy, Check, RefreshCw, ShieldCheck, AlertTriangle, Percent, Star, Building2, LayoutGrid, Key, Megaphone, Pen, HardDrive } from 'lucide-react';
 import clsx from 'clsx';
 import ModulesCard from '@/components/settings/ModulesCard';
+import MetaConnectButton from '@/components/settings/MetaConnectButton';
 
 interface AuditLogEntry {
   id: string;
@@ -96,6 +97,7 @@ export default function SettingsPage() {
     businessModel:        'imobiliaria' as 'imobiliaria' | 'construtora',
     metaPixelId:          '',
     metaAdAccountId:      '',
+    metaWabaId:           '',
     metaAccessToken:      '',
     metaConversionsToken: '',
     followUpEnabled:      false,
@@ -143,6 +145,7 @@ export default function SettingsPage() {
         businessModel:        currentWorkspace.business_model || 'imobiliaria',
         metaPixelId:          currentWorkspace.meta_pixel_id || '',
         metaAdAccountId:      currentWorkspace.meta_ad_account_id || '',
+        metaWabaId:           currentWorkspace.meta_waba_id || '',
         metaAccessToken:      '',
         metaConversionsToken: '',
         followUpEnabled:      currentWorkspace.follow_up_enabled ?? false,
@@ -473,6 +476,16 @@ export default function SettingsPage() {
             </div>
             <div className="space-y-4">
               <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">WABA ID <span className="text-gray-400 font-normal">(WhatsApp Business Account)</span></label>
+                <input
+                  className="input"
+                  value={form.metaWabaId}
+                  onChange={(e) => setForm({ ...form, metaWabaId: e.target.value })}
+                  placeholder="1234567890"
+                />
+                <p className="text-xs text-gray-400 mt-1">Necessário para criar e gerenciar templates WhatsApp com IA.</p>
+              </div>
+              <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Pixel ID</label>
                 <input
                   className="input"
@@ -524,6 +537,18 @@ export default function SettingsPage() {
                 <p className="text-xs text-gray-400 mt-1">
                   Usado para enviar eventos Lead e Purchase à Meta Conversions API automaticamente.
                 </p>
+              </div>
+
+              {/* ── Embedded Signup / WhatsApp Business Connect ── */}
+              <div className="border-t border-gray-100 pt-4">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Conectar WhatsApp Business <span className="text-gray-400 font-normal">(Embedded Signup)</span>
+                </label>
+                <p className="text-xs text-gray-400 mb-3">
+                  Conecte a conta WhatsApp Business do seu cliente diretamente, sem copiar tokens manualmente.
+                  Necessário para usar a funcionalidade de Templates com IA.
+                </p>
+                <MetaConnectButton workspaceId={currentWorkspace.id} />
               </div>
             </div>
           </div>
