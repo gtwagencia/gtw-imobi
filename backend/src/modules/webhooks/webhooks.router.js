@@ -1074,8 +1074,9 @@ router.get('/waba', (req, res) => {
 
   if (mode !== 'subscribe') return res.sendStatus(400);
   if (!process.env.WABA_VERIFY_TOKEN || !tokensMatch(token, process.env.WABA_VERIFY_TOKEN)) return res.sendStatus(403);
+  if (!challenge || !/^\d+$/.test(String(challenge))) return res.sendStatus(400);
 
-  res.status(200).send(challenge);
+  res.setHeader('Content-Type', 'text/plain').status(200).send(String(challenge));
 });
 
 // POST /waba — eventos de todas as inboxes oficiais
