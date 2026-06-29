@@ -588,21 +588,20 @@ router.post('/evolution/:inboxId', async (req, res) => {
     if (!inboxRes.rows.length) return;
     const inbox = inboxRes.rows[0];
 
-    // Valida HMAC sempre que houver webhook_secret configurado
+    // Valida HMAC somente quando o header de assinatura estiver presente.
+    // A Evolution API não envia HMAC por padrão — rejeitar apenas se vier errado.
     if (inbox.webhook_secret) {
       const signature = req.headers['x-hub-signature-256'] || req.headers['x-webhook-hmac'];
-      if (!signature) {
-        logger.warn('Webhook HMAC ausente', { inboxId });
-        return;
-      }
-      const body     = req.rawBody || Buffer.from(JSON.stringify(req.body));
-      const expected = 'sha256=' + crypto.createHmac('sha256', inbox.webhook_secret).update(body).digest('hex');
-      const sigBuf   = Buffer.from(signature);
-      const expBuf   = Buffer.from(expected);
-      const valid    = sigBuf.length === expBuf.length && crypto.timingSafeEqual(sigBuf, expBuf);
-      if (!valid) {
-        logger.warn('Webhook HMAC inválido', { inboxId });
-        return;
+      if (signature) {
+        const body     = req.rawBody || Buffer.from(JSON.stringify(req.body));
+        const expected = 'sha256=' + crypto.createHmac('sha256', inbox.webhook_secret).update(body).digest('hex');
+        const sigBuf   = Buffer.from(signature);
+        const expBuf   = Buffer.from(expected);
+        const valid    = sigBuf.length === expBuf.length && crypto.timingSafeEqual(sigBuf, expBuf);
+        if (!valid) {
+          logger.warn('Webhook HMAC inválido', { inboxId });
+          return;
+        }
       }
     }
 
