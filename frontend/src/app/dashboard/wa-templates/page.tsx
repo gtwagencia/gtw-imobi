@@ -51,7 +51,7 @@ interface FormData {
 
 // ── Status helpers ─────────────────────────────────────────────────────────
 
-const BATCH_STATUS: Record<string, { label: string; color: string; icon: React.FC<{ className?: string }> }> = {
+const BATCH_STATUS: Record<string, { label: string; color: string; icon: React.FC<{ className?: string; size?: number }> }> = {
   generating: { label: 'Gerando',   color: 'bg-blue-100 text-blue-700',   icon: Loader2 },
   submitted:  { label: 'Enviado',   color: 'bg-yellow-100 text-yellow-700', icon: Clock },
   approved:   { label: 'Aprovado',  color: 'bg-green-100 text-green-700',  icon: CheckCircle },
@@ -60,7 +60,7 @@ const BATCH_STATUS: Record<string, { label: string; color: string; icon: React.F
   partial:    { label: 'Parcial',   color: 'bg-orange-100 text-orange-700', icon: AlertCircle },
 };
 
-const VARIANT_STATUS: Record<string, { label: string; color: string; icon: React.FC<{ className?: string }> }> = {
+const VARIANT_STATUS: Record<string, { label: string; color: string; icon: React.FC<{ className?: string; size?: number }> }> = {
   pending:   { label: 'Pendente',  color: 'text-yellow-600', icon: Clock },
   approved:  { label: 'Aprovado',  color: 'text-green-600',  icon: CheckCircle },
   rejected:  { label: 'Rejeitado', color: 'text-red-600',    icon: XCircle },
