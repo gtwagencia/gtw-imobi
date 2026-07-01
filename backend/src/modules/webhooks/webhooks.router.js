@@ -1360,4 +1360,34 @@ router.post('/site-leads/:workspaceId', async (req, res) => {
   }
 });
 
+// ════════════════════════════════════════════════════════════════════════
+// Praedium — Central de Conexões — "Envio de dados" (webhook de saída deles)
+// POST /api/v1/webhooks/praedium/:workspaceId
+// Header: Authorization: Bearer <inbound_token configurado no workspace>
+// ════════════════════════════════════════════════════════════════════════
+
+router.post('/praedium/:workspaceId', async (req, res) => {
+  // Praedium exige 200/201 rápido, senão reagenda retries por até 12h
+  res.json({ ok: true });
+
+  try {
+    const { workspaceId } = req.params;
+    const praediumSvc = require('../integrations/praedium.service');
+
+    const cfg = await praediumSvc.getConfig(workspaceId);
+    if (!cfg?.inbound_enabled) return;
+
+    const authHeader = req.headers.authorization || '';
+    const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+    if (!tokensMatch(token, cfg.inbound_token)) {
+      logger.warn('Praedium webhook: token inválido', { workspaceId });
+      return;
+    }
+
+    await praediumSvc.handleInboundEvent(workspaceId, req.body);
+  } catch (err) {
+    logger.error('Praedium webhook processing error', { err: err.message });
+  }
+});
+
 module.exports = router;

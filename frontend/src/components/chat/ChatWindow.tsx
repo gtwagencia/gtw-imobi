@@ -11,6 +11,7 @@ import type { Conversation, Message, Label, CannedResponse } from '@/types';
 import {
   Send, Check, CheckCheck, AlertCircle,
   Archive, UserCheck, ChevronDown, Lock, Tag, X, Star, FileText, Paperclip, Ticket, Megaphone, ArrowLeft, Bot, ChevronUp,
+  Building2,
 } from 'lucide-react';
 
 interface Props {
@@ -60,6 +61,13 @@ export default function ChatWindow({ conversation, onStatusChange, onBack }: Pro
   // Resumo de handoff gerado pela IA
   const [handoffSummary,  setHandoffSummary]  = useState<string | null>(conversation.bot_handoff_summary ?? null);
   const [summaryExpanded, setSummaryExpanded] = useState(true);
+  // Integração Praedium — envio manual do lead qualificado
+  const [praediumEnabled,     setPraediumEnabled]     = useState(false);
+  const [showPraedium,        setShowPraedium]        = useState(false);
+  const [praediumSummary,     setPraediumSummary]     = useState('');
+  const [praediumPropertyCode, setPraediumPropertyCode] = useState('');
+  const [praediumSending,     setPraediumSending]     = useState(false);
+  const [praediumError,       setPraediumError]       = useState('');
   const fileInputRef    = useRef<HTMLInputElement>(null);
   const bottomRef       = useRef<HTMLDivElement>(null);
   const assignRef       = useRef<HTMLDivElement>(null);
@@ -77,6 +85,14 @@ export default function ChatWindow({ conversation, onStatusChange, onBack }: Pro
     setHandoffSummary(conversation.bot_handoff_summary ?? null);
     setSummaryExpanded(true);
   }, [conversation.id, conversation.bot_handoff_summary]);
+
+  // Verifica se a integração Praedium está ativa neste workspace (uma vez por workspace)
+  useEffect(() => {
+    if (!currentWorkspace?.id) return;
+    api.get(`/workspaces/${currentWorkspace.id}/integrations/praedium`)
+      .then(({ data }) => setPraediumEnabled(!!data?.enabled))
+      .catch(() => setPraediumEnabled(false));
+  }, [currentWorkspace?.id]);
 
   // ── Load messages ──────────────────────────────────────────────
   useEffect(() => {
@@ -407,6 +423,32 @@ export default function ChatWindow({ conversation, onStatusChange, onBack }: Pro
     onStatusChange({ ...conversation, csat_rating: csatRating });
   }
 
+  function openPraediumModal() {
+    setPraediumSummary(handoffSummary || '');
+    setPraediumPropertyCode('');
+    setPraediumError('');
+    setShowPraedium(true);
+  }
+
+  async function sendToPraedium() {
+    setPraediumSending(true);
+    setPraediumError('');
+    try {
+      await api.post(`/workspaces/${conversation.workspace_id}/integrations/praedium/send`, {
+        conversationId: conversation.id,
+        propertyCode: praediumPropertyCode.trim() || undefined,
+        summary: praediumSummary.trim() || undefined,
+      });
+      setShowPraedium(false);
+      onStatusChange({ ...conversation, status: 'resolved', bot_active: false });
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error;
+      setPraediumError(msg || 'Erro ao enviar lead para o Praedium');
+    } finally {
+      setPraediumSending(false);
+    }
+  }
+
   const statusIcon = (s: string) => {
     if (s === 'sent')      return <Check       className="w-3.5 h-3.5 opacity-70" />;
     if (s === 'delivered') return <CheckCheck  className="w-3.5 h-3.5 opacity-90" />;
@@ -546,6 +588,17 @@ export default function ChatWindow({ conversation, onStatusChange, onBack }: Pro
             title="Criar ticket"
           >
             <Ticket className="w-4 h-4" />
+          </button>
+        )}
+
+        {/* Enviar para Praedium */}
+        {praediumEnabled && (
+          <button
+            onClick={openPraediumModal}
+            className="flex-shrink-0 p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+            title="Enviar lead qualificado para o Praedium"
+          >
+            <Building2 className="w-4 h-4" />
           </button>
         )}
 
@@ -1110,6 +1163,51 @@ export default function ChatWindow({ conversation, onStatusChange, onBack }: Pro
                 </button>
               </>
             )}
+          </div>
+        </div>
+      )}
+
+      {showPraedium && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50" onClick={() => setShowPraedium(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl p-6 w-96" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+                <Building2 className="w-4 h-4 text-gray-500" />
+                Enviar para o Praedium
+              </h3>
+              <button onClick={() => setShowPraedium(false)} className="text-gray-400 hover:text-gray-600">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <p className="text-xs text-gray-500 mb-3">
+              O lead será enviado ao Praedium e este atendimento será encerrado aqui — a gestão do funil continua por lá.
+            </p>
+
+            <label className="block text-xs font-medium text-gray-600 mb-1">Código do imóvel (opcional)</label>
+            <input
+              className="input text-sm mb-3"
+              value={praediumPropertyCode}
+              onChange={(e) => setPraediumPropertyCode(e.target.value)}
+              placeholder="Deixe vazio para usar o último imóvel ofertado"
+            />
+
+            <label className="block text-xs font-medium text-gray-600 mb-1">Resumo do atendimento</label>
+            <textarea
+              className="input text-sm mb-3"
+              rows={5}
+              value={praediumSummary}
+              onChange={(e) => setPraediumSummary(e.target.value)}
+              placeholder="O que o cliente quer, imóveis apresentados, próximos passos..."
+            />
+
+            {praediumError && <p className="text-xs text-red-500 mb-3">{praediumError}</p>}
+
+            <button onClick={sendToPraedium} disabled={praediumSending} className="btn-primary w-full mb-2">
+              {praediumSending ? 'Enviando...' : 'Enviar e encerrar atendimento'}
+            </button>
+            <button onClick={() => setShowPraedium(false)} className="btn-secondary w-full text-sm">
+              Cancelar
+            </button>
           </div>
         </div>
       )}

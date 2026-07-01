@@ -10,6 +10,7 @@ import { Save, Eye, EyeOff, Brain, Clock, MessageSquare, CheckCircle, Sparkles, 
 import clsx from 'clsx';
 import ModulesCard from '@/components/settings/ModulesCard';
 import MetaConnectButton from '@/components/settings/MetaConnectButton';
+import PraediumIntegrationCard from '@/components/settings/PraediumIntegrationCard';
 
 interface AuditLogEntry {
   id: string;
@@ -300,6 +301,7 @@ export default function SettingsPage() {
       items: [
         { id: 'meta-ads',       icon: <Megaphone className="w-4 h-4" />,    text: 'Meta Ads' },
         { id: 'site-integration', icon: <Globe className="w-4 h-4" />,      text: 'Site' },
+        { id: 'praedium',       icon: <Building2 className="w-4 h-4" />,    text: 'Praedium' },
         { id: 'zapsign',        icon: <Pen className="w-4 h-4" />,          text: 'ZapSign' },
       ],
     },
@@ -634,6 +636,8 @@ export default function SettingsPage() {
               </div>
             </div>
           </div>
+
+          <PraediumIntegrationCard workspaceId={currentWorkspace.id} />
 
           {/* ── Chaves de API dos Provedores ──────────────────────── */}
           <div id="ai-keys" className="card p-6 scroll-mt-4">

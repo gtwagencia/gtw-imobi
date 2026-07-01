@@ -492,6 +492,74 @@ async function sendEvolution(broadcast, phone) {
   return res?.data?.key?.id || null;
 }
 
+// ── Envio avulso de template (usado pela integração Praedium para iniciar a
+// qualificação proativamente quando um lead novo chega pelo webhook de entrada) ──
+
+async function sendTemplateToContact(workspaceId, { inboxId, contactId, templateName }) {
+  const inboxRes = await query(
+    `SELECT id, channel_type, waba_phone_number_id, waba_access_token
+     FROM inboxes WHERE id = $1 AND workspace_id = $2`,
+    [inboxId, workspaceId]
+  );
+  const inbox = inboxRes.rows[0];
+  if (!inbox) throw Object.assign(new Error('Inbox não encontrada'), { status: 404 });
+  if (inbox.channel_type !== 'whatsapp_official') {
+    throw Object.assign(new Error('Envio proativo só é suportado em inboxes WhatsApp oficial (WABA)'), { status: 400 });
+  }
+
+  const contactRes = await query(
+    'SELECT id, name, phone FROM contacts WHERE id = $1 AND workspace_id = $2',
+    [contactId, workspaceId]
+  );
+  const contact = contactRes.rows[0];
+  if (!contact?.phone) throw Object.assign(new Error('Contato sem telefone'), { status: 400 });
+
+  const tmplRes = await query(
+    `SELECT name, language FROM waba_templates WHERE workspace_id = $1 AND inbox_id = $2 AND name = $3 LIMIT 1`,
+    [workspaceId, inboxId, templateName]
+  );
+  const tmplRow = tmplRes.rows[0];
+  if (!tmplRow) throw Object.assign(new Error('Template não encontrado nesta inbox'), { status: 404 });
+
+  const bodyText   = await getTemplateBodyText(templateName);
+  const hasVariable = /\{\{\s*1\s*\}\}/.test(bodyText || '');
+  const components  = hasVariable
+    ? [{ type: 'body', parameters: [{ type: 'text', text: contact.name || 'olá' }] }]
+    : [];
+
+  const broadcastShaped = {
+    channel_type:         inbox.channel_type,
+    waba_phone_number_id: inbox.waba_phone_number_id,
+    waba_access_token:    inbox.waba_access_token,
+    message_type: 'template',
+    content: JSON.stringify({ name: tmplRow.name, language: { code: tmplRow.language }, components }),
+  };
+
+  const externalMsgId = await sendWaba(broadcastShaped, contact.phone);
+
+  const convSvc = require('../conversations/conversations.service');
+  const { conversation } = await convSvc.findOrCreate(workspaceId, {
+    inboxId, contactId, remoteJid: `${contact.phone}@s.whatsapp.net`,
+  });
+
+  const displayContent = hasVariable && bodyText
+    ? bodyText.replace(/\{\{\s*1\s*\}\}/, contact.name || '')
+    : (bodyText || `[Template: ${tmplRow.name}]`);
+
+  await query(
+    `INSERT INTO messages (conversation_id, direction, message_type, content, status, evolution_msg_id, is_private)
+     VALUES ($1, 'outbound', 'text', $2, 'sent', $3, false)
+     ON CONFLICT (evolution_msg_id) DO NOTHING`,
+    [conversation.id, displayContent, externalMsgId || null]
+  );
+  await query(
+    `UPDATE conversations SET last_outbound_at = NOW(), bot_active = true, updated_at = NOW() WHERE id = $1`,
+    [conversation.id]
+  );
+
+  return { conversationId: conversation.id, externalMsgId };
+}
+
 // ── Templates WABA ────────────────────────────────────────────────────────────
 
 async function listTemplates(workspaceId, inboxId) {
@@ -565,5 +633,6 @@ module.exports = {
   create, addContacts,
   start, pause, cancel, remove,
   listTemplates, syncTemplates,
+  sendTemplateToContact,
   runScheduledBroadcasts,
 };

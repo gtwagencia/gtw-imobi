@@ -1442,6 +1442,16 @@ async function executeAgentTool(name, input, ctx) {
         return { success: true };
       }
       case 'rotear_para_grupo': {
+        const praediumSvc = require('../modules/integrations/praedium.service');
+        const praediumCfg = await praediumSvc.getConfig(ctx.workspaceId);
+        if (praediumCfg?.enabled) {
+          try {
+            return await praediumSvc.handleQualifiedHandoff(ctx, input);
+          } catch (err) {
+            logger.warn('Praedium handoff falhou, roteando internamente como fallback', { conversationId: ctx.conversationId, err: err.message });
+          }
+        }
+
         const routingGroupSvc = require('../modules/ai-agent/ai-agent.service');
         const wanted = String(input.grupo || '').toLowerCase().trim();
 
@@ -1599,6 +1609,16 @@ async function executeAgentTool(name, input, ctx) {
         return { success: true, grupo: target.name, corretor: agentName };
       }
       case 'transferir_para_setor': {
+        const praediumSvc = require('../modules/integrations/praedium.service');
+        const praediumCfg = await praediumSvc.getConfig(ctx.workspaceId);
+        if (praediumCfg?.enabled) {
+          try {
+            return await praediumSvc.handleQualifiedHandoff(ctx, input);
+          } catch (err) {
+            logger.warn('Praedium handoff falhou, roteando internamente como fallback', { conversationId: ctx.conversationId, err: err.message });
+          }
+        }
+
         const departments = ctx.departments || [];
         if (!departments.length) {
           await query('UPDATE conversations SET bot_active = false WHERE id = $1', [ctx.conversationId]);
